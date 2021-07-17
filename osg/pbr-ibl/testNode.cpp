@@ -42,7 +42,6 @@ uniform vec3 albedo;
 uniform float metallic;
 uniform float roughness;
 uniform float ao;
-uniform samplerCube irrMap;
 
 uniform vec3 lightPositions[4];
 uniform vec3 lightColors[4];
@@ -119,15 +118,8 @@ void main(void)
 
 		lo += (kd *albedo / pi + specular) * radiance * ndotL;
 	}
-
-	vec3 ks = fresnelSchlick(max(dot(n, v), 0.0), f0);
-	vec3 kd = 1.0 - ks;
-	kd *= 1.0 - metallic;
-	vec3 irr = texture(irrMap, n).rgb;
-	vec3 diffuse = irr * albedo;
-	vec3 ambient = (kd * diffuse) * ao;
-
-	//vec3 ambient = vec3(0.03) * albedo * ao;
+	
+	vec3 ambient = vec3(0.03) * albedo * ao;
 	vec3 color = ambient + lo;
 
 	color = color / (color + vec3(1.0));
@@ -207,41 +199,6 @@ void main(void)
 	vec2 uv = sampleSphereUV(localPos);
 	vec3 color = texture(equirecTangularMap, uv).rgb;
 	gl_FragColor = vec4(color, 1.0);
-}
-
-)";
-
-static const char *irrFragSource = R"(
-
-#version 330 compatibility 
-
-in vec3 localPos;
-
-uniform samplerCube environmentMap;
-
-const float pi = 3.14159265359;
-
-void main(void)
-{
-	vec3 n = normalize(localPos);
-	vec3 irr = vec3(0);
-	vec3 up = vec3(0, 0, 1);
-	vec3 rt = normalize(cross(up, n));
-	up = normalize(cross(n, rt));
-	float sampleDelta = 0.025;
-	float numSamples = 0.0;
-	for(float phi = 0.0; phi < 2.0 * pi; phi += sampleDelta)
-	{
-		for(float theta = 0.0; theta < 0.5 * pi; theta += sampleDelta)
-		{	
-			vec3 tangentSample = vec3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
-			vec3 sampleVec = tangentSample.x * rt + tangentSample.y * up + tangentSample.z * n;
-			irr += texture(environmentMap, sampleVec).rgb * cos(theta) * sin(theta);
-			numSamples++;	
-		}
-	}
-	irr = pi * irr *(1.0 / float(numSamples));
-	gl_FragColor = vec4(irr, 1.0);
 }
 
 )";
@@ -397,7 +354,7 @@ TestNode::TestNode()
 		program->addShader(new osg::Shader(osg::Shader::FRAGMENT, hdrFragSource));
 		ss->setAttributeAndModes(program, osg::StateAttribute::ON);
 
-		std::string resPath = "D:\\dev\\gl-lighting\\resources\\";
+		std::string resPath = "D:\\dev\\lights\\resources\\";
 		auto img = osgDB::readImageFile(resPath + "hdr\\newport_loft.hdr");
 		img->setPixelFormat(GL_RGB);
 		img->setInternalTextureFormat(GL_RGB);
@@ -423,18 +380,6 @@ TestNode::TestNode()
 		ss->setTextureAttribute(0, _tex, StateAttribute::ON);
 		ss->getOrCreateUniform("envMap", Uniform::SAMPLER_CUBE)->set(0);
 
-		auto lightMap = new osg::TextureCubeMap;
-		lightMap->setTextureSize(32, 32);
-		lightMap->setInternalFormat(GL_RGBA);
-		lightMap->setFilter(lightMap->MIN_FILTER, lightMap->LINEAR);
-		lightMap->setFilter(lightMap->MAG_FILTER, lightMap->LINEAR);
-		lightMap->setWrap(lightMap->WRAP_S, lightMap->CLAMP_TO_EDGE);
-		lightMap->setWrap(lightMap->WRAP_T, lightMap->CLAMP_TO_EDGE);
-		lightMap->setWrap(lightMap->WRAP_R, lightMap->CLAMP_TO_EDGE);
-		getOrCreateStateSet()->setTextureAttribute(0, lightMap, StateAttribute::ON);
-		getOrCreateStateSet()->getOrCreateUniform("irrMap", Uniform::SAMPLER_CUBE)->set(0);
-		_texIrr = lightMap;
-
 		{
 			auto cam = new Camera;
 			cam->setRenderOrder(cam->PRE_RENDER);
@@ -445,7 +390,6 @@ TestNode::TestNode()
 			cam->setProjectionMatrix(Matrix::perspective(90.0f, 1.0f, 0.1f, metric * 2));
 			cam->addChild(geometry);
 			cam->setName("pre render");
-			cam->setClearMask(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 			auto ss = cam->getOrCreateStateSet();
 			osg::Program* program = new Program;
 			program->addShader(new Shader(Shader::VERTEX, intVertSource));
@@ -455,27 +399,6 @@ TestNode::TestNode()
 			ss->getOrCreateUniform("equireTangularMap", Uniform::SAMPLER_2D)->set(0);
 			//ss->getOrCreateUniform("color", Uniform::FLOAT_VEC3)->set(Vec3(0, 1, 0));
 			_camera = cam;
-		}
-		{
-			auto cam = new Camera;
-			cam->setRenderOrder(cam->PRE_RENDER);
-			cam->setReferenceFrame(cam->ABSOLUTE_RF);
-			cam->setComputeNearFarMode(cam->DO_NOT_COMPUTE_NEAR_FAR);
-			cam->setViewport(0, 0, 32, 32);
-			cam->setRenderTargetImplementation(cam->FRAME_BUFFER_OBJECT);
-			cam->setProjectionMatrix(Matrix::perspective(90.0f, 1.0f, 0.1f, metric * 2));
-			cam->addChild(geometry);
-			cam->setName("pre light");
-			cam->setClearMask(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-			auto ss = cam->getOrCreateStateSet();
-			osg::Program* program = new Program;
-			program->addShader(new Shader(Shader::VERTEX, intVertSource));
-			program->addShader(new Shader(Shader::FRAGMENT, irrFragSource));
-			ss->setAttributeAndModes(program, StateAttribute::OVERRIDE);
-			ss->setTextureAttribute(0, _tex,  StateAttribute::OVERRIDE);
-			ss->getOrCreateUniform("environmentMap", Uniform::SAMPLER_2D)->set(0);
-			//ss->getOrCreateUniform("color", Uniform::FLOAT_VEC3)->set(Vec3(0, 1, 0));
-			_cameraIrr = cam;
 		}
 	}
 }
@@ -490,29 +413,23 @@ void TestNode::traverse(NodeVisitor & nv)
 		auto vp = nv.asCullVisitor()->getViewPoint();
 		ss->getOrCreateUniform("camPos", osg::Uniform::FLOAT_VEC3)->set(vp);
 
-		static Matrix captureViews[] =
+		if(idx < 6)
 		{
-			Matrix::lookAt(Vec3(0.0f, 0.0f, 0.0f), Vec3(1.0f, 0.0f, 0.0f), Vec3(0.0f, -1.0f, 0.0f)),
-			Matrix::lookAt(Vec3(0.0f, 0.0f, 0.0f), Vec3(-1.0f, 0.0f, 0.0f), Vec3(0.0f, -1.0f, 0.0f)),
-			Matrix::lookAt(Vec3(0.0f, 0.0f, 0.0f), Vec3(0.0f, 1.0f, 0.0f), Vec3(0.0f, 0.0f, 1.0f)),
-			Matrix::lookAt(Vec3(0.0f, 0.0f, 0.0f), Vec3(0.0f, -1.0f, 0.0f), Vec3(0.0f, 0.0f, -1.0f)),
-			Matrix::lookAt(Vec3(0.0f, 0.0f, 0.0f), Vec3(0.0f, 0.0f, 1.0f), Vec3(0.0f, -1.0f, 0.0f)),
-			Matrix::lookAt(Vec3(0.0f, 0.0f, 0.0f), Vec3(0.0f, 0.0f, -1.0f), Vec3(0.0f, -1.0f, 0.0f)),
-		};
+			Matrix captureViews[] =
+			{
+				Matrix::lookAt(Vec3(0.0f, 0.0f, 0.0f), Vec3(1.0f, 0.0f, 0.0f), Vec3(0.0f, -1.0f, 0.0f)),
+				Matrix::lookAt(Vec3(0.0f, 0.0f, 0.0f), Vec3(-1.0f, 0.0f, 0.0f), Vec3(0.0f, -1.0f, 0.0f)),
+				Matrix::lookAt(Vec3(0.0f, 0.0f, 0.0f), Vec3(0.0f, 1.0f, 0.0f), Vec3(0.0f, 0.0f, 1.0f)),
+				Matrix::lookAt(Vec3(0.0f, 0.0f, 0.0f), Vec3(0.0f, -1.0f, 0.0f), Vec3(0.0f, 0.0f, -1.0f)),
+				Matrix::lookAt(Vec3(0.0f, 0.0f, 0.0f), Vec3(0.0f, 0.0f, 1.0f), Vec3(0.0f, -1.0f, 0.0f)),
+				Matrix::lookAt(Vec3(0.0f, 0.0f, 0.0f), Vec3(0.0f, 0.0f, -1.0f), Vec3(0.0f, -1.0f, 0.0f)),
+			};
 
-		if (idx < 6)
-		{
+			_camera->setClearMask(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 			_camera->attach(_camera->COLOR_BUFFER, _tex, 0, idx);
 			_camera->setViewMatrix(captureViews[idx]);
 			_camera->accept(nv);
 			_camera->dirtyAttachmentMap();
-			idx++;
-		}
-		else if (idx < 12) {
-			_cameraIrr->attach(_cameraIrr->COLOR_BUFFER, _texIrr, 0, idx - 6);
-			_cameraIrr->setViewMatrix(captureViews[idx - 6]);
-			_cameraIrr->accept(nv);
-			_cameraIrr->dirtyAttachmentMap();
 			idx++;
 		}
 	}

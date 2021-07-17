@@ -244,7 +244,7 @@ TestNode::TestNode()
 		ss->getOrCreateUniform("lightColors", Uniform::FLOAT_VEC3, 4)->setElement(i, lightColors[i]);
 
 
-	std::string texPath = "D:\\dev\\gl-lighting\\resources\\textures\\pbr\\rusted_iron\\";
+	std::string texPath = "D:\\dev\\lights\\resources\\textures\\pbr\\rusted_iron\\";
 	//std::string texPath = "D:\\dev\\gl-lighting\\gl-lighting\\resources\\textures\\pbr\\rusted_iron\\";
 	auto albedo = new osg::Texture2D(osgDB::readImageFile(texPath + "albedo.png"));
 	albedo->setFilter(Texture::MAG_FILTER, Texture::LINEAR);

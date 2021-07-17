@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.8.0)
 
 
 
-set(app_name basic-material)
+set(app_name basic_lighting)
 
 set(hdr
 	testNode.h
@@ -35,3 +35,4 @@ foreach(lib ${libs})
 	target_link_libraries(${app_name} debug ${${lib}_DEBUG} optimized ${${lib}_RELEASE})
 endforeach()
 
+set_target_properties(${app_name} PROPERTIES FOLDER "osg")

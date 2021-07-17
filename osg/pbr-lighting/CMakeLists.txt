@@ -35,3 +35,4 @@ foreach(lib ${libs})
 	target_link_libraries(${app_name} debug ${${lib}_DEBUG} optimized ${${lib}_RELEASE})
 endforeach()
 
+set_target_properties(${app_name} PROPERTIES FOLDER "osg")
