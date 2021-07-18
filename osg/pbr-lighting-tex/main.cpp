@@ -37,6 +37,7 @@ int main(int argc, char** argv)
         traits->setUndefinedScreenDetailsToDefaultScreen();
 
         osg::ref_ptr<osg::GraphicsContext> gc = osg::GraphicsContext::createGraphicsContext(traits.get());
+        gc->getState()->setCheckForGLErrors(osg::State::ONCE_PER_ATTRIBUTE);
 
         osg::ref_ptr<osg::Camera> camera = new osg::Camera;
 		

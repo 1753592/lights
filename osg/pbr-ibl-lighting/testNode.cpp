@@ -349,6 +349,7 @@ TestNode::TestNode()
 	ss->getOrCreateUniform("ao", Uniform::FLOAT)->set(1.f);
 	ss->getOrCreateUniform("albedo", Uniform::FLOAT_VEC3)->set(Vec3(0.5, 0, 0));
 
+	auto geometry = new osg::Geometry;
 	{
 		auto vertexs = new Vec3Array;
 		{
@@ -381,14 +382,29 @@ TestNode::TestNode()
 			vertexs->push_back({-metric, -metric, -metric});
 			vertexs->push_back({-metric, -metric,  metric});
 			vertexs->push_back({-metric,  metric,  metric});
+		
+			geometry->setVertexArray(vertexs);
 		}
 
 		auto normals = new Vec3Array;
 		normals->push_back({0, 0, -1});
-		auto geometry = new osg::Geometry;
-		geometry->setVertexArray(vertexs);
 		geometry->setNormalArray(normals, Array::BIND_PER_PRIMITIVE_SET);
-		geometry->addPrimitiveSet(new DrawArrays(GL_QUADS, 0, 24));
+		
+		{
+			int iidxs[] = { 0, 4, 8, 12, 16, 20 };
+			std::vector<uint32_t> idxs;
+			for (int i = 0; i < 6; i++)
+			{
+				idxs.push_back(iidxs[i]);
+				idxs.push_back(iidxs[i] + 1);
+				idxs.push_back(iidxs[i] + 2);
+				idxs.push_back(iidxs[i]);
+				idxs.push_back(iidxs[i] + 2);
+				idxs.push_back(iidxs[i] + 3);
+			}
+			geometry->addPrimitiveSet(new osg::DrawElementsUInt(GL_TRIANGLES, idxs.begin(), idxs.end()));
+		}
+
 		addChild(geometry);
 
 		auto ss = geometry->getOrCreateStateSet();
