@@ -99,6 +99,7 @@ public:
 	~VulkanView();
 
 	void    run();
+	void	update();
 private:
 	SDL_Window* _window;
 	VkInstance          _instance;

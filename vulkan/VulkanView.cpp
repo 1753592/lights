@@ -41,8 +41,10 @@ const std::vector<Vertex> vertices = {
 };
 
 const std::vector<uint16_t> indices = {
-	0, 1, 2, 2, 3, 0
+	0, 1, 2, 0, 2, 3
 };
+
+#define WM_PAINT 1
 
 VulkanView::VulkanView()
 {
@@ -58,6 +60,14 @@ VulkanView::~VulkanView()
 void VulkanView::run()
 {
 	mainLoop();
+}
+
+void VulkanView::update()
+{
+	SDL_Event ev;
+	ev.type = SDL_USEREVENT;
+	ev.user.code = WM_PAINT;
+	SDL_PushEvent(&ev);
 }
 
 void VulkanView::initWindow()
@@ -107,10 +117,16 @@ void VulkanView::mainLoop()
 					if (event.window.event == SDL_WINDOWEVENT_RESIZED)
 						recreateSwapChain();
 					break;
+				case SDL_USEREVENT:
+					if (event.user.code == WM_PAINT)
+						drawFrame();
+					break;
+				case SDL_MOUSEMOTION:
+					update();
+					break;
 				default:
 					break;
 			}
-			drawFrame();
 		}
 	}
 
@@ -278,9 +294,9 @@ void VulkanView::pickPhysicalDevice()
 	std::vector<VkPhysicalDevice> devices(deviceCount);
 	vkEnumeratePhysicalDevices(_instance, &deviceCount, devices.data());
 
-	for (const auto& _device : devices) {
-		if (isDeviceSuitable(_device)) {
-			_physicalDevice = _device;
+	for (const auto& device : devices) {
+		if (isDeviceSuitable(device)) {
+			_physicalDevice = device;
 			break;
 		}
 	}
@@ -899,8 +915,8 @@ void VulkanView::updateUniformBuffer(uint32_t currentImage)
 	UniformBufferObject ubo{};
 	ubo.model.makeRotate(time * osg::DegreesToRadians(90.0f), osg::Vec3(0.0f, 0.0f, 1.0f));
 	ubo.view = osg::Matrixf::lookAt(osg::Vec3(2.0f, 2.0f, 2.0f), osg::Vec3(0.0f, 0.0f, 0.0f), osg::Vec3(0.0f, 0.0f, 1.0f));
-	ubo.proj = osg::Matrixf::perspective(osg::DegreesToRadians(45.0f), _swapChainExtent.width / (float)_swapChainExtent.height, 0.1f, 10.0f);
-	//ubo.proj(-1, -1) *= -1;
+	ubo.proj = osg::Matrixf::perspective(60.0f, _swapChainExtent.width / (float)_swapChainExtent.height, 0.1f, 10.0f);
+	ubo.proj(1, 1) *= -1;
 
 	void* data;
 	vkMapMemory(_device, _uniformBuffersMemory[currentImage], 0, sizeof(ubo), 0, &data);
