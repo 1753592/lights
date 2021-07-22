@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <chrono>
+#include <thread>
 
 VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger)
 {
@@ -39,6 +40,10 @@ VulkanView::VulkanView()
 {
 	initWindow();
 	initVulkan();
+
+	_cam = osg::Vec3(20.0f, 0.0f, 0.0f);
+	_pos = osg::Vec3(0.0f, 0.0f, 0.0f);
+	_up = osg::Vec3(0, 0, 1);
 }
 
 VulkanView::~VulkanView()
@@ -89,6 +94,13 @@ void VulkanView::initVulkan()
 
 void VulkanView::mainLoop()
 {
+	std::thread td([this]() {
+		while (true) {
+			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+			update();
+		}
+	});
+
 	while (_runing) {
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
@@ -105,7 +117,20 @@ void VulkanView::mainLoop()
 						drawFrame();
 					break;
 				case SDL_MOUSEMOTION:
-					update();
+					if (event.motion.state & SDL_BUTTON_LMASK) {
+						osg::Vec3 tmp = _cam - _pos;
+						float xrad = event.motion.xrel / 100.f;
+						float yrad = event.motion.yrel / 100.f;
+						osg::Matrixf m; m.makeRotate(xrad, _up);
+						tmp = m.preMult(tmp);
+						osg::Vec3 rt = _up ^ tmp;
+						m.makeRotate(-yrad, rt);
+						tmp = m.preMult(tmp);
+						_cam = _pos + tmp;
+					}
+					else if (event.motion.state & SDL_BUTTON_RMASK) {
+
+					}
 					break;
 				default:
 					break;
@@ -417,11 +442,11 @@ void VulkanView::createRenderPass()
 	VkAttachmentDescription colorAttachment{};
 	colorAttachment.format = _swapChainImageFormat;
 	colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	colorAttachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
 	VkAttachmentReference colorAttachmentRef{};
@@ -868,21 +893,16 @@ uint32_t VulkanView::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags p
 	throw std::runtime_error("failed to find suitable memory type!");
 }
 
-void VulkanView::createDrawables()
-{
-	createScene1();
-}
-
 void VulkanView::updateUniformBuffer(uint32_t currentImage)
 {
-	static auto startTime = std::chrono::high_resolution_clock::now();
-
-	auto currentTime = std::chrono::high_resolution_clock::now();
-	float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+	//static auto startTime = std::chrono::high_resolution_clock::now();
+	//auto currentTime = std::chrono::high_resolution_clock::now();
+	//float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
 	UniformBufferObject ubo{};
-	ubo.model.makeRotate(time * osg::DegreesToRadians(90.0f), osg::Vec3(0.0f, 0.0f, 1.0f));
-	ubo.view = osg::Matrixf::lookAt(osg::Vec3(0.0f, 0.0f, 20.0f), osg::Vec3(0.0f, 0.0f, 0.0f), osg::Vec3(0.0f, 1.0f, 0.0f));
+	//ubo.model.makeRotate(time * osg::DegreesToRadians(90.0f), osg::Vec3(0.0f, 0.0f, 1.0f));
+	ubo.model.makeIdentity();
+	ubo.view = osg::Matrixf::lookAt(_cam, _pos, _up);
 	ubo.proj = osg::Matrixf::perspective(60.0f, _swapChainExtent.width / (float)_swapChainExtent.height, 0.1f, 100.0f);
 	ubo.proj(1, 1) *= -1;
 
@@ -917,15 +937,13 @@ void VulkanView::drawFrame()
 	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	VkSemaphore signalSemaphores[] = { _renderFinishedSemaphores[_currentFrame] };
 
-	VkCommandBuffer cmdbufs[2] = {_clearCommandBuffers[imageIndex], _commandBuffers[imageIndex]};
-
 	VkSubmitInfo submitInfo = {};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submitInfo.waitSemaphoreCount = 1;
 	submitInfo.pWaitSemaphores = waitSemaphores;
 	submitInfo.pWaitDstStageMask = waitStages;
-	submitInfo.commandBufferCount = 2;
-	submitInfo.pCommandBuffers = cmdbufs;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &_commandBuffers[imageIndex];
 	submitInfo.signalSemaphoreCount = 1;
 	submitInfo.pSignalSemaphores = signalSemaphores;
 
@@ -1161,92 +1179,8 @@ std::vector<char> VulkanView::readFile(const std::string& filename)
 	return buffer;
 }
 
-void VulkanView::createClearCmd()
+void VulkanView::createDrawables()
 {
-	{
-		_clearCommandBuffers.resize(_swapChainFramebuffers.size());
-
-		VkCommandBufferAllocateInfo allocInfo{};
-		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-		allocInfo.commandPool = _commandPool;
-		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		allocInfo.commandBufferCount = _swapChainFramebuffers.size();
-
-		if (vkAllocateCommandBuffers(_device, &allocInfo, _clearCommandBuffers.data()) != VK_SUCCESS) {
-			throw std::runtime_error("failed to allocate command buffers!");
-		}
-
-		VkImageSubresourceRange imageSubresourceRange;
-		imageSubresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		imageSubresourceRange.baseMipLevel = 0;
-		imageSubresourceRange.levelCount = 1;
-		imageSubresourceRange.baseArrayLayer = 0;
-		imageSubresourceRange.layerCount = 1;
-
-		VkCommandBufferBeginInfo beginInfo{};
-		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-		for (int i = 0; i < _swapChainFramebuffers.size(); i++) {
-			VkClearColorValue clearColor = { 1.0f, 0.0f, 0.0f, 1.0f };
-
-			vkBeginCommandBuffer(_clearCommandBuffers[i], &beginInfo);
-			vkCmdClearColorImage(_clearCommandBuffers[i], _swapChainImages[i], VK_IMAGE_LAYOUT_GENERAL, &clearColor, 1, &imageSubresourceRange);
-			vkEndCommandBuffer(_clearCommandBuffers[i]);
-		}
-	}
-}
-
-auto VulkanView::createSphere(osg::Vec3 pos, float radius)
-{
-	std::vector<osg::Vec3> vertexs;
-	std::vector<osg::Vec3> normals;
-	std::vector<osg::Vec2> uvs;
-	std::vector<uint16_t> indices;
-
-	const unsigned int X_SEGMENTS = 64;
-	const unsigned int Y_SEGMENTS = 64;
-	const float PI = 3.14159265359;
-	for (unsigned int y = 0; y <= Y_SEGMENTS; ++y) {
-		for (unsigned int x = 0; x <= X_SEGMENTS; ++x) {
-			float xSegment = (float)x / (float)X_SEGMENTS;
-			float ySegment = (float)y / (float)Y_SEGMENTS;
-			float xPos = radius * std::cos(xSegment * 2.0f * PI) * std::sin(ySegment * PI);
-			float yPos = radius * std::cos(ySegment * PI);
-			float zPos = radius * std::sin(xSegment * 2.0f * PI) * std::sin(ySegment * PI);
-
-			vertexs.push_back(osg::Vec3(xPos, yPos, zPos) + pos);
-			normals.push_back(osg::Vec3(xPos, yPos, zPos));
-			uvs.push_back(osg::Vec2(xSegment, ySegment));
-		}
-	}
-
-	bool oddRow = false;
-	for (unsigned int y = 0; y < Y_SEGMENTS; ++y) {
-		if (!oddRow) // even rows: y == 0, y == 2; and so on
-		{
-			for (unsigned int x = 0; x <= X_SEGMENTS; ++x) {
-				indices.push_back(y * (X_SEGMENTS + 1) + x);
-				indices.push_back((y + 1) * (X_SEGMENTS + 1) + x);
-			}
-		} else {
-			for (int x = X_SEGMENTS; x >= 0; --x) {
-				indices.push_back((y + 1) * (X_SEGMENTS + 1) + x);
-				indices.push_back(y * (X_SEGMENTS + 1) + x);
-			}
-		}
-		oddRow = !oddRow;
-	}
-	return std::tuple(vertexs, normals, uvs, indices);
-}
-
-auto VulkanView::createBox(osg::Vec3 pos, float hlen)
-{
-}
-
-void VulkanView::createScene1()
-{
-	createClearCmd();
-
 	createGraphicsPipeline();
 	createUniformBuffers();
 	createDescriptorPool();
@@ -1265,6 +1199,48 @@ void VulkanView::createScene1()
 			throw std::runtime_error("failed to allocate command buffers!");
 		}
 	}
+
+	auto createSphere = [](osg::Vec3 pos, float radius) {
+		std::vector<osg::Vec3> vertexs;
+		std::vector<osg::Vec3> normals;
+		std::vector<osg::Vec2> uvs;
+		std::vector<uint16_t> indices;
+
+		const unsigned int X_SEGMENTS = 64;
+		const unsigned int Y_SEGMENTS = 64;
+		const float PI = 3.14159265359;
+		for (unsigned int y = 0; y <= Y_SEGMENTS; ++y) {
+			for (unsigned int x = 0; x <= X_SEGMENTS; ++x) {
+				float xSegment = (float)x / (float)X_SEGMENTS;
+				float ySegment = (float)y / (float)Y_SEGMENTS;
+				float xPos = radius * std::cos(xSegment * 2.0f * PI) * std::sin(ySegment * PI);
+				float yPos = radius * std::cos(ySegment * PI);
+				float zPos = radius * std::sin(xSegment * 2.0f * PI) * std::sin(ySegment * PI);
+
+				vertexs.push_back(osg::Vec3(xPos, yPos, zPos) + pos);
+				normals.push_back(osg::Vec3(xPos, yPos, zPos));
+				uvs.push_back(osg::Vec2(xSegment, ySegment));
+			}
+		}
+
+		bool oddRow = false;
+		for (unsigned int y = 0; y < Y_SEGMENTS; ++y) {
+			if (!oddRow) // even rows: y == 0, y == 2; and so on
+			{
+				for (unsigned int x = 0; x <= X_SEGMENTS; ++x) {
+					indices.push_back(y * (X_SEGMENTS + 1) + x);
+					indices.push_back((y + 1) * (X_SEGMENTS + 1) + x);
+				}
+			} else {
+				for (int x = X_SEGMENTS; x >= 0; --x) {
+					indices.push_back((y + 1) * (X_SEGMENTS + 1) + x);
+					indices.push_back(y * (X_SEGMENTS + 1) + x);
+				}
+			}
+			oddRow = !oddRow;
+		}
+		return std::tuple(vertexs, normals, uvs, indices);
+	};
 
 	std::vector<std::tuple<VkBuffer, VkBuffer, VkBuffer, VkBuffer>> bufs;
 	float space = 2.5, radius = 1;
@@ -1298,7 +1274,7 @@ void VulkanView::createScene1()
 		renderPassInfo.renderArea.extent = _swapChainExtent;
 
 		VkClearValue clearColor = { 0.0f, 0.0f, 0.0f, 1.0f };
-		renderPassInfo.clearValueCount = 0;
+		renderPassInfo.clearValueCount = 1;
 		renderPassInfo.pClearValues = &clearColor;
 
 		vkCmdBeginRenderPass(_commandBuffers[k], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
@@ -1323,4 +1299,5 @@ void VulkanView::createScene1()
 			throw std::runtime_error("failed to record command buffer!");
 		}
 	}
+
 }

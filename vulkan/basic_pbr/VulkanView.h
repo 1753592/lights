@@ -146,7 +146,6 @@ protected:
 	void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
-	virtual void createDrawables();
 	virtual void updateUniformBuffer(uint32_t currentImage);
 	virtual void drawFrame();
 
@@ -165,11 +164,7 @@ protected:
 	static std::vector<char>	readFile(const std::string& filename);
 
 private:
-	void createClearCmd();
-
-	std::vector<VkCommandBuffer>	_clearCommandBuffers;
+	osg::Vec3 _pos, _cam, _up;
 public:
-	auto createSphere(osg::Vec3 pos, float radius);
-	auto createBox(osg::Vec3 pos, float hlen);
-	void createScene1();
+	virtual void createDrawables();
 };

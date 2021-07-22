@@ -17,5 +17,6 @@ add_subdirectory(pbr-lighting)
 add_subdirectory(pbr-lighting-tex)
 add_subdirectory(pbr-ibl)
 add_subdirectory(pbr-ibl-lighting)
+add_subdirectory(pbr-ibl-lighting-rfl)
 add_subdirectory(pbr-ibl-lighting-tex)
 
