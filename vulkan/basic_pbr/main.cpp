@@ -1,11 +1,19 @@
 #include "../VulkanView.h"
 
+class VulkanViewPbr : public VulkanView {
+
+public:
+	void createDrawables() override
+	{
+		createScene1();
+	}
+};
 
 
 int main(int argc, char** argv)
 {
 	try {
-		VulkanView vv;
+		VulkanViewPbr vv;
 		vv.run();
 	}
 	catch (std::runtime_error& e) {

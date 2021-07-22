@@ -5,11 +5,11 @@ cmake_minimum_required(VERSION 3.8.0)
 set(app_name basic_pbr)
 
 set(hdr
-	../VulkanView.h
+	VulkanView.h
 )
 
 set(src
-	../VulkanView.cpp
+	VulkanView.cpp
 	main.cpp
 )
 

@@ -33,17 +33,6 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityF
 	return VK_TRUE;
 }
 
-const std::vector<Vertex> vertices = {
-	{ { -0.5f, -0.5f }, { 1.0f, 0.0f, 0.0f } },
-	{ { 0.5f, -0.5f }, { 0.0f, 1.0f, 0.0f } },
-	{ { 0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f } },
-	{ { -0.5f, 0.5f }, { 1.0f, 1.0f, 1.0f } }
-};
-
-const std::vector<uint16_t> indices = {
-	0, 1, 2, 0, 2, 3
-};
-
 #define WM_PAINT 1
 
 VulkanView::VulkanView()
@@ -91,17 +80,11 @@ void VulkanView::initVulkan()
 	createImageViews();
 	createRenderPass();
 	createDescriptorSetLayout();
-	createGraphicsPipeline();
 	createFramebuffers();
 	createCommandPool();
-	createVertexBuffer();
-	createIndexBuffer();
-	createUniformBuffers();
-	createDescriptorPool();
-	createDescriptorSets();
-	createCommandBuffers();
 	createSyncObjects();
 
+	createDrawables();
 }
 
 void VulkanView::mainLoop()
@@ -140,7 +123,10 @@ void VulkanView::cleanupSwapChain()
 		vkDestroyFramebuffer(_device, framebuffer, nullptr);
 	}
 
-	vkFreeCommandBuffers(_device, _commandPool, static_cast<uint32_t>(_commandBuffers.size()), _commandBuffers.data());
+	for (int i = 0; i < _commandBuffers.size(); i++) {
+		//vkFreeCommandBuffers(_device, _commandPool, static_cast<uint32_t>(_commandBuffers[i].size()), _commandBuffers[i].data());
+		//_commandBuffers[i].clear();
+	}
 
 	vkDestroyPipeline(_device, _graphicsPipeline, nullptr);
 	vkDestroyPipelineLayout(_device, _pipelineLayout, nullptr);
@@ -167,11 +153,11 @@ void VulkanView::cleanup()
 
 	vkDestroyDescriptorSetLayout(_device, _descriptorSetLayout, nullptr);
 
-	vkDestroyBuffer(_device, _indexBuffer, nullptr);
-	vkFreeMemory(_device, _indexBufferMemory, nullptr);
-
-	vkDestroyBuffer(_device, _vertexBuffer, nullptr);
-	vkFreeMemory(_device, _vertexBufferMemory, nullptr);
+	//todo
+	//vkDestroyBuffer(_device, _indexBuffer, nullptr);
+	//vkFreeMemory(_device, _indexBufferMemory, nullptr);
+	//vkDestroyBuffer(_device, _vertexBuffer, nullptr);
+	//vkFreeMemory(_device, _vertexBufferMemory, nullptr);
 
 	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 		vkDestroySemaphore(_device, _renderFinishedSemaphores[i], nullptr);
@@ -206,12 +192,9 @@ void VulkanView::recreateSwapChain()
 	createSwapChain();
 	createImageViews();
 	createRenderPass();
-	createGraphicsPipeline();
 	createFramebuffers();
-	createUniformBuffers();
-	createDescriptorPool();
-	createDescriptorSets();
-	createCommandBuffers();
+
+	createDrawables();
 
 	_imagesInFlight.resize(_swapChainImages.size(), VK_NULL_HANDLE);
 }
@@ -434,11 +417,11 @@ void VulkanView::createRenderPass()
 	VkAttachmentDescription colorAttachment{};
 	colorAttachment.format = _swapChainImageFormat;
 	colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	colorAttachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
 	VkAttachmentReference colorAttachmentRef{};
@@ -516,17 +499,44 @@ void VulkanView::createGraphicsPipeline()
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
 	vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
-	auto bindingDescription = Vertex::getBindingDescription();
-	auto attributeDescriptions = Vertex::getAttributeDescriptions();
+	std::array<VkVertexInputBindingDescription, 3> bindingDescription{};
+	bindingDescription[0].binding = 0;
+	bindingDescription[0].stride = sizeof(osg::Vec3);
+	bindingDescription[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+	bindingDescription[1].binding = 1;
+	bindingDescription[1].stride = sizeof(osg::Vec3);
+	bindingDescription[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+	bindingDescription[2].binding = 2;
+	bindingDescription[2].stride = sizeof(osg::Vec2);
+	bindingDescription[2].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-	vertexInputInfo.vertexBindingDescriptionCount = 1;
+
+	std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
+
+	attributeDescriptions[0].binding = 0;
+	attributeDescriptions[0].location = 0;
+	attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+	attributeDescriptions[0].offset = 0;
+
+	attributeDescriptions[1].binding = 1;
+	attributeDescriptions[1].location = 1;
+	attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+	attributeDescriptions[1].offset = 0;
+
+	attributeDescriptions[2].binding = 2;
+	attributeDescriptions[2].location = 2;
+	attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+	attributeDescriptions[2].offset = 0;
+
+
+	vertexInputInfo.vertexBindingDescriptionCount = bindingDescription.size();
 	vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-	vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+	vertexInputInfo.pVertexBindingDescriptions = bindingDescription.data();
 	vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
 	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-	inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
 	inputAssembly.primitiveRestartEnable = VK_FALSE;
 
 	VkViewport viewport{};
@@ -647,30 +657,57 @@ void VulkanView::createCommandPool()
 	}
 }
 
-void VulkanView::createVertexBuffer()
+void VulkanView::createSyncObjects()
 {
-	VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+	_imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+	_renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+	_inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+	_imagesInFlight.resize(_swapChainImages.size(), VK_NULL_HANDLE);
 
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+	VkSemaphoreCreateInfo semaphoreInfo{};
+	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-	void* data;
-	vkMapMemory(_device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, vertices.data(), (size_t)bufferSize);
-	vkUnmapMemory(_device, stagingBufferMemory);
+	VkFenceCreateInfo fenceInfo{};
+	fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _vertexBuffer, _vertexBufferMemory);
-
-	copyBuffer(stagingBuffer, _vertexBuffer, bufferSize);
-
-	vkDestroyBuffer(_device, stagingBuffer, nullptr);
-	vkFreeMemory(_device, stagingBufferMemory, nullptr);
+	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+		if (vkCreateSemaphore(_device, &semaphoreInfo, nullptr, &_imageAvailableSemaphores[i]) != VK_SUCCESS ||
+			vkCreateSemaphore(_device, &semaphoreInfo, nullptr, &_renderFinishedSemaphores[i]) != VK_SUCCESS ||
+			vkCreateFence(_device, &fenceInfo, nullptr, &_inFlightFences[i]) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create synchronization objects for a frame!");
+		}
+	}
 }
 
-void VulkanView::createIndexBuffer()
+auto VulkanView::createVertexBuffer(void *vertices, unsigned len)
 {
-	VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+	VkDeviceSize bufferSize = len;
+
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+	void* data;
+	VkBuffer vertexBuffer;
+	VkDeviceMemory vertexBufferMemory;
+	vkMapMemory(_device, stagingBufferMemory, 0, bufferSize, 0, &data);
+	memcpy(data, vertices, (size_t)bufferSize);
+	vkUnmapMemory(_device, stagingBufferMemory);
+
+	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
+
+	copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+
+	vkDestroyBuffer(_device, stagingBuffer, nullptr);
+	vkFreeMemory(_device, stagingBufferMemory, nullptr);
+
+	return std::tuple(vertexBuffer, vertexBufferMemory);
+}
+
+auto VulkanView::createIndexBuffer(uint16_t* indices, unsigned len)
+{
+	VkDeviceSize bufferSize = len;
 
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
@@ -678,15 +715,19 @@ void VulkanView::createIndexBuffer()
 
 	void* data;
 	vkMapMemory(_device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, indices.data(), (size_t)bufferSize);
+	memcpy(data, indices, (size_t)bufferSize);
 	vkUnmapMemory(_device, stagingBufferMemory);
 
-	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _indexBuffer, _indexBufferMemory);
+	VkBuffer indexBuffer;
+	VkDeviceMemory indexBufferMemory;
+	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
 
-	copyBuffer(stagingBuffer, _indexBuffer, bufferSize);
+	copyBuffer(stagingBuffer, indexBuffer, bufferSize);
 
 	vkDestroyBuffer(_device, stagingBuffer, nullptr);
 	vkFreeMemory(_device, stagingBufferMemory, nullptr);
+
+	return std::tuple(indexBuffer, indexBufferMemory);
 }
 
 void VulkanView::createUniformBuffers()
@@ -827,82 +868,9 @@ uint32_t VulkanView::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags p
 	throw std::runtime_error("failed to find suitable memory type!");
 }
 
-void VulkanView::createCommandBuffers()
+void VulkanView::createDrawables()
 {
-	_commandBuffers.resize(_swapChainFramebuffers.size());
-
-	VkCommandBufferAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocInfo.commandPool = _commandPool;
-	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocInfo.commandBufferCount = (uint32_t)_commandBuffers.size();
-
-	if (vkAllocateCommandBuffers(_device, &allocInfo, _commandBuffers.data()) != VK_SUCCESS) {
-		throw std::runtime_error("failed to allocate command buffers!");
-	}
-
-	for (size_t i = 0; i < _commandBuffers.size(); i++) {
-		VkCommandBufferBeginInfo beginInfo{};
-		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-		if (vkBeginCommandBuffer(_commandBuffers[i], &beginInfo) != VK_SUCCESS) {
-			throw std::runtime_error("failed to begin recording command buffer!");
-		}
-
-		VkRenderPassBeginInfo renderPassInfo{};
-		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		renderPassInfo.renderPass = _renderPass;
-		renderPassInfo.framebuffer = _swapChainFramebuffers[i];
-		renderPassInfo.renderArea.offset = { 0, 0 };
-		renderPassInfo.renderArea.extent = _swapChainExtent;
-
-		VkClearValue clearColor = { 0.0f, 0.0f, 0.0f, 1.0f };
-		renderPassInfo.clearValueCount = 1;
-		renderPassInfo.pClearValues = &clearColor;
-
-		vkCmdBeginRenderPass(_commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-		vkCmdBindPipeline(_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _graphicsPipeline);
-
-		VkBuffer vertexBuffers[] = { _vertexBuffer };
-		VkDeviceSize offsets[] = { 0 };
-		vkCmdBindVertexBuffers(_commandBuffers[i], 0, 1, vertexBuffers, offsets);
-
-		vkCmdBindIndexBuffer(_commandBuffers[i], _indexBuffer, 0, VK_INDEX_TYPE_UINT16);
-
-		vkCmdBindDescriptorSets(_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1, &_descriptorSets[i], 0, nullptr);
-
-		vkCmdDrawIndexed(_commandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-
-		vkCmdEndRenderPass(_commandBuffers[i]);
-
-		if (vkEndCommandBuffer(_commandBuffers[i]) != VK_SUCCESS) {
-			throw std::runtime_error("failed to record command buffer!");
-		}
-	}
-}
-
-void VulkanView::createSyncObjects()
-{
-	_imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-	_renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-	_inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
-	_imagesInFlight.resize(_swapChainImages.size(), VK_NULL_HANDLE);
-
-	VkSemaphoreCreateInfo semaphoreInfo{};
-	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
-	VkFenceCreateInfo fenceInfo{};
-	fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-	fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-
-	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-		if (vkCreateSemaphore(_device, &semaphoreInfo, nullptr, &_imageAvailableSemaphores[i]) != VK_SUCCESS ||
-			vkCreateSemaphore(_device, &semaphoreInfo, nullptr, &_renderFinishedSemaphores[i]) != VK_SUCCESS ||
-			vkCreateFence(_device, &fenceInfo, nullptr, &_inFlightFences[i]) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create synchronization objects for a frame!");
-		}
-	}
+	createScene1();
 }
 
 void VulkanView::updateUniformBuffer(uint32_t currentImage)
@@ -914,8 +882,8 @@ void VulkanView::updateUniformBuffer(uint32_t currentImage)
 
 	UniformBufferObject ubo{};
 	ubo.model.makeRotate(time * osg::DegreesToRadians(90.0f), osg::Vec3(0.0f, 0.0f, 1.0f));
-	ubo.view = osg::Matrixf::lookAt(osg::Vec3(2.0f, 2.0f, 2.0f), osg::Vec3(0.0f, 0.0f, 0.0f), osg::Vec3(0.0f, 0.0f, 1.0f));
-	ubo.proj = osg::Matrixf::perspective(60.0f, _swapChainExtent.width / (float)_swapChainExtent.height, 0.1f, 10.0f);
+	ubo.view = osg::Matrixf::lookAt(osg::Vec3(0.0f, 0.0f, 20.0f), osg::Vec3(0.0f, 0.0f, 0.0f), osg::Vec3(0.0f, 1.0f, 0.0f));
+	ubo.proj = osg::Matrixf::perspective(60.0f, _swapChainExtent.width / (float)_swapChainExtent.height, 0.1f, 100.0f);
 	ubo.proj(1, 1) *= -1;
 
 	void* data;
@@ -945,19 +913,19 @@ void VulkanView::drawFrame()
 	}
 	_imagesInFlight[imageIndex] = _inFlightFences[_currentFrame];
 
-	VkSubmitInfo submitInfo{};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
 	VkSemaphore waitSemaphores[] = { _imageAvailableSemaphores[_currentFrame] };
 	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	VkSemaphore signalSemaphores[] = { _renderFinishedSemaphores[_currentFrame] };
+
+	VkCommandBuffer cmdbufs[2] = {_clearCommandBuffers[imageIndex], _commandBuffers[imageIndex]};
+
+	VkSubmitInfo submitInfo = {};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submitInfo.waitSemaphoreCount = 1;
 	submitInfo.pWaitSemaphores = waitSemaphores;
 	submitInfo.pWaitDstStageMask = waitStages;
-
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &_commandBuffers[imageIndex];
-
-	VkSemaphore signalSemaphores[] = { _renderFinishedSemaphores[_currentFrame] };
+	submitInfo.commandBufferCount = 2;
+	submitInfo.pCommandBuffers = cmdbufs;
 	submitInfo.signalSemaphoreCount = 1;
 	submitInfo.pSignalSemaphores = signalSemaphores;
 
@@ -1191,4 +1159,168 @@ std::vector<char> VulkanView::readFile(const std::string& filename)
 	file.close();
 
 	return buffer;
+}
+
+void VulkanView::createClearCmd()
+{
+	{
+		_clearCommandBuffers.resize(_swapChainFramebuffers.size());
+
+		VkCommandBufferAllocateInfo allocInfo{};
+		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+		allocInfo.commandPool = _commandPool;
+		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+		allocInfo.commandBufferCount = _swapChainFramebuffers.size();
+
+		if (vkAllocateCommandBuffers(_device, &allocInfo, _clearCommandBuffers.data()) != VK_SUCCESS) {
+			throw std::runtime_error("failed to allocate command buffers!");
+		}
+
+		VkImageSubresourceRange imageSubresourceRange;
+		imageSubresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		imageSubresourceRange.baseMipLevel = 0;
+		imageSubresourceRange.levelCount = 1;
+		imageSubresourceRange.baseArrayLayer = 0;
+		imageSubresourceRange.layerCount = 1;
+
+		VkCommandBufferBeginInfo beginInfo{};
+		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+		for (int i = 0; i < _swapChainFramebuffers.size(); i++) {
+			VkClearColorValue clearColor = { 1.0f, 0.0f, 0.0f, 1.0f };
+
+			vkBeginCommandBuffer(_clearCommandBuffers[i], &beginInfo);
+			vkCmdClearColorImage(_clearCommandBuffers[i], _swapChainImages[i], VK_IMAGE_LAYOUT_GENERAL, &clearColor, 1, &imageSubresourceRange);
+			vkEndCommandBuffer(_clearCommandBuffers[i]);
+		}
+	}
+}
+
+auto VulkanView::createSphere(osg::Vec3 pos, float radius)
+{
+	std::vector<osg::Vec3> vertexs;
+	std::vector<osg::Vec3> normals;
+	std::vector<osg::Vec2> uvs;
+	std::vector<uint16_t> indices;
+
+	const unsigned int X_SEGMENTS = 64;
+	const unsigned int Y_SEGMENTS = 64;
+	const float PI = 3.14159265359;
+	for (unsigned int y = 0; y <= Y_SEGMENTS; ++y) {
+		for (unsigned int x = 0; x <= X_SEGMENTS; ++x) {
+			float xSegment = (float)x / (float)X_SEGMENTS;
+			float ySegment = (float)y / (float)Y_SEGMENTS;
+			float xPos = radius * std::cos(xSegment * 2.0f * PI) * std::sin(ySegment * PI);
+			float yPos = radius * std::cos(ySegment * PI);
+			float zPos = radius * std::sin(xSegment * 2.0f * PI) * std::sin(ySegment * PI);
+
+			vertexs.push_back(osg::Vec3(xPos, yPos, zPos) + pos);
+			normals.push_back(osg::Vec3(xPos, yPos, zPos));
+			uvs.push_back(osg::Vec2(xSegment, ySegment));
+		}
+	}
+
+	bool oddRow = false;
+	for (unsigned int y = 0; y < Y_SEGMENTS; ++y) {
+		if (!oddRow) // even rows: y == 0, y == 2; and so on
+		{
+			for (unsigned int x = 0; x <= X_SEGMENTS; ++x) {
+				indices.push_back(y * (X_SEGMENTS + 1) + x);
+				indices.push_back((y + 1) * (X_SEGMENTS + 1) + x);
+			}
+		} else {
+			for (int x = X_SEGMENTS; x >= 0; --x) {
+				indices.push_back((y + 1) * (X_SEGMENTS + 1) + x);
+				indices.push_back(y * (X_SEGMENTS + 1) + x);
+			}
+		}
+		oddRow = !oddRow;
+	}
+	return std::tuple(vertexs, normals, uvs, indices);
+}
+
+auto VulkanView::createBox(osg::Vec3 pos, float hlen)
+{
+}
+
+void VulkanView::createScene1()
+{
+	createClearCmd();
+
+	createGraphicsPipeline();
+	createUniformBuffers();
+	createDescriptorPool();
+	createDescriptorSets();
+
+	{
+		_commandBuffers.resize(_swapChainFramebuffers.size());
+
+		VkCommandBufferAllocateInfo allocInfo{};
+		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+		allocInfo.commandPool = _commandPool;
+		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+		allocInfo.commandBufferCount = _swapChainFramebuffers.size();
+
+		if (vkAllocateCommandBuffers(_device, &allocInfo, _commandBuffers.data()) != VK_SUCCESS) {
+			throw std::runtime_error("failed to allocate command buffers!");
+		}
+	}
+
+	std::vector<std::tuple<VkBuffer, VkBuffer, VkBuffer, VkBuffer>> bufs;
+	float space = 2.5, radius = 1;
+	int idxsize = 0;
+	for (int i = 0; i < 7; i++) {
+		for (int j = 0; j < 7; j++) {
+			auto [v, n, u, ix] = createSphere(osg::Vec3((j - 3) * space, (i - 3) * space, 0), radius);
+			auto [vv, vvm] = createVertexBuffer(v.data(), v.size() * sizeof(osg::Vec3));
+			auto [vn, vnm] = createVertexBuffer(n.data(), n.size() * sizeof(osg::Vec3));
+			auto [vu, vum] = createVertexBuffer(u.data(), u.size() * sizeof(osg::Vec2));
+			auto [vi, vim] = createIndexBuffer(ix.data(), ix.size() * 2);
+			bufs.push_back(std::tuple(vv, vn, vu, vi));
+			idxsize = ix.size();
+		}
+	}
+
+	for (size_t k = 0; k < _commandBuffers.size(); k++) {
+		VkCommandBufferBeginInfo beginInfo{};
+		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		//beginInfo.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
+
+		if (vkBeginCommandBuffer(_commandBuffers[k], &beginInfo) != VK_SUCCESS) {
+			throw std::runtime_error("failed to begin recording command buffer!");
+		}
+
+		VkRenderPassBeginInfo renderPassInfo{};
+		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		renderPassInfo.renderPass = _renderPass;
+		renderPassInfo.framebuffer = _swapChainFramebuffers[k];
+		renderPassInfo.renderArea.offset = { 0, 0 };
+		renderPassInfo.renderArea.extent = _swapChainExtent;
+
+		VkClearValue clearColor = { 0.0f, 0.0f, 0.0f, 1.0f };
+		renderPassInfo.clearValueCount = 0;
+		renderPassInfo.pClearValues = &clearColor;
+
+		vkCmdBeginRenderPass(_commandBuffers[k], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+		vkCmdBindPipeline(_commandBuffers[k], VK_PIPELINE_BIND_POINT_GRAPHICS, _graphicsPipeline);
+
+		for (int i = 0; i < 49; i++) {
+			VkBuffer buf[3] = { std::get<0>(bufs[i]) , std::get<1>(bufs[i]), std::get<2>(bufs[i])};
+			VkDeviceSize offsets[] = { 0, 0, 0 };
+			vkCmdBindVertexBuffers(_commandBuffers[k], 0, 3, buf, offsets);
+
+			vkCmdBindIndexBuffer(_commandBuffers[k], std::get<3>(bufs[i]), 0, VK_INDEX_TYPE_UINT16);
+
+			vkCmdBindDescriptorSets(_commandBuffers[k], VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1, &_descriptorSets[k], 0, nullptr);
+
+			vkCmdDrawIndexed(_commandBuffers[k], static_cast<uint32_t>(idxsize), 1, 0, 0, 0);
+		}
+
+		vkCmdEndRenderPass(_commandBuffers[k]);
+
+		if (vkEndCommandBuffer(_commandBuffers[k]) != VK_SUCCESS) {
+			throw std::runtime_error("failed to record command buffer!");
+		}
+	}
 }
