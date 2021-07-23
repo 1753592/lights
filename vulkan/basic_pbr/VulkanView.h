@@ -106,6 +106,10 @@ private:
 	std::vector<VkFence>			_inFlightFences;
 	std::vector<VkFence>			_imagesInFlight;
 
+	VkImage			_depthImage;
+	VkDeviceMemory	_depthImageMemory;
+	VkImageView		_depthImageView;
+
 	size_t		_currentFrame = 0;
 	bool		_framebufferResized = false;
 	bool		_runing = true;
@@ -135,6 +139,7 @@ protected:
 	void createFramebuffers();
 	void createCommandPool();
 	void createSyncObjects();
+	void createDepthRes();
 
 	auto createVertexBuffer(void*, unsigned len);
 	auto createIndexBuffer(uint16_t *, unsigned len);
@@ -142,9 +147,13 @@ protected:
 	void createDescriptorPool();
 	void createDescriptorSets();
 
+	void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
 	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 	void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+	VkFormat findDepthFormat();
+	bool hasStencilComponent(VkFormat format);
+	VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 
 	virtual void updateUniformBuffer(uint32_t currentImage);
 	virtual void drawFrame();
@@ -154,6 +163,7 @@ protected:
 	VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
 	VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
 	SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
+	VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
 
 	bool isDeviceSuitable(VkPhysicalDevice device);
 	bool checkDeviceExtensionSupport(VkPhysicalDevice device);
