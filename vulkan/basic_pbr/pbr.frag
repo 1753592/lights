@@ -19,7 +19,7 @@ layout(binding = 1) uniform Lights{
 }
 lights;
 
-layout(binding = 2) uniform Material{
+layout(set=1, binding = 2) uniform Material{
 	vec3 albedo;
 	float metallic;
 	float roughness;
