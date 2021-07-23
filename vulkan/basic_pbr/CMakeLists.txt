@@ -17,10 +17,16 @@ set(libs
 	OSG_LIBRARY
 )
 
-
-
-
 add_executable(${app_name} ${src} ${hdr})
+
+set(SHADERS
+	pbr.vert
+	pbr.frag
+)
+
+source_group(shaders FILES ${SHADERS})
+target_sources(${app_name} PRIVATE ${SHADERS})
+
 
 set_target_properties(${app_name} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
                                                VS_DEBUGGER_COMMAND           "$<TARGET_FILE:${app_name}>"

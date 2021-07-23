@@ -59,6 +59,25 @@ struct UniformBufferObject {
 	alignas(16) osg::Matrixf model;
 	alignas(16) osg::Matrixf view;
 	alignas(16) osg::Matrixf proj;
+	osg::Vec3f	camPos;
+};
+
+struct UniformLights {
+	alignas(16) osg::Vec3f light1;
+	alignas(16) osg::Vec3f light2;
+	alignas(16) osg::Vec3f light3;
+	alignas(16) osg::Vec3f light4;
+	alignas(16) osg::Vec3f lightColor1;
+	alignas(16) osg::Vec3f lightColor2;
+	alignas(16) osg::Vec3f lightColor3;
+	alignas(16) osg::Vec3f lightColor4;
+};
+
+struct UniformMaterial {
+	float metallic;
+	float roughness;
+	float ao;
+	osg::Vec3 albedo;
 };
 
 class VulkanView {
@@ -88,6 +107,7 @@ private:
 
 	VkRenderPass				_renderPass;
 	VkDescriptorSetLayout		_descriptorSetLayout;
+	VkDescriptorSetLayout		_materialSetLayout;
 	VkPipelineLayout			_pipelineLayout;
 	VkPipeline					_graphicsPipeline;
 
@@ -96,8 +116,12 @@ private:
 	std::vector<VkBuffer> _uniformBuffers;
 	std::vector<VkDeviceMemory> _uniformBuffersMemory;
 
+	std::vector<VkBuffer> _material, _lights;
+	std::vector<VkDeviceMemory> _materialMemory, _lightsMemory;
+
 	VkDescriptorPool				_descriptorPool;
 	std::vector<VkDescriptorSet>	_descriptorSets;
+	std::vector<std::vector<VkDescriptorSet>> _materialSets;
 
 	std::vector<VkCommandBuffer>	_commandBuffers;
 

@@ -131,7 +131,13 @@ void VulkanView::mainLoop()
 						_cam = _pos + tmp;
 					}
 					else if (event.motion.state & SDL_BUTTON_RMASK) {
-
+						osg::Vec3 tmp = _cam - _pos;
+						tmp.normalize();
+						osg::Vec3 rt = _up ^ tmp;
+						rt *= -event.motion.xrel * 0.1;
+						auto up = _up * event.motion.yrel * 0.1;
+						_cam += rt; _cam += up;
+						_pos += rt; _pos += up;
 					}
 					else if (event.motion.state & SDL_BUTTON_MMASK) {
 
@@ -499,19 +505,39 @@ void VulkanView::createRenderPass()
 
 void VulkanView::createDescriptorSetLayout()
 {
-	VkDescriptorSetLayoutBinding uboLayoutBinding{};
-	uboLayoutBinding.binding = 0;
-	uboLayoutBinding.descriptorCount = 1;
-	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	uboLayoutBinding.pImmutableSamplers = nullptr;
-	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	VkDescriptorSetLayoutBinding uboLayoutBinding[2];
+	uboLayoutBinding[0].binding = 0;
+	uboLayoutBinding[0].descriptorCount = 1;
+	uboLayoutBinding[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uboLayoutBinding[0].pImmutableSamplers = nullptr;
+	uboLayoutBinding[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+	uboLayoutBinding[1].binding = 1;
+	uboLayoutBinding[1].descriptorCount = 1;
+	uboLayoutBinding[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uboLayoutBinding[1].pImmutableSamplers = nullptr;
+	uboLayoutBinding[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
 	VkDescriptorSetLayoutCreateInfo layoutInfo{};
 	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	layoutInfo.bindingCount = 1;
-	layoutInfo.pBindings = &uboLayoutBinding;
+	layoutInfo.bindingCount = 2;
+	layoutInfo.pBindings = uboLayoutBinding;
 
 	if (vkCreateDescriptorSetLayout(_device, &layoutInfo, nullptr, &_descriptorSetLayout) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create descriptor set layout!");
+	}
+
+	VkDescriptorSetLayoutBinding materialBinding{};
+	materialBinding.binding = 2;
+	materialBinding.descriptorCount = 1;
+	materialBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	materialBinding.pImmutableSamplers = nullptr;
+	materialBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	layoutInfo.bindingCount = 1;
+	layoutInfo.pBindings = &materialBinding;
+
+	if (vkCreateDescriptorSetLayout(_device, &layoutInfo, nullptr, &_materialSetLayout) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create descriptor set layout!");
 	}
 }
@@ -638,10 +664,11 @@ void VulkanView::createGraphicsPipeline()
 	colorBlending.blendConstants[2] = 0.0f;
 	colorBlending.blendConstants[3] = 0.0f;
 
+	VkDescriptorSetLayout layouts[2] = {_descriptorSetLayout, _materialSetLayout};
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipelineLayoutInfo.setLayoutCount = 1;
-	pipelineLayoutInfo.pSetLayouts = &_descriptorSetLayout;
+	pipelineLayoutInfo.setLayoutCount = 2;
+	pipelineLayoutInfo.pSetLayouts = layouts;
 
 	if (vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr, &_pipelineLayout) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create pipeline layout!");
@@ -792,27 +819,37 @@ auto VulkanView::createIndexBuffer(uint16_t* indices, unsigned len)
 
 void VulkanView::createUniformBuffers()
 {
-	VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+	int sz = _swapChainImages.size();
 
-	_uniformBuffers.resize(_swapChainImages.size());
-	_uniformBuffersMemory.resize(_swapChainImages.size());
+	_uniformBuffers.resize(sz);
+	_uniformBuffersMemory.resize(sz);
+	_material.resize(sz);
+	_materialMemory.resize(sz);
+	_lights.resize(sz);
+	_lightsMemory.resize(sz);
 
-	for (size_t i = 0; i < _swapChainImages.size(); i++) {
+	for (size_t i = 0; i < sz; i++) {
+		VkDeviceSize bufferSize = sizeof(UniformBufferObject);
 		createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _uniformBuffers[i], _uniformBuffersMemory[i]);
+		VkDeviceSize lightsSize = sizeof(UniformLights);
+		createBuffer(lightsSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _lights[i], _lightsMemory[i]);
+		VkDeviceSize materialSize = sizeof(UniformMaterial) * 49;
+		createBuffer(materialSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _material[i], _materialMemory[i]);
 	}
+
 }
 
 void VulkanView::createDescriptorPool()
 {
 	VkDescriptorPoolSize poolSize{};
 	poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	poolSize.descriptorCount = static_cast<uint32_t>(_swapChainImages.size());
+	poolSize.descriptorCount = 999;
 
 	VkDescriptorPoolCreateInfo poolInfo{};
 	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	poolInfo.poolSizeCount = 1;
 	poolInfo.pPoolSizes = &poolSize;
-	poolInfo.maxSets = static_cast<uint32_t>(_swapChainImages.size());
+	poolInfo.maxSets = 999;
 
 	if (vkCreateDescriptorPool(_device, &poolInfo, nullptr, &_descriptorPool) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create descriptor pool!");
@@ -829,26 +866,67 @@ void VulkanView::createDescriptorSets()
 	allocInfo.pSetLayouts = layouts.data();
 
 	_descriptorSets.resize(_swapChainImages.size());
+	_materialSets.resize(_swapChainImages.size());
 	if (vkAllocateDescriptorSets(_device, &allocInfo, _descriptorSets.data()) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate descriptor sets!");
 	}
 
+	std::vector<VkDescriptorSetLayout> malayouts(49, _materialSetLayout);
+	for (int i = 0; i < _swapChainImages.size(); i++) {
+		_materialSets[i].resize(49);
+		allocInfo.pSetLayouts = malayouts.data();
+		allocInfo.descriptorSetCount = 49;
+		if (vkAllocateDescriptorSets(_device, &allocInfo, _materialSets[i].data()) != VK_SUCCESS) {
+			throw std::runtime_error("failed to allocate descriptor sets!");
+		}
+	}
+
 	for (size_t i = 0; i < _swapChainImages.size(); i++) {
-		VkDescriptorBufferInfo bufferInfo{};
-		bufferInfo.buffer = _uniformBuffers[i];
-		bufferInfo.offset = 0;
-		bufferInfo.range = sizeof(UniformBufferObject);
+		VkDescriptorBufferInfo bufferInfo[2] = {};
+		bufferInfo[0].buffer = _uniformBuffers[i];
+		bufferInfo[0].offset = 0;
+		bufferInfo[0].range = sizeof(UniformBufferObject);
 
-		VkWriteDescriptorSet descriptorWrite{};
-		descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrite.dstSet = _descriptorSets[i];
-		descriptorWrite.dstBinding = 0;
-		descriptorWrite.dstArrayElement = 0;
-		descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		descriptorWrite.descriptorCount = 1;
-		descriptorWrite.pBufferInfo = &bufferInfo;
+		bufferInfo[1].buffer = _lights[i];
+		bufferInfo[1].offset = 0;
+		bufferInfo[1].range = sizeof(UniformLights);
 
-		vkUpdateDescriptorSets(_device, 1, &descriptorWrite, 0, nullptr);
+		VkWriteDescriptorSet descriptorWrite[2] = {};
+		descriptorWrite[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrite[0].dstSet = _descriptorSets[i];
+		descriptorWrite[0].dstBinding = 0;
+		descriptorWrite[0].dstArrayElement = 0;
+		descriptorWrite[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptorWrite[0].descriptorCount = 1;
+		descriptorWrite[0].pBufferInfo = bufferInfo;
+
+		descriptorWrite[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrite[1].dstSet = _descriptorSets[i];
+		descriptorWrite[1].dstBinding = 1;
+		descriptorWrite[1].dstArrayElement = 0;
+		descriptorWrite[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptorWrite[1].descriptorCount = 1;
+		descriptorWrite[1].pBufferInfo = bufferInfo + 1;
+
+		vkUpdateDescriptorSets(_device, 2, descriptorWrite, 0, nullptr);
+
+
+		bufferInfo[0].buffer = _material[i];
+		bufferInfo[0].offset = 0;
+		bufferInfo[0].range = sizeof(UniformMaterial);
+
+		for (int j = 0; j < 49; j++) {
+			VkWriteDescriptorSet descriptorWrite{};
+			descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			descriptorWrite.dstSet = _materialSets[i][j];
+			descriptorWrite.dstBinding = 2;
+			descriptorWrite.dstArrayElement = 0;
+			descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			descriptorWrite.descriptorCount = 1;
+			descriptorWrite.pBufferInfo = bufferInfo;
+
+			vkUpdateDescriptorSets(_device, 1, &descriptorWrite, 0, nullptr);
+		}
 	}
 }
 
@@ -976,6 +1054,7 @@ void VulkanView::updateUniformBuffer(uint32_t currentImage)
 	ubo.view = osg::Matrixf::lookAt(_cam, _pos, _up);
 	ubo.proj = osg::Matrixf::perspective(60.0f, _swapChainExtent.width / (float)_swapChainExtent.height, 0.1f, 1000.0f);
 	ubo.proj(1, 1) *= -1;
+	ubo.camPos = _cam;
 
 	void* data;
 	vkMapMemory(_device, _uniformBuffersMemory[currentImage], 0, sizeof(ubo), 0, &data);
@@ -1408,14 +1487,17 @@ void VulkanView::createDrawables()
 
 		vkCmdBindPipeline(_commandBuffers[k], VK_PIPELINE_BIND_POINT_GRAPHICS, _graphicsPipeline);
 
-		for (int i = 0; i < 49; i++) {
+		for (int i = 0; i < 1; i++) {
 			VkBuffer buf[3] = { std::get<0>(bufs[i]), std::get<1>(bufs[i]), std::get<2>(bufs[i]) };
 			VkDeviceSize offsets[] = { 0, 0, 0 };
 			vkCmdBindVertexBuffers(_commandBuffers[k], 0, 3, buf, offsets);
 
 			vkCmdBindIndexBuffer(_commandBuffers[k], std::get<3>(bufs[i]), 0, VK_INDEX_TYPE_UINT16);
 
-			vkCmdBindDescriptorSets(_commandBuffers[k], VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1, &_descriptorSets[k], 0, nullptr);
+			VkDescriptorSet sets[2] = {};
+			sets[0] = _descriptorSets[k];
+			sets[1] = _materialSets[k][i];
+			vkCmdBindDescriptorSets(_commandBuffers[k], VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 2, sets, 0, nullptr);
 
 			vkCmdDrawIndexed(_commandBuffers[k], static_cast<uint32_t>(idxsize), 1, 0, 0, 0);
 		}
