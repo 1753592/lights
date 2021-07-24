@@ -1,10 +1,10 @@
 #version 450
 
 layout(binding = 0) uniform UniformBufferObject {
+    vec3 cam;
     mat4 model;
     mat4 view;
     mat4 proj;
-    vec3 cam;
 } ubo;
 
 layout(location = 0) in vec3 inPosition;

@@ -7,10 +7,10 @@ layout(location = 2) in vec2 uv;
 layout(location = 0) out vec4 outColor;
 
 layout(binding = 0) uniform UniformBufferObject {
+    vec3 camPos;
     mat4 model;
     mat4 view;
     mat4 proj;
-    vec3 cam;
 } ubo;
 
 layout(binding = 1) uniform Lights{
@@ -19,11 +19,11 @@ layout(binding = 1) uniform Lights{
 }
 lights;
 
-layout(set=1, binding = 2) uniform Material{
-	vec3 albedo;
+/*layout(set=1, binding = 2) uniform*/ struct Material{
 	float metallic;
 	float roughness;
 	float ao;
+	vec3 albedo;
 }
 material;
 
@@ -31,52 +31,56 @@ const float pi = 3.14159265359;
 
 vec3 fresnelSchlick(float cosTheta, vec3 f0)
 {
-    return f0 + (1.0 - f0) * pow(1.0 - cosTheta, 5.0);
-}  
+	return f0 + (1.0 - f0) * pow(1.0 - cosTheta, 5.0);
+}
 
 float distributionGGX(vec3 n, vec3 h, float roughness)
 {
-    float a = roughness * roughness;
-    float a2 = a * a;
-    float ndotH = max(dot(n, h), 0.0);
-    float ndotH2 = ndotH * ndotH;
+	float a = roughness * roughness;
+	float a2 = a * a;
+	float ndotH = max(dot(n, h), 0.0);
+	float ndotH2 = ndotH * ndotH;
 
-    float denom = (ndotH2 * (a2 - 1.0) + 1.0);
-    denom = pi * denom * denom;
+	float denom = (ndotH2 * (a2 - 1.0) + 1.0);
+	denom = pi * denom * denom;
 
-    return a2 / max(denom, 0.0000001); 
+	return a2 / max(denom, 0.0000001);
 }
 
 float schlickGGX(float ndotV, float roughness)
 {
-    float r = (roughness + 1.0);
-    float k = (r * r) / 8.0;
+	float r = (roughness + 1.0);
+	float k = (r * r) / 8.0;
 
-    float denom = ndotV * (1.0 - k) + k;
+	float denom = ndotV * (1.0 - k) + k;
 
-    return ndotV / denom;
+	return ndotV / denom;
 }
 
 float smithGeometry(vec3 n, vec3 v, vec3 l, float roughness)
 {
-    float ndotV = max(dot(n, v), 0.0);
-    float ndotL = max(dot(n, l), 0.0);
-    float ggx2 = schlickGGX(ndotV, roughness);
-    float ggx1 = schlickGGX(ndotL, roughness);
+	float ndotV = max(dot(n, v), 0.0);
+	float ndotL = max(dot(n, l), 0.0);
+	float ggx2 = schlickGGX(ndotV, roughness);
+	float ggx1 = schlickGGX(ndotL, roughness);
 
-    return ggx1 * ggx2;
+	return ggx1 * ggx2;
 }
 
 void main(void)
 {
+	material.roughness = 0;
+	material.metallic = 1;
+	material.ao = 1;
+	material.albedo = vec3(0.5, 0, 0);
+
 	vec3 n = normalize(normal);
-	vec3 v = normalize(ubo.cam - fragPos);
+	vec3 v = normalize(ubo.camPos - fragPos);
 
 	vec3 f0 = vec3(0.04);
 	f0 = mix(f0, material.albedo, material.metallic);
 	vec3 lo = vec3(0.0);
-	for(int i = 0; i < 4; i++)
-	{
+	for (int i = 0; i < 4; i++) {
 		vec3 l = normalize(lights.lightPositions[i] - fragPos);
 		vec3 h = normalize(v + l);
 		float distance = length(lights.lightPositions[i] - fragPos);
@@ -98,14 +102,14 @@ void main(void)
 
 		lo += (kd * material.albedo / pi + specular) * radiance * ndotL;
 	}
-	
+
 	vec3 ambient = vec3(0.03) * material.albedo * material.ao;
 	vec3 color = ambient + lo;
+	color = lo;
 
 	color = color / (color + vec3(1.0));
-	color = pow(color, vec3(1.0/2.2));
+	color = pow(color, vec3(1.0 / 2.2));
 
 	outColor = vec4(color, 1.0);
-
-	//outColor = vec4(1, 0, 0, 1);
+	//outColor = vec4(lights.lightPositions[1], 1.0);
 }

@@ -41,9 +41,9 @@ VulkanView::VulkanView()
 	initWindow();
 	initVulkan();
 
-	_cam = osg::Vec3(20.0f, 0.0f, 0.0f);
+	_cam = osg::Vec3(0.0f, 0.0f, 20.0f);
 	_pos = osg::Vec3(0.0f, 0.0f, 0.0f);
-	_up = osg::Vec3(0, 0, 1);
+	_up = osg::Vec3(0, 1, 0);
 }
 
 VulkanView::~VulkanView()
@@ -836,7 +836,37 @@ void VulkanView::createUniformBuffers()
 		VkDeviceSize materialSize = sizeof(UniformMaterial) * 49;
 		createBuffer(materialSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _material[i], _materialMemory[i]);
 	}
+	UniformLights lights = {};
+	lights.light1 = osg::Vec3(1.f, 0.0f, 0.f);
+	lights.light2 = osg::Vec3(0.0f, 1.0f, 0.0f);
+	lights.light3 = osg::Vec3(-10.0f, -10.0f, 10.0f);
+	lights.light4 = osg::Vec3(10.0f, -10.0f, 10.0f);
+	lights.lightColor1 = osg::Vec3(300.0f, 300.0f, 300.0f);
+	lights.lightColor2 = osg::Vec3(300.0f, 300.0f, 300.0f);
+	lights.lightColor3 = osg::Vec3(300.0f, 300.0f, 300.0f);
+	lights.lightColor4 = osg::Vec3(300.0f, 300.0f, 300.0f);
 
+	osg::Vec3* tmp = (osg::Vec3*)&lights;
+
+	for (int i = 0; i < _swapChainFramebuffers.size(); i++) 		{
+		void* data;
+		vkMapMemory(_device, _lightsMemory[i], 0, sizeof(UniformLights), 0, &data);
+		memcpy(data, &lights, sizeof(lights));
+		vkUnmapMemory(_device, _lightsMemory[i]);
+
+		//for (int j = 0; j < 49; j++) 			{
+		//	UniformMaterial material;
+		//	material.metallic = (j / 7) / 7.0f;
+		//	material.roughness = (j % 7) / 7.0f;
+		//	material.albedo = osg::Vec3(0.5, 0, 0);
+		//	material.ao = 1;
+
+		//	void* data;
+		//	vkMapMemory(_device, _materialMemory[i], 0, sizeof(UniformLights), 0, &data);
+		//	memcpy((UniformLights *)data + j, &material, sizeof(material));
+		//	vkUnmapMemory(_device, _materialMemory[i]);
+		//}
+	}
 }
 
 void VulkanView::createDescriptorPool()
@@ -906,16 +936,14 @@ void VulkanView::createDescriptorSets()
 		descriptorWrite[1].dstArrayElement = 0;
 		descriptorWrite[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		descriptorWrite[1].descriptorCount = 1;
-		descriptorWrite[1].pBufferInfo = bufferInfo + 1;
+		descriptorWrite[1].pBufferInfo = &bufferInfo[1];
 
 		vkUpdateDescriptorSets(_device, 2, descriptorWrite, 0, nullptr);
 
-
-		bufferInfo[0].buffer = _material[i];
-		bufferInfo[0].offset = 0;
-		bufferInfo[0].range = sizeof(UniformMaterial);
-
 		for (int j = 0; j < 49; j++) {
+			bufferInfo[0].buffer = _material[i];
+			bufferInfo[0].offset = 0;//sizeof(UniformMaterial) * j;
+			bufferInfo[0].range = sizeof(UniformMaterial);
 			VkWriteDescriptorSet descriptorWrite{};
 			descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 			descriptorWrite.dstSet = _materialSets[i][j];
@@ -1487,7 +1515,7 @@ void VulkanView::createDrawables()
 
 		vkCmdBindPipeline(_commandBuffers[k], VK_PIPELINE_BIND_POINT_GRAPHICS, _graphicsPipeline);
 
-		for (int i = 0; i < 1; i++) {
+		for (int i = 0; i < 49; i++) {
 			VkBuffer buf[3] = { std::get<0>(bufs[i]), std::get<1>(bufs[i]), std::get<2>(bufs[i]) };
 			VkDeviceSize offsets[] = { 0, 0, 0 };
 			vkCmdBindVertexBuffers(_commandBuffers[k], 0, 3, buf, offsets);

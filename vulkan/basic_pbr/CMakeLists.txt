@@ -48,4 +48,4 @@ target_link_libraries(${app_name} SDL2::SDL2 SDL2::SDL2main)
 set_target_properties(${app_name} PROPERTIES FOLDER "v")
 
 
-compile_shader(${app_name} ENV opengl FORMAT num SOURCES ${SHADERS})
+compile_shader(${app_name} ENV opengl FORMAT bin SOURCES ${SHADERS})

@@ -56,10 +56,10 @@ struct SwapChainSupportDetails {
 };
 
 struct UniformBufferObject {
+	osg::Vec3f	camPos;
 	alignas(16) osg::Matrixf model;
 	alignas(16) osg::Matrixf view;
 	alignas(16) osg::Matrixf proj;
-	osg::Vec3f	camPos;
 };
 
 struct UniformLights {
@@ -77,7 +77,7 @@ struct UniformMaterial {
 	float metallic;
 	float roughness;
 	float ao;
-	osg::Vec3 albedo;
+	alignas(16) osg::Vec3 albedo;
 };
 
 class VulkanView {
