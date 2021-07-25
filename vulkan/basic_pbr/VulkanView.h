@@ -134,6 +134,8 @@ private:
 	VkDeviceMemory	_depthImageMemory;
 	VkImageView		_depthImageView;
 
+	size_t		_minoffset = 0x100;
+
 	size_t		_currentFrame = 0;
 	bool		_framebufferResized = false;
 	bool		_runing = true;

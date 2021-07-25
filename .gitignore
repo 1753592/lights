@@ -8,6 +8,7 @@
 .vs
 /lib/
 *.db
+*.spv
 /resources
 
 **/__pycache__

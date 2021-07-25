@@ -114,6 +114,7 @@ void main(void)
 	}
 	
 	vec3 ambient = vec3(0.03) * albedo * ao;
+	ambient = vec3(0);
 	vec3 color = ambient + lo;
 
 	color = color / (color + vec3(1.0));
@@ -207,6 +208,7 @@ TestNode::TestNode()
 			auto ss = gm->getOrCreateStateSet();
 			ss->getOrCreateUniform("metallic", Uniform::FLOAT)->set(float(i) / 7);
 			ss->getOrCreateUniform("roughness", Uniform::FLOAT)->set(osg::maximum(osg::minimum(float(j) / 7, 1.0f), 0.05f));
+			//ss->getOrCreateUniform("roughness", Uniform::FLOAT)->set(0.05f);
 		}
 	}
 

@@ -1,8 +1,8 @@
 #version 450
 
 layout(location = 0) in vec3 fragPos;
-layout(location = 1) in vec3 normal;
-layout(location = 2) in vec2 uv;
+layout(location = 1) in vec3 fragNormal;
+layout(location = 2) in vec2 fragUV;
 
 layout(location = 0) out vec4 outColor;
 
@@ -19,13 +19,13 @@ layout(binding = 1) uniform Lights{
 }
 lights;
 
-/*layout(set=1, binding = 2) uniform*/ struct Material{
+layout(set=1, binding = 2) uniform MaterialBufferObject{
 	float metallic;
 	float roughness;
 	float ao;
 	vec3 albedo;
 }
-material;
+mbo;
 
 const float pi = 3.14159265359;
 
@@ -41,7 +41,7 @@ float distributionGGX(vec3 n, vec3 h, float roughness)
 	float ndotH = max(dot(n, h), 0.0);
 	float ndotH2 = ndotH * ndotH;
 
-	float denom = (ndotH2 * (a2 - 1.0) + 1.0);
+	float denom = ndotH2 * (a2 - 1.0) + 1.0;
 	denom = pi * denom * denom;
 
 	return a2 / max(denom, 0.0000001);
@@ -69,16 +69,11 @@ float smithGeometry(vec3 n, vec3 v, vec3 l, float roughness)
 
 void main(void)
 {
-	material.roughness = 0;
-	material.metallic = 1;
-	material.ao = 1;
-	material.albedo = vec3(0.5, 0, 0);
-
-	vec3 n = normalize(normal);
+	vec3 n = normalize(fragNormal);
 	vec3 v = normalize(ubo.camPos - fragPos);
 
 	vec3 f0 = vec3(0.04);
-	f0 = mix(f0, material.albedo, material.metallic);
+	f0 = mix(f0, mbo.albedo, mbo.metallic);
 	vec3 lo = vec3(0.0);
 	for (int i = 0; i < 4; i++) {
 		vec3 l = normalize(lights.lightPositions[i] - fragPos);
@@ -87,29 +82,28 @@ void main(void)
 		float attenuation = 1.0 / (distance * distance);
 		vec3 radiance = lights.lightColors[i] * attenuation;
 
-		float nv = distributionGGX(n, h, material.roughness);
-		float gv = smithGeometry(n, v, l, material.roughness);
+		float nv = distributionGGX(n, h, mbo.roughness);
+		float gv = smithGeometry(n, v, l, mbo.roughness);
 		vec3 fv = fresnelSchlick(clamp(dot(h, v), 0.0, 1.0), f0);
 
 		vec3 nominator = nv * gv * fv;
 		float denominator = 4 * max(dot(n, v), 0) * max(dot(n, l), 0.0);
-		vec3 specular = nominator / max(denominator, 0.001);
+		vec3 specular = nominator / max(denominator, 0.000001);
 
 		vec3 ks = fv; vec3 kd = vec3(1.0) - ks;
-		kd *= (1.0 - material.metallic);
+		kd *= (1.0 - mbo.metallic);
 
 		float ndotL = max(dot(n, l), 0);
 
-		lo += (kd * material.albedo / pi + specular) * radiance * ndotL;
+		lo += (kd * mbo.albedo / pi + specular) * radiance * ndotL;
 	}
 
-	vec3 ambient = vec3(0.03) * material.albedo * material.ao;
+	vec3 ambient = vec3(0.03) * mbo.albedo * mbo.ao;
 	vec3 color = ambient + lo;
-	color = lo;
 
-	color = color / (color + vec3(1.0));
-	color = pow(color, vec3(1.0 / 2.2));
+	//color = color / (color + vec3(1.0));
+	//color = pow(color, vec3(1.0 / 2.2));
 
 	outColor = vec4(color, 1.0);
-	//outColor = vec4(lights.lightPositions[1], 1.0);
+	//outColor = vec4(lights.lightColors[0], 1.0);
 }

@@ -833,12 +833,12 @@ void VulkanView::createUniformBuffers()
 		createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _uniformBuffers[i], _uniformBuffersMemory[i]);
 		VkDeviceSize lightsSize = sizeof(UniformLights);
 		createBuffer(lightsSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _lights[i], _lightsMemory[i]);
-		VkDeviceSize materialSize = sizeof(UniformMaterial) * 49;
+		VkDeviceSize materialSize = _minoffset * 49;
 		createBuffer(materialSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _material[i], _materialMemory[i]);
 	}
 	UniformLights lights = {};
-	lights.light1 = osg::Vec3(1.f, 0.0f, 0.f);
-	lights.light2 = osg::Vec3(0.0f, 1.0f, 0.0f);
+	lights.light1 = osg::Vec3(10.f, 10.0f, 10.f);
+	lights.light2 = osg::Vec3(-10.0f, 10.0f, 10.0f);
 	lights.light3 = osg::Vec3(-10.0f, -10.0f, 10.0f);
 	lights.light4 = osg::Vec3(10.0f, -10.0f, 10.0f);
 	lights.lightColor1 = osg::Vec3(300.0f, 300.0f, 300.0f);
@@ -854,18 +854,17 @@ void VulkanView::createUniformBuffers()
 		memcpy(data, &lights, sizeof(lights));
 		vkUnmapMemory(_device, _lightsMemory[i]);
 
-		//for (int j = 0; j < 49; j++) 			{
-		//	UniformMaterial material;
-		//	material.metallic = (j / 7) / 7.0f;
-		//	material.roughness = (j % 7) / 7.0f;
-		//	material.albedo = osg::Vec3(0.5, 0, 0);
-		//	material.ao = 1;
+		vkMapMemory(_device, _materialMemory[i], 0, sizeof(UniformLights) * 49, 0, &data);
+		for (int j = 0; j < 49; j++) 			{
+			UniformMaterial material;
+			material.metallic = (j / 7) / 7.0f;
+			material.roughness = osg::maximum((j % 7) / 7.0f, 0.05f);
+			material.albedo = osg::Vec3(0.5, 0, 0);
+			material.ao = 1;
 
-		//	void* data;
-		//	vkMapMemory(_device, _materialMemory[i], 0, sizeof(UniformLights), 0, &data);
-		//	memcpy((UniformLights *)data + j, &material, sizeof(material));
-		//	vkUnmapMemory(_device, _materialMemory[i]);
-		//}
+			memcpy((char *)data + _minoffset * j, &material, sizeof(material));
+		}
+		vkUnmapMemory(_device, _materialMemory[i]);
 	}
 }
 
@@ -942,7 +941,7 @@ void VulkanView::createDescriptorSets()
 
 		for (int j = 0; j < 49; j++) {
 			bufferInfo[0].buffer = _material[i];
-			bufferInfo[0].offset = 0;//sizeof(UniformMaterial) * j;
+			bufferInfo[0].offset = _minoffset * j;
 			bufferInfo[0].range = sizeof(UniformMaterial);
 			VkWriteDescriptorSet descriptorWrite{};
 			descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1070,6 +1069,8 @@ uint32_t VulkanView::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags p
 	throw std::runtime_error("failed to find suitable memory type!");
 }
 
+osg::Matrixf mex(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 1);
+
 void VulkanView::updateUniformBuffer(uint32_t currentImage)
 {
 	//static auto startTime = std::chrono::high_resolution_clock::now();
@@ -1080,8 +1081,9 @@ void VulkanView::updateUniformBuffer(uint32_t currentImage)
 	//ubo.model.makeRotate(time * osg::DegreesToRadians(90.0f), osg::Vec3(0.0f, 0.0f, 1.0f));
 	ubo.model.makeIdentity();
 	ubo.view = osg::Matrixf::lookAt(_cam, _pos, _up);
-	ubo.proj = osg::Matrixf::perspective(60.0f, _swapChainExtent.width / (float)_swapChainExtent.height, 0.1f, 1000.0f);
-	ubo.proj(1, 1) *= -1;
+	ubo.proj = mex;
+	ubo.proj.preMult(osg::Matrixf::perspective(60.0f, _swapChainExtent.width / (float)_swapChainExtent.height, 0.1f, 1000.0f));
+	//ubo.proj = osg::Matrixf::perspective(60.0f, _swapChainExtent.width / (float)_swapChainExtent.height, 10.f, 1000.0f);
 	ubo.camPos = _cam;
 
 	void* data;
@@ -1460,13 +1462,13 @@ void VulkanView::createDrawables()
 			if (!oddRow) // even rows: y == 0, y == 2; and so on
 			{
 				for (unsigned int x = 0; x <= X_SEGMENTS; ++x) {
-					indices.push_back(y * (X_SEGMENTS + 1) + x);
 					indices.push_back((y + 1) * (X_SEGMENTS + 1) + x);
+					indices.push_back(y * (X_SEGMENTS + 1) + x);
 				}
 			} else {
 				for (int x = X_SEGMENTS; x >= 0; --x) {
-					indices.push_back((y + 1) * (X_SEGMENTS + 1) + x);
 					indices.push_back(y * (X_SEGMENTS + 1) + x);
+					indices.push_back((y + 1) * (X_SEGMENTS + 1) + x);
 				}
 			}
 			oddRow = !oddRow;
@@ -1506,7 +1508,7 @@ void VulkanView::createDrawables()
 		renderPassInfo.renderArea.extent = _swapChainExtent;
 
 		VkClearValue clearColor[2];
-		clearColor[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
+		clearColor[0].color = { 0.2f, 0.2f, 0.4f, 1.0f };
 		clearColor[1].depthStencil = { 1.f, 0 };
 		renderPassInfo.clearValueCount = 2;
 		renderPassInfo.pClearValues = clearColor;
