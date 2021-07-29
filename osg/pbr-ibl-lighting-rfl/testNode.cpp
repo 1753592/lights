@@ -570,7 +570,7 @@ TestNode::TestNode()
 		{
 			auto filterTex = new osg::TextureCubeMap;
 			filterTex->setTextureSize(128, 128);
-			filterTex->setSourceFormat(GL_FLOAT);
+			//filterTex->setSourceFormat(GL_FLOAT);
 			filterTex->setInternalFormat(GL_RGB16F);
 			filterTex->setFilter(filterTex->MIN_FILTER, filterTex->LINEAR_MIPMAP_LINEAR);
 			filterTex->setFilter(filterTex->MAG_FILTER, filterTex->LINEAR);
@@ -581,7 +581,7 @@ TestNode::TestNode()
 			//getOrCreateStateSet()->getOrCreateUniform("irrMap", Uniform::SAMPLER_CUBE)->set(0);
 			//filterTex->setMaxLOD(5);
 			filterTex->setUseHardwareMipMapGeneration(true);
-			filterTex->allocateMipmapLevels();
+			filterTex->setNumMipmapLevels(5);
 			_texFilter = filterTex;
 			ss->setTextureAttribute(0, _texFilter, StateAttribute::ON);
 			filterTex->setName("11111111111111111111111111111111");
@@ -682,16 +682,12 @@ void TestNode::traverse(NodeVisitor& nv)
 			_camera->dirtyAttachmentMap();
 			idx++;
 		} else if (idx < 12) {
-			_cameraIrr->attach(_cameraIrr->COLOR_BUFFER, _texIrr, 0, idx - 6);
-			_cameraIrr->setViewMatrix(captureViews[idx - 6]);
-			_cameraIrr->accept(nv);
-			_cameraIrr->dirtyAttachmentMap();
+			//_cameraIrr->attach(_cameraIrr->COLOR_BUFFER, _texIrr, 0, idx - 6);
+			//_cameraIrr->setViewMatrix(captureViews[idx - 6]);
+			//_cameraIrr->accept(nv);
+			//_cameraIrr->dirtyAttachmentMap();
 			idx++;
 		} else if (idx < 42) {
-			if (idx > 23) 				{
-				idx++;
-				return;
-			}
 			int idxtmp = idx - 12;
 			int level = idxtmp / 6;
 			int face = idxtmp % 6;
