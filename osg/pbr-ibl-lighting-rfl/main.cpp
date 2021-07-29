@@ -6,11 +6,13 @@
 
 
 #include <iostream>
+#include <stdlib.h>
 
 using namespace osg;
 
 int main(int argc, char** argv)
 {
+    _putenv_s("OSG_GL_CONTEXT_VERSION", "4.6");
 	Quat q(90, Vec3d(0, 0, 1));
 	Vec3 xx(1, 0, 0);
 	auto yy = q * xx;

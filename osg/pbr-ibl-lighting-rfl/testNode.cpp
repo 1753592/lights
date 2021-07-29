@@ -55,6 +55,11 @@ vec3 fresnelSchlick(float cosTheta, vec3 f0)
     return f0 + (1.0 - f0) * pow(1.0 - cosTheta, 5.0);
 }  
 
+vec3 fresnelSchlickRoughness(float cosTheta, vec3 f0, float roughness)
+{
+    return f0 + (max(vec3(1.0 - roughness), f0) - f0) * pow(max(1.0 - cosTheta, 0.0), 5.0);
+}   
+
 float distributionGGX(vec3 n, vec3 h, float roughness)
 {
     float a = roughness * roughness;
@@ -120,7 +125,7 @@ void main(void)
 		lo += (kd *albedo / pi + specular) * radiance * ndotL;
 	}
 
-	vec3 ks = fresnelSchlick(max(dot(n, v), 0.0), f0);
+	vec3 ks = fresnelSchlickRoughness(max(dot(n, v), 0.0), f0, roughness);
 	vec3 kd = 1.0 - ks;
 	kd *= 1.0 - metallic;
 	vec3 irr = texture(irrMap, n).rgb;
@@ -163,7 +168,7 @@ uniform vec3 color;
 
 void main(void)
 {
-	vec3 envColor = texture(envMap, localPos).rgb;
+	vec3 envColor = textureLod(envMap, localPos, 100).rgb;
 	envColor = envColor / (envColor + vec3(1.0));
 	envColor = pow(envColor, vec3(1.0 / 2.2));
 	gl_FragColor = vec4(envColor, 1.0);
@@ -242,6 +247,117 @@ void main(void)
 	}
 	irr = pi * irr *(1.0 / float(numSamples));
 	gl_FragColor = vec4(irr, 1.0);
+}
+
+)";
+
+static const char* filterFragSource = R"(
+#version 330 core
+
+out vec4 fragColor;
+in vec3 localPos;
+
+uniform samplerCube environmentMap;
+uniform float roughness;
+
+const float pi = 3.14159265359;
+// ----------------------------------------------------------------------------
+float distributionGGX(vec3 n, vec3 h, float roughness)
+{
+    float a = roughness * roughness;
+    float a2 = a * a;
+    float ndotH = max(dot(n, h), 0.0);
+    float ndotH2 = ndotH * ndotH;
+
+    float denom = (ndotH2 * (a2 - 1.0) + 1.0);
+    denom = pi * denom * denom;
+
+    return a2 / max(denom, 0.0000001); 
+}
+// ----------------------------------------------------------------------------
+// http://holger.dammertz.org/stuff/notes_HammersleyOnHemisphere.html
+// efficient VanDerCorpus calculation.
+float radicalInverse_VdC(uint bits) 
+{
+     bits = (bits << 16u) | (bits >> 16u);
+     bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
+     bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
+     bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
+     bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
+     return float(bits) * 2.3283064365386963e-10; // / 0x100000000
+}
+// ----------------------------------------------------------------------------
+vec2 hammersley(uint i, uint n)
+{
+	return vec2(float(i)/float(n), radicalInverse_VdC(i));
+}
+// ----------------------------------------------------------------------------
+vec3 importanceSampleGGX(vec2 xi, vec3 n, float roughness)
+{
+	float a = roughness*roughness;
+	
+	float phi = 2.0 * pi * xi.x;
+	float cosTheta = sqrt((1.0 - xi.y) / (1.0 + (a*a - 1.0) * xi.y));
+	float sinTheta = sqrt(1.0 - cosTheta * cosTheta);
+	
+	// from spherical coordinates to cartesian coordinates - halfway vector
+	vec3 h;
+	h.x = cos(phi) * sinTheta;
+	h.y = sin(phi) * sinTheta;
+	h.z = cosTheta;
+	
+	// from tangent-space H vector to world-space sample vector
+	vec3 up          = abs(n.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+	vec3 tangent   = normalize(cross(up, n));
+	vec3 bitangent = cross(n, tangent);
+	
+	vec3 sampleVec = tangent * h.x + bitangent * h.y + n * h.z;
+	return normalize(sampleVec);
+}
+
+// ----------------------------------------------------------------------------
+void main()
+{		
+    vec3 n = normalize(localPos);
+    
+    // make the simplyfying assumption that V equals R equals the normal 
+    vec3 r = n;
+    vec3 v = r;
+
+    const uint SAMPLE_COUNT = 1024u;
+    vec3 prefilteredColor = vec3(0.0);
+    float totalWeight = 0.0;
+    
+    for(uint i = 0u; i < SAMPLE_COUNT; ++i)
+    {
+        // generates a sample vector that's biased towards the preferred alignment direction (importance sampling).
+        vec2 xi = hammersley(i, SAMPLE_COUNT);
+        vec3 h = importanceSampleGGX(xi, n, roughness);
+        vec3 l  = normalize(2.0 * dot(v, h) * h - v);
+
+        float ndotL = max(dot(n, l), 0.0);
+        if(ndotL > 0.0)
+        {
+            // sample from the environment's mip level based on roughness/pdf
+            float d   = distributionGGX(n, h, roughness);
+            float ndotH = max(dot(n, h), 0.0);
+            float hdotV = max(dot(h, v), 0.0);
+            float pdf = d * ndotH / (4.0 * hdotV) + 0.0001; 
+
+            float resolution = 512.0; // resolution of source cubemap (per face)
+            float saTexel  = 4.0 * pi / (6.0 * resolution * resolution);
+            float saSample = 1.0 / (float(SAMPLE_COUNT) * pdf + 0.0001);
+
+            float mipLevel = roughness == 0.0 ? 0.0 : 0.5 * log2(saSample / saTexel); 
+            
+            prefilteredColor += textureLod(environmentMap, l, mipLevel).rgb * ndotL;
+            totalWeight      += ndotL;
+        }
+    }
+
+    prefilteredColor = prefilteredColor / totalWeight;
+
+    fragColor = vec4(prefilteredColor, 1.0);
 }
 
 )";
@@ -425,15 +541,15 @@ TestNode::TestNode()
 		tex->setWrap(tex->WRAP_T, tex->CLAMP_TO_EDGE);
 		tex->setResizeNonPowerOfTwoHint(false);
 
-
 		auto envMap = new osg::TextureCubeMap;
 		envMap->setTextureSize(512, 512);
 		envMap->setInternalFormat(GL_RGBA);
-		envMap->setFilter(envMap->MIN_FILTER, envMap->LINEAR);
+		envMap->setFilter(envMap->MIN_FILTER, envMap->LINEAR_MIPMAP_LINEAR);
 		envMap->setFilter(envMap->MAG_FILTER, envMap->LINEAR);
 		envMap->setWrap(envMap->WRAP_S, envMap->CLAMP_TO_EDGE);
 		envMap->setWrap(envMap->WRAP_T, envMap->CLAMP_TO_EDGE);
 		envMap->setWrap(envMap->WRAP_R, envMap->CLAMP_TO_EDGE);
+		envMap->setUseHardwareMipMapGeneration(true);
 		_tex = envMap;
 
 		ss->setTextureAttribute(0, _tex, StateAttribute::ON);
@@ -452,6 +568,26 @@ TestNode::TestNode()
 		_texIrr = lightMap;
 
 		{
+			auto filterTex = new osg::TextureCubeMap;
+			filterTex->setTextureSize(128, 128);
+			filterTex->setSourceFormat(GL_FLOAT);
+			filterTex->setInternalFormat(GL_RGB16F);
+			filterTex->setFilter(filterTex->MIN_FILTER, filterTex->LINEAR_MIPMAP_LINEAR);
+			filterTex->setFilter(filterTex->MAG_FILTER, filterTex->LINEAR);
+			filterTex->setWrap(filterTex->WRAP_S, filterTex->CLAMP_TO_EDGE);
+			filterTex->setWrap(filterTex->WRAP_T, filterTex->CLAMP_TO_EDGE);
+			filterTex->setWrap(filterTex->WRAP_R, filterTex->CLAMP_TO_EDGE);
+			//getOrCreateStateSet()->setTextureAttribute(0, lightMap, StateAttribute::ON);
+			//getOrCreateStateSet()->getOrCreateUniform("irrMap", Uniform::SAMPLER_CUBE)->set(0);
+			//filterTex->setMaxLOD(5);
+			filterTex->setUseHardwareMipMapGeneration(true);
+			filterTex->allocateMipmapLevels();
+			_texFilter = filterTex;
+			ss->setTextureAttribute(0, _texFilter, StateAttribute::ON);
+			filterTex->setName("11111111111111111111111111111111");
+		}
+
+		{
 			auto cam = new Camera;
 			cam->setRenderOrder(cam->PRE_RENDER);
 			cam->setReferenceFrame(cam->ABSOLUTE_RF);
@@ -467,7 +603,7 @@ TestNode::TestNode()
 			program->addShader(new Shader(Shader::VERTEX, intVertSource));
 			program->addShader(new Shader(Shader::FRAGMENT, intFragSource));
 			ss->setAttributeAndModes(program, StateAttribute::OVERRIDE);
-			ss->setTextureAttribute(0, tex,  StateAttribute::OVERRIDE);
+			ss->setTextureAttribute(0, tex, StateAttribute::OVERRIDE);
 			ss->getOrCreateUniform("equireTangularMap", Uniform::SAMPLER_2D)->set(0);
 			//ss->getOrCreateUniform("color", Uniform::FLOAT_VEC3)->set(Vec3(0, 1, 0));
 			_camera = cam;
@@ -488,20 +624,43 @@ TestNode::TestNode()
 			program->addShader(new Shader(Shader::VERTEX, intVertSource));
 			program->addShader(new Shader(Shader::FRAGMENT, irrFragSource));
 			ss->setAttributeAndModes(program, StateAttribute::OVERRIDE);
-			ss->setTextureAttribute(0, _tex,  StateAttribute::OVERRIDE);
+			ss->setTextureAttribute(0, _tex, StateAttribute::OVERRIDE);
 			ss->getOrCreateUniform("environmentMap", Uniform::SAMPLER_2D)->set(0);
 			//ss->getOrCreateUniform("color", Uniform::FLOAT_VEC3)->set(Vec3(0, 1, 0));
 			_cameraIrr = cam;
+		}
+		{
+			auto cam = new Camera;
+			cam->setRenderOrder(cam->PRE_RENDER);
+			cam->setReferenceFrame(cam->ABSOLUTE_RF);
+			cam->setComputeNearFarMode(cam->DO_NOT_COMPUTE_NEAR_FAR);
+			cam->setRenderTargetImplementation(cam->FRAME_BUFFER_OBJECT);
+			cam->setProjectionMatrix(Matrix::perspective(90.0f, 1.0f, 0.1f, metric * 2));
+			cam->addChild(geometry);
+			cam->setName("pre rfl");
+			cam->setClearMask(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+			cam->setImplicitBufferAttachmentResolveMask(0);
+			auto ss = cam->getOrCreateStateSet();
+			osg::Program* program = new Program;
+			program->addShader(new Shader(Shader::VERTEX, intVertSource));
+			program->addShader(new Shader(Shader::FRAGMENT, filterFragSource));
+			ss->setAttributeAndModes(program, StateAttribute::OVERRIDE);
+			ss->setTextureAttribute(0, _tex, StateAttribute::OVERRIDE);
+			ss->getOrCreateUniform("environmentMap", Uniform::SAMPLER_2D)->set(0);
+
+			_cameraFilter = cam;
+		}
+		{
+
 		}
 	}
 }
 
 static int idx = 0;
 
-void TestNode::traverse(NodeVisitor & nv)
+void TestNode::traverse(NodeVisitor& nv)
 {
-	if (nv.getVisitorType() == NodeVisitor::CULL_VISITOR)
-	{
+	if (nv.getVisitorType() == NodeVisitor::CULL_VISITOR) {
 		auto ss = getOrCreateStateSet();
 		auto vp = nv.asCullVisitor()->getViewPoint();
 		ss->getOrCreateUniform("camPos", osg::Uniform::FLOAT_VEC3)->set(vp);
@@ -516,29 +675,41 @@ void TestNode::traverse(NodeVisitor & nv)
 			Matrix::lookAt(Vec3(0.0f, 0.0f, 0.0f), Vec3(0.0f, 0.0f, -1.0f), Vec3(0.0f, -1.0f, 0.0f)),
 		};
 
-		if (idx < 6)
-		{
+		if (idx < 6) {
 			_camera->attach(_camera->COLOR_BUFFER, _tex, 0, idx);
 			_camera->setViewMatrix(captureViews[idx]);
 			_camera->accept(nv);
 			_camera->dirtyAttachmentMap();
 			idx++;
-		}
-		else if (idx < 12) {
+		} else if (idx < 12) {
 			_cameraIrr->attach(_cameraIrr->COLOR_BUFFER, _texIrr, 0, idx - 6);
 			_cameraIrr->setViewMatrix(captureViews[idx - 6]);
 			_cameraIrr->accept(nv);
 			_cameraIrr->dirtyAttachmentMap();
 			idx++;
+		} else if (idx < 42) {
+			if (idx > 23) 				{
+				idx++;
+				return;
+			}
+			int idxtmp = idx - 12;
+			int level = idxtmp / 6;
+			int face = idxtmp % 6;
+			unsigned int mipWidth = 128 * std::pow(0.5, level);
+			unsigned int mipHeight = 128 * std::pow(0.5, level);
+			_cameraFilter->setViewport(0, 0, mipWidth, mipHeight);
+			_cameraFilter->attach(_cameraFilter->COLOR_BUFFER0, _texFilter, level, face, false);
+			_cameraFilter->setViewMatrix(captureViews[face]);
+			_cameraFilter->accept(nv);
+			_cameraFilter->dirtyAttachmentMap();
+			idx++;
 		}
-	}
-	else if (nv.getVisitorType() == NodeVisitor::UPDATE_VISITOR)
-	{
+	} else if (nv.getVisitorType() == NodeVisitor::UPDATE_VISITOR) {
 	}
 	Group::traverse(nv);
 }
 
-void TestNode::drawImplementation(RenderInfo &renderInfo) const
+void TestNode::drawImplementation(RenderInfo& renderInfo) const
 {
 
 }

@@ -16,7 +16,7 @@ public:
 private:
 	ref_ptr<Node> _node;
 
-	ref_ptr<Camera> _camera, _cameraIrr;
-	ref_ptr<Texture> _tex, _texIrr;
+	ref_ptr<Camera> _camera, _cameraIrr, _cameraFilter;
+	ref_ptr<Texture> _tex, _texIrr, _texFilter;
 
 };
