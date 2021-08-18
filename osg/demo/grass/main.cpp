@@ -3,12 +3,17 @@
 #include <osgViewer/Viewer>
 #include "testNode.h"
 
+#include <osgViewer/ViewerEventHandlers>
+#include <osgGA/StateSetManipulator>
 
 #include <iostream>
 
 int main(int argc, char** argv)
 {
-    osgViewer::Viewer viewer;
+	osgViewer::Viewer viewer;
+	viewer.addEventHandler(new osgViewer::StatsHandler);
+	viewer.addEventHandler(new osgGA::StateSetManipulator(viewer.getCamera()->getOrCreateStateSet()));
+	viewer.addEventHandler(new osgViewer::ToggleSyncToVBlankHandler);
     viewer.setThreadingModel(viewer.SingleThreaded);
 	//viewer.setLightingMode(viewer.NO_LIGHT);
 	{

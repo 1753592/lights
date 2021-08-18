@@ -25,7 +25,7 @@ struct Blade {
 };
 
 struct BladesNum {
-	std::uint32_t vertexCount = 5;
+	std::uint32_t vertexCount = 0;
 	std::uint32_t instanceCount = 1;
 	std::uint32_t firstVertex = 0;
 	std::uint32_t firstInstance = 0;
@@ -42,7 +42,8 @@ public:
 
 	BoundingSphere computeBound() const;
 private:
-	std::vector<Blade> _blades, _bladesOut;
+	osg::ref_ptr<osg::Node> _cmpNode;
 
 	osg::ref_ptr<osg::UniformBufferBinding> _ubo;
+	osg::ref_ptr<osg::ShaderStorageBufferBinding> _nbo;
 };
