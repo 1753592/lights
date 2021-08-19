@@ -11,6 +11,8 @@
 #include <iostream>
 #include <fstream>
 
+#include <osgViewer/Imgui/imgui.h>
+
 
 class GrassNode : public osg::Drawable {
 public:
@@ -18,6 +20,7 @@ public:
 		: _vao(0)
 	{
 		setCullingActive(false);
+		//setNodeMask(0);
 		auto ss = getOrCreateStateSet();
 		ss->setMode(GL_CULL_FACE, 0);
 	}
@@ -63,11 +66,16 @@ public:
 	osg::ref_ptr<osg::DrawIndirectBufferObject> _dibo;
 };
 
-const int sz = 200;
+const int sz = 400;
 
 TestNode::TestNode()
 {
 	setCullingActive(false);
+	setNumChildrenRequiringUpdateTraversal(1);
+
+	m_wind_mag = 2;
+	m_wind_length = 2;
+	m_wind_period = 2;
 
 	std::vector<Blade> blades;
 	std::random_device device;
@@ -78,8 +86,8 @@ TestNode::TestNode()
 
 	for (int i = -sz; i < sz; ++i) {
 		for (int j = -sz; j < sz; ++j) {
-			const auto x = static_cast<float>(j) -1 + dis(gen) * 0.1f;
-			const auto y = static_cast<float>(i) -1 + dis(gen) * 0.1f;
+			const auto x = static_cast<float>(j)/3 -1 + dis(gen) * 0.1f;
+			const auto y = static_cast<float>(i)/3 -1 + dis(gen) * 0.1f;
 			const auto blade_height = height_dis(gen);
 
 			blades.emplace_back(
@@ -103,9 +111,9 @@ TestNode::TestNode()
 	auto bladeInBinding = new osg::ShaderStorageBufferBinding(1, bladeBufferIn, 0, sz);
 
 	auto bladeBufferOut = new osg::BufferTemplate<std::vector<Blade>>;
-	bladeBufferOut->setData(blades);
 	auto bladeOutObj = new osg::ShaderStorageBufferObject;
 	bladeOutObj->setUsage(GL_STREAM_DRAW);
+	bladeOutObj->getProfile()._size = sz;
 	bladeBufferOut->setBufferObject(bladeOutObj);
 	auto bladeOutBinding = new osg::ShaderStorageBufferBinding(2, bladeBufferOut, 0, sz);
 
@@ -163,6 +171,7 @@ TestNode::TestNode()
 	}
 }
 
+
 void TestNode::traverse(NodeVisitor& nv)
 {
 	//static int k = 0;
@@ -182,15 +191,22 @@ void TestNode::traverse(NodeVisitor& nv)
 		_nbo->getBufferData()->dirty();
 
 		auto ss = _cmpNode->getOrCreateStateSet();
-		ss->getOrCreateUniform("wind_magnitude", osg::Uniform::FLOAT)->set(2.f);
-		ss->getOrCreateUniform("wind_wave_length", osg::Uniform::FLOAT)->set(2.f);
-		ss->getOrCreateUniform("wind_wave_period", osg::Uniform::FLOAT)->set(3.f);
+		ss->getOrCreateUniform("wind_magnitude", osg::Uniform::FLOAT)->set(m_wind_mag);
+		ss->getOrCreateUniform("wind_wave_length", osg::Uniform::FLOAT)->set(m_wind_length);
+		ss->getOrCreateUniform("wind_wave_period", osg::Uniform::FLOAT)->set(m_wind_period);
 
 		static float _prevTime = 0;
 		float time = nv.getFrameStamp()->getReferenceTime();
 		ss->getOrCreateUniform("current_time", osg::Uniform::FLOAT)->set(float(time));
 		ss->getOrCreateUniform("delta_time", osg::Uniform::FLOAT)->set(time - _prevTime);
 		_prevTime = time;
+	}
+	else if (nv.getVisitorType() == nv.UPDATE_VISITOR) 		{
+		ImGui::Begin("xxx");
+		ImGui::SliderFloat("wind_mag", &m_wind_mag, 0.1f, 10.0f);
+		ImGui::SliderFloat("wind_length", &m_wind_length, 0.1f, 10.0f);
+		ImGui::SliderFloat("wind_period", &m_wind_period, 0.1f, 10.0f);
+		ImGui::End();
 	}
 
 	Group::traverse(nv);

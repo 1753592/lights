@@ -46,4 +46,6 @@ private:
 
 	osg::ref_ptr<osg::UniformBufferBinding> _ubo;
 	osg::ref_ptr<osg::ShaderStorageBufferBinding> _nbo;
+
+	float m_wind_mag, m_wind_length, m_wind_period;
 };

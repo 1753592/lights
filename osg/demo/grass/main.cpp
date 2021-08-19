@@ -4,6 +4,7 @@
 #include "testNode.h"
 
 #include <osgViewer/ViewerEventHandlers>
+#include <osgViewer/ImGuiHandler>
 #include <osgGA/StateSetManipulator>
 
 #include <iostream>
@@ -14,6 +15,7 @@ int main(int argc, char** argv)
 	viewer.addEventHandler(new osgViewer::StatsHandler);
 	viewer.addEventHandler(new osgGA::StateSetManipulator(viewer.getCamera()->getOrCreateStateSet()));
 	viewer.addEventHandler(new osgViewer::ToggleSyncToVBlankHandler);
+	viewer.addEventHandler(new osgViewer::ImGuiHandler);
     viewer.setThreadingModel(viewer.SingleThreaded);
 	//viewer.setLightingMode(viewer.NO_LIGHT);
 	{
@@ -40,6 +42,7 @@ int main(int argc, char** argv)
         camera->setDrawBuffer(buffer);
         camera->setReadBuffer(buffer);
 		viewer.addSlave(camera);
+		viewer.getCamera()->setClearColor({ 0, 0, 0, 1 });
     }
 
 	auto grp = new Group;

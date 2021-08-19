@@ -42,6 +42,7 @@ void main()
 	const vec3 c1 = c + t1 * width * 0.5;
 	const vec3 t0 = normalize(b - a);
 
+	//?
 	const float t = u + 0.5 * v - u * v;
 	const vec3 p = (1.0 - t) * c0 + t * c1;
 
