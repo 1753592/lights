@@ -66,7 +66,7 @@ public:
 	osg::ref_ptr<osg::DrawIndirectBufferObject> _dibo;
 };
 
-const int sz = 400;
+const int grasssz = 1024;
 
 TestNode::TestNode()
 {
@@ -84,10 +84,10 @@ TestNode::TestNode()
 	std::uniform_real_distribution<float> height_dis(0.6f, 1.2f);
 	std::uniform_real_distribution<float> dis(-1, 1);
 
-	for (int i = -sz; i < sz; ++i) {
-		for (int j = -sz; j < sz; ++j) {
-			const auto x = static_cast<float>(j)/3 -1 + dis(gen) * 0.1f;
-			const auto y = static_cast<float>(i)/3 -1 + dis(gen) * 0.1f;
+	for (int i = -grasssz; i < grasssz; ++i) {
+		for (int j = -grasssz; j < grasssz; ++j) {
+			const auto x = static_cast<float>(j)/2 -1 + dis(gen) * 0.5f;
+			const auto y = static_cast<float>(i)/2 -1 + dis(gen) * 0.5f;
 			const auto blade_height = height_dis(gen);
 
 			blades.emplace_back(
@@ -139,7 +139,7 @@ TestNode::TestNode()
 		auto program = new osg::Program;
 		program->addShader(new osg::Shader(osg::Shader::COMPUTE, comShaderSource));
 
-		auto srcNode = new osg::DispatchCompute(blades.size() / 32, 1, 1);
+		auto srcNode = new osg::DispatchCompute(grasssz / 8, grasssz / 8, 1);
 		srcNode->setDataVariance(osg::Object::DYNAMIC);
 		auto ss = srcNode->getOrCreateStateSet();
 		ss->setAttribute(program);
@@ -218,5 +218,5 @@ void TestNode::drawImplementation(RenderInfo& renderInfo) const
 
 BoundingSphere TestNode::computeBound() const
 {
-	return BoundingSphere({ 0, 0, 0 }, sz);
+	return BoundingSphere({ 0, 0, 0 }, grasssz);
 }
