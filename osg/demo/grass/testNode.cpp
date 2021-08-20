@@ -66,7 +66,7 @@ public:
 	osg::ref_ptr<osg::DrawIndirectBufferObject> _dibo;
 };
 
-const int grasssz = 1024;
+const int grasssz = 512;
 
 TestNode::TestNode()
 {

@@ -53,17 +53,38 @@ float rand(float seed)
 	return fract(sin(seed) * 100000.0);
 }
 
+bool cullFun(vec4 v)
+{
+	v /= v.w;
+	return v.x < -1 || v.x > 1 || v.y < -1 || v.y > 1;
+}
+
+bool cullBlock()
+{
+	mat4 mat = camera.proj* camera.view;
+	uint index1 = WORKGROUP_SIZE * gl_NumWorkGroups.x * WORKGROUP_SIZE * gl_WorkGroupID.y
+		+ WORKGROUP_SIZE * gl_WorkGroupID.x, index2 = index1 + WORKGROUP_SIZE - 1;
+	uint index3 = WORKGROUP_SIZE * gl_NumWorkGroups.x * (WORKGROUP_SIZE * gl_WorkGroupID.y + WORKGROUP_SIZE - 1)
+		+ WORKGROUP_SIZE * gl_WorkGroupID.x, index4 = index3 + WORKGROUP_SIZE - 1;
+	vec3 bv1 = inputBlades[index1].v0.xyz; vec3 bv2 = inputBlades[index2].v0.xyz;
+	vec3 bv3 = inputBlades[index3].v0.xyz; vec3 bv4 = inputBlades[index4].v0.xyz;
+	vec4 v1ClipSpace = mat * vec4(bv1, 1); vec4 v2ClipSpace = mat * vec4(bv2, 1);
+	vec4 v3ClipSpace = mat * vec4(bv3, 1); vec4 v4ClipSpace = mat * vec4(bv4, 1);
+
+	if (cullFun(v1ClipSpace) && cullFun(v2ClipSpace) && cullFun(v3ClipSpace) && cullFun(v4ClipSpace))
+		return true;
+	return false;
+}
+
 void main()
 {
-	// Reset the number of blades to 0
-	//if (gl_GlobalInvocationID.x == 0) {
-	//    bladesNum.vertexCount = 0;
-	//}
-	//barrier();// Wait till all threads reach this point
+	//if (gl_LocalInvocationID.x == 0
+	//	&& gl_LocalInvocationID.y == 0) 
+	//	cull = cullBlock();
+	//barrier();
 
-	bool cull = true;
-	if (cull)
-		return;
+	//if (cull)
+	//	return;		
 
 	uint index = WORKGROUP_SIZE * gl_NumWorkGroups.x * gl_GlobalInvocationID.y
 		+ gl_GlobalInvocationID.x;
@@ -77,30 +98,30 @@ void main()
 	float stiffness = inputBlades[index].up.w;
 
 
-	//// Frustum culling
-	//vec4 v0ClipSpace = camera.proj * camera.view * vec4(v0, 1);
-	//v0ClipSpace /= v0ClipSpace.w;
+	// Frustum culling
+	vec4 v0ClipSpace = camera.proj * camera.view * vec4(v0, 1);
+	v0ClipSpace /= v0ClipSpace.w;
 
-	//bool drop = false;
+	bool drop = false;
 
-	//bool v0OutFrustum =
-	//	v0ClipSpace.x < -1 || v0ClipSpace.x > 1
-	//	|| v0ClipSpace.y < -1 || v0ClipSpace.y > 1;
+	bool v0OutFrustum =
+		v0ClipSpace.x < -1 || v0ClipSpace.x > 1
+		|| v0ClipSpace.y < -1 || v0ClipSpace.y > 1;
 
-	//drop = drop || v0OutFrustum;
+	drop = drop || v0OutFrustum;
 
-	//// Distance culling
-	//const float far1 = 0.95;
-	//drop = drop || (v0ClipSpace.z > far1&& rand(index) > 0.7);
-	//
-	//const float far2 = 0.98;
-	//drop = drop || (v0ClipSpace.z > far2 && rand(index) > 0.4);
+	// Distance culling
+	const float far1 = 0.99;
+	drop = drop || (v0ClipSpace.z > far1&& rand(index) > (v0ClipSpace.z / 1.5));
+	
+	const float far2 = 0.995;
+	drop = drop || (v0ClipSpace.z > far2 && rand(index) > (v0ClipSpace.z / 2));
 
-	//const float far3 = 0.99;
-	//drop = drop || (v0ClipSpace.z > far3 && rand(index) > 0.1);
+	const float far3 = 0.999;
+	drop = drop || (v0ClipSpace.z > far3 && rand(index) > (v0ClipSpace.z / 5));
 
-	//if (drop)
-	//	return;
+	if (drop)
+		return;
 
 	// Apply forces {
 	//  Gravities
