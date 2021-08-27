@@ -52,6 +52,10 @@ TestNode::TestNode()
 		auto ss = geom->getOrCreateStateSet();
 		ss->setAttribute(prg);
 	}
+
+	auto ss = getOrCreateStateSet();
+	ss->getOrCreateUniform("repNum", osg::Uniform::FLOAT)->set(8.f);
+	ss->getOrCreateUniform("time", osg::Uniform::FLOAT)->set(0.f);
 }
 
 
@@ -64,16 +68,47 @@ void TestNode::traverse(NodeVisitor& nv)
 		int height = vp->height();
 		auto ss = getOrCreateStateSet();
 		ss->getOrCreateUniform("screenSize", osg::Uniform::INT_VEC2)->set(width, height);
-		//ss->getOrCreateUniform("time", osg::Uniform::FLOAT)->set(float(nv.getFrameStamp()->getReferenceTime()));
-		ss->getOrCreateUniform("time", osg::Uniform::FLOAT)->set(1.f);
-	}
-	else if (nv.getVisitorType() == nv.UPDATE_VISITOR) 		{
+		//ss->getOrCreateUniform("time", osg::Uniform::FLOAT)->set(1.f);
+	} else if (nv.getVisitorType() == nv.UPDATE_VISITOR) {
 		ImGui::Begin("xxx");
-		//ImGui::SliderFloat("wind_mag", &m_wind_mag, 0.1f, 10.0f);
-		//ImGui::SliderFloat("wind_length", &m_wind_length, 0.1f, 10.0f);
-		//ImGui::SliderFloat("wind_period", &m_wind_period, 0.1f, 10.0f);
-		char ch[512];
-		ImGui::InputText("wtf", ch, 512);
+
+		static bool time = true;
+		ImGui::Checkbox("time", &time);
+		if (time) {
+			auto ss = getOrCreateStateSet();
+			ss->getOrCreateUniform("time", osg::Uniform::FLOAT)->set(float(nv.getFrameStamp()->getReferenceTime()));
+		}
+
+		auto ss = getOrCreateStateSet();
+
+		static osg::Vec2 offset;
+		ImGui::SliderFloat("xoffset", &offset[0], 0, 100);
+		ImGui::SliderFloat("yoffset", &offset[1], 0, 100);
+		ss->getOrCreateUniform("offset", osg::Uniform::FLOAT_VEC2)->set(offset);
+
+		static float repNum = 8;
+		if (ImGui::SliderFloat("repNum", &repNum, 8, 64)) {
+			auto ss = getOrCreateStateSet();
+			ss->getOrCreateUniform("repNum", osg::Uniform::FLOAT)->set(repNum);
+		}
+
+		const char* items[] = { "noise", "fbm-rotate", "fbm-normal", "fbm-abs", "fbm-sin"};
+		static int item_current_idx = 0;
+		const char* combo_preview_value = items[item_current_idx];  // Pass in the preview value visible before opening the combo (it could be anything)
+		if (ImGui::BeginCombo("combo 1", combo_preview_value, 0)) {
+			for (int n = 0; n < IM_ARRAYSIZE(items); n++) {
+				const bool is_selected = (item_current_idx == n);
+				if (ImGui::Selectable(items[n], is_selected)) {
+					item_current_idx = n;
+					auto ss = getOrCreateStateSet();
+					ss->getOrCreateUniform("cate", osg::Uniform::INT)->set(item_current_idx);
+				}
+
+				if (is_selected)
+					ImGui::SetItemDefaultFocus();
+			}
+			ImGui::EndCombo();
+		}
 		ImGui::End();
 	}
 
