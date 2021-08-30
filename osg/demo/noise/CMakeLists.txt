@@ -39,3 +39,13 @@ foreach(lib ${libs})
 endforeach()
 
 set_target_properties(${app_name} PROPERTIES FOLDER "o/demos")
+
+set(SHADERS
+	noise.vert
+	simplex_noise.frag
+	worley_noise.frag
+)
+
+source_group(shaders FILES ${SHADERS})
+target_sources(${app_name} PRIVATE ${SHADERS})
+

@@ -41,4 +41,8 @@ public:
 	//void drawImplementation(RenderInfo& /*renderInfo*/) const;
 	//BoundingSphere computeBound() const;
 private:
+	void setNoise(int);
+
+
+	int _noiseType;
 };

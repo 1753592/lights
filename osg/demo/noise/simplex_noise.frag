@@ -79,7 +79,7 @@ float simplex3d_fractal_normal(vec3 m)
 	float ret = 0;
 	for (int i = 0; i < 5; i++) {
 		float ratio = pow(2.0, i);
-		ret += 1 / ratio * simplex3d(m * ratio);
+		ret += (1 / ratio) * simplex3d(m * ratio);
 	}
 	return ret * 0.68;// * 0.51612;
 }
@@ -89,15 +89,19 @@ float simplex3d_fractal_abs(vec3 m)
 	float ret = 0;
 	for (int i = 0; i < 5; i++) {
 		float ratio = pow(2.0, i);
-		ret += 1 / ratio * abs(simplex3d(m * ratio));
+		ret += (1 / ratio) * abs(simplex3d(m * ratio));
 	}
 	return ret * 0.68;
 }
 
 float simplex3d_fractal_abs_sin(vec3 m)
 {
-	float ret = simplex3d_fractal_abs(m);
-	return  sin(ret * 2.5 + m.x * 0.2);
+	float ret = 0;
+	for (int i = 0; i < 5; i++) {
+		float ratio = pow(2.0, i);
+		ret += (1 / ratio) * abs(simplex3d(m * ratio));
+	}
+	return  sin(ret * 3.14159 + m.x * 0.5);
 }
 
 void main()
