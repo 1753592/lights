@@ -46,6 +46,17 @@ float worley2d(in vec2 x, float u, float v)
 	return va / wt;
 }
 
+float worley_fractal(in vec2 x, float u, float v)
+{
+	float ret = 0;
+	for (int i = 0; i < 5; i++) {
+		float ratio = pow(2.0, i);
+		ret += (1 / ratio) * worley2d(x * ratio, u, v);
+	}
+	return ret * 0.68;
+
+}
+
 void main()
 {
 	vec2 p = gl_FragCoord.xy / screenSize.y;
@@ -53,7 +64,11 @@ void main()
 
 	float value;
 
-	value = worley2d(p * vec2(64), 0, 0);
+	if (cate == 0) {
+		value = worley2d(p * vec2(repNum), uv.x * sin(time), uv.y);
+	} else {
+		value = worley_fractal(p * vec2(repNum), uv.x * sin(time), uv.y);
+	}
 
 	//value *= smoothstep(0.0, 0.005, abs(0.6 - p.x)); 
 

@@ -120,15 +120,33 @@ void TestNode::traverse(NodeVisitor& nv)
 				ImGui::EndCombo();
 			}
 		} else if (_noiseType == 1) {
-			static osg::Vec2 uv;
-			ImGui::SliderFloat("u", &uv[0], 0, 3);
-			ImGui::SliderFloat("v", &uv[1], 0, 3);
+			static osg::Vec2 uv = {0, 0};
+			ImGui::SliderFloat("u", &uv[0], -1, 1);
+			ImGui::SliderFloat("v", &uv[1], 0, 1);
 			ss->getOrCreateUniform("uv", osg::Uniform::FLOAT_VEC2)->set(uv);
 
 			static float repNum = 8;
 			if (ImGui::SliderFloat("repNum", &repNum, 8, 64)) {
 				auto ss = getOrCreateStateSet();
 				ss->getOrCreateUniform("repNum", osg::Uniform::FLOAT)->set(repNum);
+			}
+
+			const char* items[] = { "noise", "fractal" };
+			static int item_current_idx = 0;
+			const char* combo_preview_value = items[item_current_idx];  // Pass in the preview value visible before opening the combo (it could be anything)
+			if (ImGui::BeginCombo("combo 1", combo_preview_value, 0)) {
+				for (int n = 0; n < IM_ARRAYSIZE(items); n++) {
+					const bool is_selected = (item_current_idx == n);
+					if (ImGui::Selectable(items[n], is_selected)) {
+						item_current_idx = n;
+						auto ss = getOrCreateStateSet();
+						ss->getOrCreateUniform("cate", osg::Uniform::INT)->set(item_current_idx);
+					}
+
+					if (is_selected)
+						ImGui::SetItemDefaultFocus();
+				}
+				ImGui::EndCombo();
 			}
 		}
 		ImGui::End();
