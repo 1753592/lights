@@ -14,8 +14,6 @@
 
 #include <osgViewer/Imgui/imgui.h>
 
-const int grasssz = 512;
-
 VCloudNode::VCloudNode()
 {
 	_box = new osg::Box({ 0, 0, 0 }, 40, 40, 5);
@@ -37,6 +35,11 @@ VCloudNode::VCloudNode()
 	pg->addShader(new osg::Shader(osg::Shader::VERTEX, ReadFile("cloud.vert")));
 	pg->addShader(new osg::Shader(osg::Shader::FRAGMENT, ReadFile("cloud.frag")));
 	ss->setAttribute(pg);
+
+	{
+		//auto node = new osg::ShapeDrawable(_box);
+	}
+	
 }
 
 
@@ -48,6 +51,7 @@ void VCloudNode::traverse(NodeVisitor& nv)
 		matrix.preMult(*cull->getModelViewMatrix());
 		matrix = matrix.inverse(matrix);
 		auto ss = getOrCreateStateSet();
+		ss->getOrCreateUniform("camPos", osg::Uniform::FLOAT_VEC3)->set(cull->getViewPoint());
 		ss->getOrCreateUniform("invModelViewProjectMatrix", osg::Uniform::DOUBLE_MAT4)->set(matrix);
 	} else if (nv.getVisitorType() == nv.UPDATE_VISITOR) {
 	}
