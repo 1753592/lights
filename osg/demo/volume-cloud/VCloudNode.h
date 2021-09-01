@@ -7,17 +7,15 @@
 
 using namespace osg;
 
-class TestNode : public Group {
+class VCloudNode : public Group {
 public:
-	TestNode();
+	VCloudNode();
 
 	void traverse(NodeVisitor&);
 
 	//void drawImplementation(RenderInfo& /*renderInfo*/) const;
-	//BoundingSphere computeBound() const;
+	BoundingSphere computeBound() const;
 private:
-	void setNoise(int);
 
-
-	int _noiseType;
+	osg::ref_ptr<osg::Box>		_box;
 };

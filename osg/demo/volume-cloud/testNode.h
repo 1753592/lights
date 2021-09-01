@@ -7,17 +7,16 @@
 
 using namespace osg;
 
+class VCloudNode;
+
+
 class TestNode : public Group {
 public:
 	TestNode();
 
 	void traverse(NodeVisitor&);
-
-	//void drawImplementation(RenderInfo& /*renderInfo*/) const;
-	//BoundingSphere computeBound() const;
 private:
-	void setNoise(int);
+	osg::ref_ptr<osg::Camera>		_camera;
 
-
-	int _noiseType;
+	osg::ref_ptr<VCloudNode>		_cloudNode;
 };
