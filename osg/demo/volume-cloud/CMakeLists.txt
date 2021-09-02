@@ -45,6 +45,7 @@ set_target_properties(${app_name} PROPERTIES FOLDER "o/demos")
 set(SHADERS
 	cloud.vert
 	cloud.frag
+	noise.comp
 )
 
 source_group(shaders FILES ${SHADERS})
