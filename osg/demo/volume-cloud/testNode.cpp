@@ -142,6 +142,7 @@ TestNode::TestNode()
 
 	_cloudNode = new VCloudNode;
 	addChild(_cloudNode);
+	_cloudNode->setDepthTexture(depTex);
 }
 
 
