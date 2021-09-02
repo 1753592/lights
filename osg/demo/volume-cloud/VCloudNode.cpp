@@ -110,6 +110,6 @@ void VCloudNode::createNoise()
 	pg->addShader(new osg::Shader(osg::Shader::COMPUTE, ReadFile("noise.comp")));
 	ss->setAttributeAndModes(pg);
 	ss->addUniform(new osg::Uniform("noiseTex", int(0)));
-	ss->setTextureAttribute(0, _noiseTex);
+	//ss->setTextureAttribute(0, _noiseTex);
 	ss->setAttribute(bind);
 }
