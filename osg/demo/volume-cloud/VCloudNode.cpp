@@ -48,6 +48,8 @@ VCloudNode::VCloudNode()
 	ss->setAttribute(pg);
 	ss->getOrCreateUniform("boxPos", osg::Uniform::FLOAT_VEC4)->set(Vec4(_box->getCenter(), 0));
 	ss->getOrCreateUniform("boxLength", osg::Uniform::FLOAT_VEC4)->set(Vec4(_box->getHalfLengths(), 0));
+	ss->getOrCreateUniform("noiseTex", osg::Uniform::SAMPLER_3D)->set(1);
+	ss->setTextureAttribute(1, _noiseTex);
 
 	{
 		//auto node = new osg::ShapeDrawable(_box);
@@ -58,6 +60,12 @@ VCloudNode::VCloudNode()
 void VCloudNode::traverse(NodeVisitor& nv)
 {
 	if (nv.getVisitorType() == nv.CULL_VISITOR) {
+
+		if (_needComputeNoise) {
+			_noise->accept(nv);
+			_needComputeNoise = false;
+		}
+
 		auto cull = nv.asCullVisitor();
 		Matrix matrix = *(cull->getProjectionMatrix());
 		matrix.preMult(*cull->getModelViewMatrix());
@@ -67,11 +75,6 @@ void VCloudNode::traverse(NodeVisitor& nv)
 		ss->getOrCreateUniform("camPos", osg::Uniform::FLOAT_VEC3)->set(cull->getViewPoint());
 		auto vp = cull->getViewport();
 		ss->getOrCreateUniform("screenSize", osg::Uniform::FLOAT_VEC4)->set(osg::Vec4(vp->width(), vp->height(), 0, 0));
-
-		if (_needComputeNoise) {
-			_noise->accept(nv);
-			//_needComputeNoise = false;
-		}
 
 	} else if (nv.getVisitorType() == nv.UPDATE_VISITOR) {
 	}
@@ -109,7 +112,7 @@ void VCloudNode::createNoise()
 	auto pg = new osg::Program;
 	pg->addShader(new osg::Shader(osg::Shader::COMPUTE, ReadFile("noise.comp")));
 	ss->setAttributeAndModes(pg);
-	ss->addUniform(new osg::Uniform("noiseTex", int(0)));
+	//ss->addUniform(new osg::Uniform("noiseTex", int(0)));
 	//ss->setTextureAttribute(0, _noiseTex);
 	ss->setAttribute(bind);
 }

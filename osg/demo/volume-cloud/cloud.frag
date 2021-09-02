@@ -9,10 +9,11 @@ uniform vec3 camPos;
 uniform mat4 invModelViewProjectMatrix;
 
 uniform sampler2D depTex;
+uniform sampler3D noiseTex;
 
 in vec3 localVertex;
 
-layout(early_fragment_tests) in;
+//layout(early_fragment_tests) in;
 
 void main()
 {
@@ -31,20 +32,39 @@ void main()
 	maxbox += 0.00001;
 	const int count = 256;
 	const float step = length(boxLength) / count;
+
+	vec3 startPos = localVertex;
+	if (camPos.x > minbox.x && camPos.x < maxbox.x &&
+		camPos.y > minbox.y && camPos.y < maxbox.y &&
+		camPos.z > minbox.z && camPos.z < maxbox.z)
+	{
+		startPos = camPos + dir * 0.001;
+		gl_FragColor = vec4(0, 1, 0, 1);
+		return;
+		discard;
+	}
+
 	for (int i = 0; i < count; i++) {
-		vec3 tmpPos = localVertex + dir * i * step;
+		vec3 tmpPos = startPos + dir * i * step;
 
 		if (dot(tmpPos - depPoz, dir) > 0) {
+			gl_FragColor = vec4(1, 0, 0, 1);
+			return;
+			break;
+		}
+
+		if (tmpPos.x < minbox.x || tmpPos.x > maxbox.x ||
+			tmpPos.y < minbox.y || tmpPos.y > maxbox.y ||
+			tmpPos.z < minbox.z || tmpPos.z > maxbox.z)
+		{
 			//gl_FragColor = vec4(1, 0, 0, 1);
 			//return;
 			break;
 		}
 
-		if (tmpPos.x < minbox.y || tmpPos.x > maxbox.x ||
-			tmpPos.y < minbox.y || tmpPos.y > maxbox.y ||
-			tmpPos.z < minbox.z || tmpPos.z > maxbox.z)
-			break;
-		sum += 0.01;
+		vec3 uvw = (tmpPos - minbox) / boxLength.xyz / 2.0;
+		sum += texture(noiseTex, uvw).r * 0.02;
+		//break;
 	}
 	gl_FragColor = vec4(sum);
 	//gl_FragColor = vec4(1, 0, 0, 1);
