@@ -26,12 +26,14 @@ public:
 private:
 
 	void createNoise();
+	void createDiscribTex();
 
 	osg::ref_ptr<osg::Box>				_box;
 	osg::ref_ptr<osg::ShapeDrawable>	_boxDrawable;
 
 	osg::ref_ptr<osg::DispatchCompute>	_noise;
 	osg::ref_ptr<osg::Texture3D>		_noiseTex;
+	osg::ref_ptr<osg::Texture2D>		_dsTex;
 
 	bool		_needComputeNoise;
 };

@@ -56,10 +56,22 @@ float simplex3d(vec3 p)
 	return dot(d, vec4(52.0));
 }
 
+const mat3 rot1 = mat3(-0.37, 0.36, 0.85, -0.14, -0.93, 0.34, 0.92, 0.01, 0.4);
+const mat3 rot2 = mat3(-0.55, -0.39, 0.74, 0.33, -0.91, -0.24, 0.77, 0.12, 0.63);
+const mat3 rot3 = mat3(-0.71, 0.52, -0.47, -0.08, -0.72, -0.68, -0.7, -0.45, 0.56);
+
+float simplex3d_fbm(vec3 m)
+{
+	return abs(simplex3d(m))
+		+ 0.5 * abs(simplex3d(2.0 * m))
+		+ 0.25 * abs(simplex3d(4.0 * m))
+		+ 0.125 * abs(simplex3d(8.0 * m));
+}
+
 void main()
 {
 	ivec3 pos = ivec3(gl_GlobalInvocationID.xyz);
-	vec3 px = vec3(gl_GlobalInvocationID.xyz) / vec3(16.0, 16.0, 16.0);
-	float value = simplex3d(px) * 0.5 + 0.5;
+	vec3 px = vec3(gl_GlobalInvocationID.xyz) / vec3(64.0, 64.0, 128.0);
+	float value = simplex3d_fbm(px) * 0.5 + 0.5;
 	imageStore(noiseTex, pos, vec4(value, 0, 0, 0));
 }
