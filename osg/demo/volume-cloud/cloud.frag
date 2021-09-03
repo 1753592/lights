@@ -34,9 +34,16 @@ float sampleDensity(vec3 pos)
 	float vv = texture(disTex, texCoord.st).r;
 	float heightPercent = (pos.z - minBox.z) / (maxBox.z - minBox.z);
 	float heightGradient = clamp(remap(heightPercent, 0.0, vv, 1, 0), 0, 1);
-	density = heightGradient;
+	float baseDensity = density * heightGradient;
 
-	return density;
+	if (density > 0)
+	{
+		float densityTmp = 1 - baseDensity;
+		float detail = densityTmp * densityTmp * densityTmp;
+		density = baseDensity - detail;
+		return density;
+	}
+	return 0;
 }
 
 bool outbox(vec3 position)
@@ -86,8 +93,6 @@ void main()
 	minBox -= 0.00001;
 	maxBox = boxPos.xyz + boxLength.xyz;
 	maxBox += 0.00001;
-	const int count = 256;
-	const float step = length(boxLength) / count;
 
 	vec3 startPos = localVertex;
 	if (!gl_FrontFacing) {
@@ -96,7 +101,10 @@ void main()
 		startPos = depPos.xyz / depPos.w;
 	}
 
-	float sum = 0;
+	const float step = 0.2;
+	const int count = int(length(boxLength) * 2 / step);
+
+	float sum = 1;
 	for (int i = 0; i < count; i++) {
 		float stepSize = i * step;
 		vec3 tmpPos = startPos + dir * stepSize;
@@ -115,8 +123,11 @@ void main()
 		//if (sum < 0.01)
 		//	break;
 		float density = sampleDensity(tmpPos);
-		sum += (density * 0.03);
+		sum *= exp(-density * stepSize);
+
+		if (sum < 0.01)
+			break;
 	}
-	gl_FragColor = vec4(sum);
+	gl_FragColor = vec4(vec3(1), sum);
 	//gl_FragColor = vec4(1, 0, 0, 1);
 }

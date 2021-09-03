@@ -42,7 +42,8 @@ int main(int argc, char** argv)
         camera->setDrawBuffer(buffer);
         camera->setReadBuffer(buffer);
 		viewer.addSlave(camera);
-		viewer.getCamera()->setClearColor({ 0, 0, 0, 1 });
+		viewer.getCamera()->setClearColor({ 0, 0.2, 0.3, 1 });
+
     }
 
 	auto grp = new Group;

@@ -72,6 +72,7 @@ void main()
 {
 	ivec3 pos = ivec3(gl_GlobalInvocationID.xyz);
 	vec3 px = vec3(gl_GlobalInvocationID.xyz) / vec3(64.0, 64.0, 128.0);
-	float value = simplex3d_fbm(px) * 0.5 + 0.5;
+	float value = simplex3d_fbm(px);
+	//value = value * 0.5 + 0.5;
 	imageStore(noiseTex, pos, vec4(value, 0, 0, 0));
 }
