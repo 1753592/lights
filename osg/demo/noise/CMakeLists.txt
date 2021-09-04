@@ -42,8 +42,9 @@ set_target_properties(${app_name} PROPERTIES FOLDER "o/demos")
 
 set(SHADERS
 	noise.vert
-	simplex_noise.frag
-	worley_noise.frag
+	noise.glsl
+	simplex.frag
+	worley.frag
 )
 
 source_group(shaders FILES ${SHADERS})

@@ -57,14 +57,19 @@ void TestNode::traverse(NodeVisitor& nv)
 		ss->getOrCreateUniform("screenSize", osg::Uniform::INT_VEC2)->set(width, height);
 		//ss->getOrCreateUniform("time", osg::Uniform::FLOAT)->set(1.f);
 	} else if (nv.getVisitorType() == nv.UPDATE_VISITOR) {
+		auto ss = getOrCreateStateSet();
+
 		ImGui::Begin("xxx");
 
-		static bool time = true;
-		ImGui::Checkbox("time", &time);
-		if (time) {
-			auto ss = getOrCreateStateSet();
-			ss->getOrCreateUniform("time", osg::Uniform::FLOAT)->set(float(nv.getFrameStamp()->getReferenceTime()));
+		static bool timec = true;
+		ImGui::Checkbox("time", &timec);
+		static float timev = 0;
+		ImGui::SameLine();
+		ImGui::SliderFloat("timeValue", &timev, 0, 1000);
+		if (timec) {
+			timev = nv.getFrameStamp()->getReferenceTime();
 		}
+		ss->getOrCreateUniform("time", osg::Uniform::FLOAT)->set(timev);
 
 		const char* noiseType[] = {"simplex", "worley"};
 		const char* noiseTypeValue = noiseType[_noiseType];
@@ -87,8 +92,6 @@ void TestNode::traverse(NodeVisitor& nv)
 		ImGui::NewLine();
 		ImGui::NewLine();
 
-		auto ss = getOrCreateStateSet();
-
 		if (_noiseType == 0) {
 
 			static osg::Vec2 offset;
@@ -102,7 +105,8 @@ void TestNode::traverse(NodeVisitor& nv)
 				ss->getOrCreateUniform("repNum", osg::Uniform::FLOAT)->set(repNum);
 			}
 
-			const char* items[] = { "noise", "fbm-rotate", "fbm-normal", "fbm-abs", "fbm-sin" };
+			const char* items[] = { "simplex", "fbm", "fbm_rot", "fbm-abs",
+				"fbm-abs-rot", "fbm-sin", "fbm-sin-rot"};
 			static int item_current_idx = 0;
 			const char* combo_preview_value = items[item_current_idx];  // Pass in the preview value visible before opening the combo (it could be anything)
 			if (ImGui::BeginCombo("combo 1", combo_preview_value, 0)) {
@@ -121,7 +125,7 @@ void TestNode::traverse(NodeVisitor& nv)
 			}
 		} else if (_noiseType == 1) {
 			static osg::Vec2 uv = {0, 0};
-			ImGui::SliderFloat("u", &uv[0], -1, 1);
+			ImGui::SliderFloat("u", &uv[0], -2, 2);
 			ImGui::SliderFloat("v", &uv[1], 0, 1);
 			ss->getOrCreateUniform("uv", osg::Uniform::FLOAT_VEC2)->set(uv);
 
@@ -171,12 +175,14 @@ void TestNode::setNoise(int idx)
 	if (idx == 0) {
 		auto prg = new osg::Program;
 		prg->addShader(new osg::Shader(osg::Shader::VERTEX, ReadFile("noise.vert")));
-		prg->addShader(new osg::Shader(osg::Shader::FRAGMENT, ReadFile("simplex_noise.frag")));
+		prg->addShader(new osg::Shader(osg::Shader::FRAGMENT, ReadFile("simplex.frag")));
+		prg->addShader(new osg::Shader(osg::Shader::FRAGMENT, ReadFile("noise.glsl")));
 		ss->setAttribute(prg);
 	} else {
 		auto prg = new osg::Program;
 		prg->addShader(new osg::Shader(osg::Shader::VERTEX, ReadFile("noise.vert")));
-		prg->addShader(new osg::Shader(osg::Shader::FRAGMENT, ReadFile("worley_noise.frag")));
+		prg->addShader(new osg::Shader(osg::Shader::FRAGMENT, ReadFile("worley.frag")));
+		prg->addShader(new osg::Shader(osg::Shader::FRAGMENT, ReadFile("noise.glsl")));
 		ss->setAttribute(prg);
 	}
 }
