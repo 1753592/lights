@@ -12,7 +12,7 @@ uniform vec3 uvw;
 float worley2d_test(vec2, float, float, float);
 float worley2d_circle(vec2);
 float worley2d_poly(vec2);
-float worley2d_fractal(vec2, float, float, float);
+float worley2d_fractal(vec2);
 float worley3d_circle(vec3);
 
 void main()
@@ -30,7 +30,7 @@ void main()
 		value = worley2d_poly(p * vec2(repNum));
 	}
 	else if (cate == 3) {
-		value = worley2d_fractal(p * vec2(repNum), uvw.x * cos(time), uvw.y, uvw.z);
+		value = worley2d_fractal(p * vec2(repNum));
 	}
 	else if (cate == 4) {
 		value = worley3d_circle(vec3(p * vec2(repNum), cos(time)));

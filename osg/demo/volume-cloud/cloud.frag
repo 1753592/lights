@@ -28,8 +28,12 @@ float remap(float original_value, float original_min, float original_max, float 
 
 float sampleDensity(vec3 pos)
 {
-	vec3 texCoord = (pos - minBox) / boxLength.xyz / 2.0;
-	float density = texture(noiseTex, texCoord).r;
+	vec3 lv = maxBox - minBox;
+	float ln = max(lv.x, max(lv.y, lv.z));
+	vec3 texCoord = (pos - minBox) / ln / 2.0;
+	float density = texture(noiseTex, texCoord).g;
+
+	return density;
 
 	float vv = texture(disTex, texCoord.st).r;
 	float heightPercent = (pos.z - minBox.z) / (maxBox.z - minBox.z);
@@ -104,7 +108,7 @@ void main()
 	const float step = 0.2;
 	const int count = int(length(boxLength) * 2 / step);
 
-	float sum = 1;
+	float sum = 0;
 	for (int i = 0; i < count; i++) {
 		float stepSize = i * step;
 		vec3 tmpPos = startPos + dir * stepSize;
@@ -123,10 +127,17 @@ void main()
 		//if (sum < 0.01)
 		//	break;
 		float density = sampleDensity(tmpPos);
-		sum *= exp(-density * stepSize);
 
-		if (sum < 0.01)
+		sum += density * 0.02;
+
+		if (sum > 1)
 			break;
+
+
+		//sum *= exp(-density * stepSize);
+
+		//if (sum < 0.01)
+		//	break;
 	}
 	gl_FragColor = vec4(vec3(1), sum);
 	//gl_FragColor = vec4(1, 0, 0, 1);

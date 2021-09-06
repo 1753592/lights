@@ -23,10 +23,17 @@ auto ReadFile = [](const std::string& fileName) {
 	std::string dir = __FILE__;
 	auto path = std::filesystem::path(dir).parent_path();
 	path.append(fileName);
+	if (!std::filesystem::exists(path)) {
+		path = std::filesystem::path(dir).parent_path();
+		path = path.parent_path();
+		path.append("glsl");
+		path.append(fileName);
+	}
 	std::ifstream fs(path.string(), std::ios::in);
 	std::istreambuf_iterator<char> iter(fs), end;
 	std::string shaderSource(iter, end);
 	return shaderSource;
+
 };
 
 
@@ -77,7 +84,7 @@ void VCloudNode::traverse(NodeVisitor& nv)
 		auto vp = cull->getViewport();
 		ss->getOrCreateUniform("screenSize", osg::Uniform::FLOAT_VEC4)->set(osg::Vec4(vp->width(), vp->height(), 0, 0));
 
-		const Vec3 offset = {2, 2, 2};
+		const Vec3 offset = { 2, 2, 2 };
 		auto center = _box->getCenter();
 		auto minBox = center - _box->getHalfLengths() - offset;
 		auto maxBox = center + _box->getHalfLengths() + offset;
@@ -116,24 +123,25 @@ void VCloudNode::setDepthTexture(osg::Texture2D* tex)
 void VCloudNode::createNoise()
 {
 	_noiseTex = new osg::Texture3D;
-	_noiseTex->setTextureSize(256, 256, 256);
+	_noiseTex->setTextureSize(128, 128, 128);
 	_noiseTex->setFilter(_noiseTex->MIN_FILTER, _noiseTex->LINEAR);
 	_noiseTex->setFilter(_noiseTex->MAG_FILTER, _noiseTex->LINEAR);
-	_noiseTex->setInternalFormat(GL_R32F);
+	_noiseTex->setInternalFormat(GL_RGBA16F);
 	_noiseTex->setSourceFormat(GL_RED);
 	_noiseTex->setSourceType(GL_FLOAT);
 	_noiseTex->setWrap(_noiseTex->WRAP_S, _noiseTex->MIRROR);
 	_noiseTex->setWrap(_noiseTex->WRAP_T, _noiseTex->MIRROR);
 	_noiseTex->setWrap(_noiseTex->WRAP_R, _noiseTex->MIRROR);
 
-	auto bind = new osg::BindImageTexture(0, _noiseTex, osg::BindImageTexture::WRITE_ONLY, GL_R32F);
+	auto bind = new osg::BindImageTexture(0, _noiseTex, osg::BindImageTexture::WRITE_ONLY, GL_RGBA16F);
 	bind->setIsLayered(true);
 
-	_noise = new osg::DispatchCompute(16, 16, 128);
+	_noise = new osg::DispatchCompute(8, 8, 32);
 	_noise->setDataVariance(STATIC);
 	auto ss = _noise->getOrCreateStateSet();
 	auto pg = new osg::Program;
 	pg->addShader(new osg::Shader(osg::Shader::COMPUTE, ReadFile("noise.comp")));
+	pg->addShader(new osg::Shader(osg::Shader::COMPUTE, ReadFile("noise.glsl")));
 	ss->setAttributeAndModes(pg);
 	//ss->addUniform(new osg::Uniform("noiseTex", int(0)));
 	//ss->setTextureAttribute(0, _noiseTex);
@@ -148,11 +156,10 @@ void VCloudNode::createDiscribTex()
 	_dsTex = new osg::Texture2D;
 	auto img = osgDB::readImageFile(imagePath);
 	_dsTex->setImage(img);
-	_dsTex->setWrap(_dsTex->WRAP_S, _dsTex->CLAMP_TO_BORDER);
-	_dsTex->setWrap(_dsTex->WRAP_T, _dsTex->CLAMP_TO_BORDER);
+	_dsTex->setWrap(_dsTex->WRAP_S, _dsTex->MIRROR);
+	_dsTex->setWrap(_dsTex->WRAP_T, _dsTex->MIRROR);
 	_dsTex->setFilter(_dsTex->MIN_FILTER, _dsTex->NEAREST);
 	_dsTex->setFilter(_dsTex->MAG_FILTER, _dsTex->NEAREST);
-	_dsTex->setBorderColor({ 255, 255, 255 , 255});
 	auto ss = _boxDrawable->getOrCreateStateSet();
 	ss->addUniform(new osg::Uniform("disTex", 2));
 	ss->setTextureAttribute(2, _dsTex);

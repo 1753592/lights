@@ -1,14 +1,5 @@
 #version 330
 
-
-//simplex3d_fractal
-//simplex3d_fractal_rot
-//simplex3d_fractal_abs
-//simplex3d_fractal_abs_rot
-//simplex3d_fractal_abs_sin
-//simplex3d_fractal_abs_sin
-
-
 vec3 hash32(vec2 p)
 {
 	vec3 p3 = fract(vec3(p.xyx) * vec3(.1031, .1030, .0973));
@@ -206,17 +197,10 @@ float simplex3d_fractal_abs_sin_rot(vec3 v)
 	return sin(ret * 3.14159 + v.x * 0.5);
 }
 
-float worley2d_fractal(vec2 x)
+float worley2d_fractal(vec2 x, float u, float v, float w)
 {
-	return 0.65 * worley2d_circle(x)
-		+ 0.25 * worley2d_circle(2.0 * x)
+	return 0.7 * worley2d_circle(x)
+		+ 0.2 * worley2d_circle(2.0 * x)
 		+ 0.1 * worley2d_circle(4.0 * x);
-}
-
-float worley3d_fractal(vec3 x)
-{
-	return 0.65 * worley3d_circle(x)
-		+ 0.25 * worley3d_circle(2.0 * x)
-		+ 0.1 * worley3d_circle(4.0 * x);
 }
 

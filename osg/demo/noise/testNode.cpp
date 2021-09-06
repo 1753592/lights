@@ -130,8 +130,8 @@ void TestNode::traverse(NodeVisitor& nv)
 			ImGui::SliderFloat("w", &uvw[2], 0, 1);
 			ss->getOrCreateUniform("uvw", osg::Uniform::FLOAT_VEC3)->set(uvw);
 
-			static float repNum = 8;
-			if (ImGui::SliderFloat("repNum", &repNum, 8, 64)) {
+			static float repNum = 4;
+			if (ImGui::SliderFloat("repNum", &repNum, 1, 64)) {
 				auto ss = getOrCreateStateSet();
 				ss->getOrCreateUniform("repNum", osg::Uniform::FLOAT)->set(repNum);
 			}
