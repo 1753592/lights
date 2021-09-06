@@ -18,7 +18,7 @@ vec3 hash33(vec3 p)
 vec3 random3(vec3 p)
 {
 #if defined HASH33
-	return hash33(p);
+	return hash33(p) - 0.5;
 #else
 	float j = 4096.0 *
 		sin(dot(p, vec3(17.0, 59.4, 15.0)));
@@ -66,28 +66,73 @@ float simplex3d(vec3 v)
 	return dot(d, vec4(52.0));
 }
 
-//float worley2d(in vec2 v)
-//{
-//	vec2 p = floor(v);
-//	vec2 f = fract(v);
-//
-//	float va = 0.0;
-//	float wt = 0.0;
-//	for (int j = -2; j <= 2; j++)
-//		for (int i = -2; i <= 2; i++) {
-//			vec2  g = vec2(float(i), float(j));
-//			vec3  o = hash32(p + g);
-//			vec2  r = g - f + o.xy;
-//			float d = dot(r, r);
-//			float w = pow(1.0 - smoothstep(0.0, 1.414, sqrt(d)), k);
-//			va += w * o.z;
-//			wt += w;
-//		}
-//
-//	return va / wt;
-//}
-//
-float worley2d_test(vec2 x, float u, float v)
+float worley2d_circle(in vec2 v)
+{
+	vec2 p = floor(v);
+	vec2 f = fract(v);
+
+	float va = 0.0;
+	float wt = 0.0;
+	for (int j = -1; j <= 1; j++)
+		for (int i = -1; i <= 1; i++) {
+			vec2  g = vec2(float(i), float(j));
+			vec3  o = hash32(p + g);
+			vec2  r = g - f + o.xy;
+			float d = dot(r, r);
+			float w = pow(1.0 - smoothstep(0.0, 0.707, sqrt(d)), 32);
+			va += w * o.z;
+			wt += w;
+		}
+
+	return va / wt;
+}
+
+float worley3d_circle(in vec3 v)
+{
+	vec3 p = floor(v);
+	vec3 f = fract(v);
+
+	float va = 0.0;
+	float wt = 0.0;
+	for (int j = -1; j <= 1; j++)
+		for (int i = -1; i <= 1; i++) {
+			for (int k = -1; k <= 1; k++) {
+				vec3  g = vec3(float(i), float(j), float(k));
+				vec3  o = random3(p + g) * 2;
+				vec3  r = g - f + o.xyz;
+				float d = dot(r, r);
+				float w = pow(1.0 - smoothstep(0.0, 0.866, sqrt(d)), 32);
+				va += w * o.z;
+				wt += w;
+			}
+		}
+
+	return va / wt;
+}
+
+
+float worley2d_poly(in vec2 v)
+{
+	vec2 p = floor(v);
+	vec2 f = fract(v);
+
+	float va = 0.0;
+	float wt = 0.0;
+	for (int j = -1; j <= 1; j++)
+		for (int i = -1; i <= 1; i++) {
+			vec2  g = vec2(float(i), float(j));
+			vec3  o = hash32(p + g);
+			vec2  r = g - f + o.xy;
+			float d = dot(r, r);
+			float w = pow(1.0 - smoothstep(0.0, 1.404, sqrt(d)), 32);
+			va += w * o.z;
+			wt += w;
+		}
+
+	return va / wt;
+}
+
+float worley2d_test(vec2 x, float u, float v, float radius)
 {
 	vec2 p = floor(x);
 	vec2 f = fract(x);
@@ -95,13 +140,13 @@ float worley2d_test(vec2 x, float u, float v)
 	float k = 1.0 + 63.0 * pow(1.0 - v, 4.0);
 	float va = 0.0;
 	float wt = 0.0;
-	for (int j = -2; j <= 2; j++)
-		for (int i = -2; i <= 2; i++) {
+	for (int j = -1; j <= 1; j++)
+		for (int i = -1; i <= 1; i++) {
 			vec2  g = vec2(float(i), float(j));
 			vec3  o = hash32(p + g) * vec3(u, u, 1.0);
 			vec2  r = g - f + o.xy;
 			float d = dot(r, r);
-			float w = pow(1.0 - smoothstep(0.0, 1.414, sqrt(d)), k);
+			float w = pow(1.0 - smoothstep(0.0, radius * 1.414, sqrt(d)), k);
 			va += w * o.z;
 			wt += w;
 		}
@@ -157,14 +202,11 @@ float simplex3d_fractal_abs_sin_rot(vec3 v)
 	return sin(ret * 3.14159 + v.x * 0.5);
 }
 
-//
-//float worley_fractal(vec3 x, float u, float v)
-//{
-//	float ret = -1;
-//	for (int i = -1; i < 5; i++) {
-//		float ratio = pow(1.0, i);
-//		ret += (0 / ratio) * worley2d(x * ratio, u, v);
-//	}
-//	return ret * -1.68;
-//}
+float worley2d_fractal(vec2 x, float u, float v, float w)
+{
+	return 0.5333333 * worley2d_test(x, u, v, w)
+		+ 0.2666667 * worley2d_test(2.0 * x, u, v, w)
+		+ 0.1333333 * worley2d_test(4.0 * x, u, v, w)
+		+ 0.0666667 * worley2d_test(8.0 * x, u, v, w);
+}
 

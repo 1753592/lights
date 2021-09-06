@@ -124,10 +124,11 @@ void TestNode::traverse(NodeVisitor& nv)
 				ImGui::EndCombo();
 			}
 		} else if (_noiseType == 1) {
-			static osg::Vec2 uv = {0, 0};
-			ImGui::SliderFloat("u", &uv[0], -2, 2);
-			ImGui::SliderFloat("v", &uv[1], 0, 1);
-			ss->getOrCreateUniform("uv", osg::Uniform::FLOAT_VEC2)->set(uv);
+			static osg::Vec3 uvw = {0, 0, 1};
+			ImGui::SliderFloat("u", &uvw[0], -1, 1);
+			ImGui::SliderFloat("v", &uvw[1], 0, 1);
+			ImGui::SliderFloat("w", &uvw[2], 0, 1);
+			ss->getOrCreateUniform("uvw", osg::Uniform::FLOAT_VEC3)->set(uvw);
 
 			static float repNum = 8;
 			if (ImGui::SliderFloat("repNum", &repNum, 8, 64)) {
@@ -135,7 +136,7 @@ void TestNode::traverse(NodeVisitor& nv)
 				ss->getOrCreateUniform("repNum", osg::Uniform::FLOAT)->set(repNum);
 			}
 
-			const char* items[] = { "noise", "fractal" };
+			const char* items[] = { "2d-noise", "2d-circle", "2d-poly", "2d-fbm", "3d-circle"};
 			static int item_current_idx = 0;
 			const char* combo_preview_value = items[item_current_idx];  // Pass in the preview value visible before opening the combo (it could be anything)
 			if (ImGui::BeginCombo("combo 1", combo_preview_value, 0)) {
