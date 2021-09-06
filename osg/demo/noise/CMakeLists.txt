@@ -41,8 +41,8 @@ endforeach()
 set_target_properties(${app_name} PROPERTIES FOLDER "o/demos")
 
 set(SHADERS
+	../glsl/noise.glsl
 	noise.vert
-	noise.glsl
 	simplex.frag
 	worley.frag
 )
