@@ -33,7 +33,6 @@ auto ReadFile = [](const std::string& fileName) {
 	std::istreambuf_iterator<char> iter(fs), end;
 	std::string shaderSource(iter, end);
 	return shaderSource;
-
 };
 
 
@@ -140,8 +139,8 @@ void VCloudNode::createNoise()
 	_noise->setDataVariance(STATIC);
 	auto ss = _noise->getOrCreateStateSet();
 	auto pg = new osg::Program;
-	pg->addShader(new osg::Shader(osg::Shader::COMPUTE, ReadFile("noise.comp")));
 	pg->addShader(new osg::Shader(osg::Shader::COMPUTE, ReadFile("noise.glsl")));
+	pg->addShader(new osg::Shader(osg::Shader::COMPUTE, ReadFile("noise.comp")));
 	ss->setAttributeAndModes(pg);
 	//ss->addUniform(new osg::Uniform("noiseTex", int(0)));
 	//ss->setTextureAttribute(0, _noiseTex);

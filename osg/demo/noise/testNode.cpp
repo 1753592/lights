@@ -166,6 +166,12 @@ void TestNode::setNoise(int idx)
 		std::string dir = __FILE__;
 		auto path = std::filesystem::path(dir).parent_path();
 		path.append(fileName);
+		if (!std::filesystem::exists(path)) {
+			path = std::filesystem::path(dir).parent_path();
+			path = path.parent_path();
+			path.append("glsl");
+			path.append(fileName);
+		}
 		std::ifstream fs(path.string(), std::ios::in);
 		std::istreambuf_iterator<char> iter(fs), end;
 		std::string shaderSource(iter, end);
