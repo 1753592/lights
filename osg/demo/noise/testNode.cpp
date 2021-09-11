@@ -136,7 +136,7 @@ void TestNode::traverse(NodeVisitor& nv)
 				ss->getOrCreateUniform("repNum", osg::Uniform::FLOAT)->set(repNum);
 			}
 
-			const char* items[] = { "2d-noise", "2d-circle", "2d-poly", "2d-fbm", "3d-circle"};
+			const char* items[] = { "2d-noise", "2d-circle", "2d-poly", "2d-fbm", "3d-circle", "3d-circle-fbm"};
 			static int item_current_idx = 0;
 			const char* combo_preview_value = items[item_current_idx];  // Pass in the preview value visible before opening the combo (it could be anything)
 			if (ImGui::BeginCombo("combo 1", combo_preview_value, 0)) {

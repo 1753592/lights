@@ -35,16 +35,14 @@ int main(int argc, char** argv)
 
         osg::ref_ptr<osg::Camera> camera = new osg::Camera;
 		
-		camera->setComputeNearFarMode(camera->DO_NOT_COMPUTE_NEAR_FAR);
-		camera->setNearFarRatio(0.001);
         camera->setGraphicsContext(gc.get());
         camera->setViewport(new osg::Viewport(0, 0, traits->width, traits->height));
+		camera->setComputeNearFarMode(camera->DO_NOT_COMPUTE_NEAR_FAR);
         GLenum buffer = traits->doubleBuffer ? GL_BACK : GL_FRONT;
         camera->setDrawBuffer(buffer);
         camera->setReadBuffer(buffer);
 		viewer.addSlave(camera);
-		viewer.getCamera()->setClearColor({ 0, 0.2, 0.3, 1 });
-
+		viewer.getCamera()->setClearColor({ 0, 0, 0, 1 });
     }
 
 	auto grp = new Group;

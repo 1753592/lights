@@ -82,8 +82,8 @@ float worley2d_circle(in vec2 v)
 	vec2 f = fract(v);
 
 	float ret = 0;
-	for (int j = -1; j <= 1; j++)
-		for (int i = -1; i <= 1; i++) {
+	for (int j = -2; j <= 2; j++)
+		for (int i = -2; i <= 2; i++) {
 			vec2  g = vec2(float(i), float(j));
 			vec3  o = hash32(p + g);
 			vec2  r = g - f + o.xy;
@@ -101,15 +101,15 @@ float worley3d_circle(in vec3 v)
 	vec3 f = fract(v);
 
 	float ret = 0;
-	for (int j = -1; j <= 1; j++)
-		for (int i = -1; i <= 1; i++) {
-			for (int k = -1; k <= 1; k++) {
+	for (int j = -2; j <= 2; j++)
+		for (int i = -2; i <= 2; i++) {
+			for (int k = -2; k <= 2; k++) {
 				vec3  g = vec3(float(i), float(j), float(k));
 				vec3  o = random3(p + g) * 2;
-				vec3  r = g - f + o.xyz;
+				vec3  r = g - f + o;
 				float d = dot(r, r);
 				float w = 1.0 - smoothstep(0.0, 0.866, sqrt(d));
-				w = max(w, ret);
+				ret = max(w, ret);
 			}
 		}
 
@@ -123,8 +123,8 @@ float worley2d_poly(in vec2 v)
 	vec2 f = fract(v);
 
 	float ret = 0;
-	for (int j = -1; j <= 1; j++)
-		for (int i = -1; i <= 1; i++) {
+	for (int j = -2; j <= 2; j++)
+		for (int i = -2; i <= 2; i++) {
 			vec2  g = vec2(float(i), float(j));
 			vec3  o = hash32(p + g);
 			vec2  r = g - f + o.xy;
@@ -144,8 +144,8 @@ float worley2d_test(vec2 x, float u, float v, float radius)
 	float k = 1.0 + 63.0 * pow(1.0 - v, 4.0);
 	float va = 0.0;
 	float wt = 0.0;
-	for (int j = -1; j <= 1; j++)
-		for (int i = -1; i <= 1; i++) {
+	for (int j = -2; j <= 2; j++)
+		for (int i = -2; i <= 2; i++) {
 			vec2  g = vec2(float(i), float(j));
 			vec3  o = hash32(p + g) * vec3(u, u, 1.0);
 			vec2  r = g - f + o.xy;
@@ -206,14 +206,14 @@ float simplex3d_fractal_abs_sin_rot(vec3 v)
 	return sin(ret * 3.14159 + v.x * 0.5);
 }
 
-float worley2d_fractal(vec2 x)
+float worley2d_circle_fractal(vec2 x)
 {
 	return 0.65 * worley2d_circle(x)
 		+ 0.25 * worley2d_circle(2.0 * x)
 		+ 0.1 * worley2d_circle(4.0 * x);
 }
 
-float worley3d_fractal(vec3 x)
+float worley3d_circle_fractal(vec3 x)
 {
 	return 0.65 * worley3d_circle(x)
 		+ 0.25 * worley3d_circle(2.0 * x)

@@ -4,17 +4,15 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(app_name volume-cloud)
+set(app_name ssao)
 
 set(hdr
 	testNode.h
-	vCloudNode.h
 )
 
 set(src
 	main.cpp
 	testNode.cpp
-	vCloudNode.cpp
 )
 
 set(libs
@@ -43,9 +41,7 @@ endforeach()
 set_target_properties(${app_name} PROPERTIES FOLDER "o/demos")
 
 set(SHADERS
-	cloud.vert
-	cloud.frag
-	noise.comp
+	../glsl/noise.glsl
 )
 
 source_group(shaders FILES ${SHADERS})

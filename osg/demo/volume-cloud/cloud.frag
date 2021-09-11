@@ -26,12 +26,23 @@ float remap(float original_value, float original_min, float original_max, float 
 	return new_min + (((original_value - original_min) / (original_max - original_min)) * (new_max - new_min));
 }
 
+float GetHeightFractionForPoint(vec3 inPosition, vec2 inCloudMinMax)
+{
+	float height_fraction = (inPosition.z - inCloudMinMax.x) / (inCloudMinMax.y - inCloudMinMax.x);
+	return clamp(height_fraction, 0, 1);
+}
+
 float sampleDensity(vec3 pos)
 {
 	vec3 lv = maxBox - minBox;
-	float ln = max(lv.x, max(lv.y, lv.z));
+	float ln = min(lv.x, min(lv.y, lv.z));
 	vec3 texCoord = (pos - minBox) / ln / 2.0;
-	float density = texture(noiseTex, texCoord).g;
+	vec4 low_noise = texture(noiseTex, texCoord);
+	float low_fbm = low_noise.g * 0.625 + low_noise.b * 0.25 + low_noise.a * 0.125;
+	float density = remap(low_noise.r, low_fbm - 1, 1, 0, 1);
+
+	//fake distruction
+	density = remap(density, .55, 1., 0., 1.);
 
 	return density;
 
@@ -94,22 +105,22 @@ void main()
 
 	vec3 dir = normalize(localVertex - camPos);
 	minBox = boxPos.xyz - boxLength.xyz;
-	minBox -= 0.00001;
 	maxBox = boxPos.xyz + boxLength.xyz;
-	maxBox += 0.00001;
 
 	vec3 startPos = localVertex;
-	if (!gl_FrontFacing) {
+	if (gl_FrontFacing) {
+		startPos = startPos += dir * 0.001;
+	} else {
 		depPos = vec4(uv * 2 - 1.0, -1, 1);
 		depPos = invModelViewProjectMatrix * depPos;
 		startPos = depPos.xyz / depPos.w;
 	}
 
-	const float step = 0.2;
-	const int count = int(length(boxLength) * 2 / step);
+	float mx = min(boxLength.x, min(boxLength.y, boxLength.z));
+	const float step =  mx / 10 * 0.2;
 
 	float sum = 0;
-	for (int i = 0; i < count; i++) {
+	for (int i = 0; ; i++) {
 		float stepSize = i * step;
 		vec3 tmpPos = startPos + dir * stepSize;
 
@@ -128,7 +139,7 @@ void main()
 		//	break;
 		float density = sampleDensity(tmpPos);
 
-		sum += density * 0.02;
+		sum += density * 0.015;
 
 		if (sum > 1)
 			break;
@@ -139,6 +150,6 @@ void main()
 		//if (sum < 0.01)
 		//	break;
 	}
-	gl_FragColor = vec4(vec3(1), sum);
+	gl_FragColor = vec4(sum);
 	//gl_FragColor = vec4(1, 0, 0, 1);
 }

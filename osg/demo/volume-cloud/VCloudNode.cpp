@@ -39,7 +39,7 @@ auto ReadFile = [](const std::string& fileName) {
 VCloudNode::VCloudNode()
 	: _needComputeNoise(true)
 {
-	_box = new osg::Box({ 0, 0, 0 }, 160, 160, 20);
+	_box = new osg::Box({ 0, 0, 0 }, 200, 200, 50);
 	auto node = new osg::ShapeDrawable(_box);
 	node->setColor({ 1, 0, 0, 1 });
 	addChild(node);
