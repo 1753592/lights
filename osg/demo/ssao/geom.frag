@@ -1,12 +1,13 @@
 #version 330 compatibility
 
 in vec3 normal;
-in vec3 fragPos;
+in vec3 pos;
 
 uniform vec3 viewPos;
 
-out vec3 fragColor;
-out vec3 fragNormal;
+layout(location = 0) out vec3 fragColor;
+layout(location = 1) out vec3 fragNormal;
+layout(location = 2) out vec3 fragPos;
 
 void main(void)
 {
@@ -31,4 +32,5 @@ void main(void)
 	//gl_FragColor = vec4(result, 1.0);
 	fragColor = objectColor;
 	fragNormal = normal;
+	fragPos = pos;
 }

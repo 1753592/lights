@@ -6,6 +6,7 @@
 #include <osgViewer/ViewerEventHandlers>
 #include <osgViewer/ImGuiHandler>
 #include <osgGA/StateSetManipulator>
+#include <osgGA/TrackballManipulator>
 
 #include <iostream>
 
@@ -43,6 +44,8 @@ int main(int argc, char** argv)
         camera->setReadBuffer(buffer);
 		viewer.addSlave(camera);
 		viewer.getCamera()->setClearColor({ 0, 0, 0, 1 });
+		viewer.setCameraManipulator(new osgGA::TrackballManipulator);
+		viewer.getCameraManipulator()->setHomePosition({ 0, 0, 3 }, { 0, 0, 0 }, { 0, 1, 0 });
     }
 
 	auto grp = new Group;

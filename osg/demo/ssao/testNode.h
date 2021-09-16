@@ -21,11 +21,11 @@ public:
 	//BoundingSphere computeBound() const;
 	osg::Texture2D* createTexture(int, int);
 private:
-	osg::ref_ptr<osg::Camera> _cam;
+	osg::ref_ptr<osg::Camera> _cam, _ssaoCam, _blurCam;
 
-	osg::ref_ptr<osg::Texture2D> _colorTex;
-	osg::ref_ptr<osg::Texture2D> _depthTex;
-	osg::ref_ptr<osg::Texture2D> _normalTex;
+	osg::ref_ptr<osg::Geometry> _quad;
 
+	osg::ref_ptr<osg::Texture2D> _colorTex, _normalTex, _posTex;
 
+	osg::ref_ptr<osg::Texture2D> _ssaoTex, _blurTex;
 };
