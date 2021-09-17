@@ -28,4 +28,6 @@ private:
 	osg::ref_ptr<osg::Texture2D> _colorTex, _normalTex, _posTex;
 
 	osg::ref_ptr<osg::Texture2D> _ssaoTex, _blurTex;
+
+	osg::ref_ptr<osg::Group> _node;
 };

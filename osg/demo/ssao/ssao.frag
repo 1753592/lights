@@ -13,7 +13,7 @@ uniform mat4 projection;
 out float fragColor;
 
 int kernelSize = 64;
-float radius = 0.5;
+float radius = 0.25;
 float bias = 0.025;
 
 // tile noise texture over screen based on screen dimensions divided by noise size
