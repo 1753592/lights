@@ -601,8 +601,8 @@ TestNode::TestNode()
 	ss->getOrCreateUniform("ao", Uniform::FLOAT)->set(1.f);
 	ss->getOrCreateUniform("albedo", Uniform::FLOAT_VEC3)->set(Vec3(0.5, 0.0, 0));
 
-	std::string resPath = "D:\\dev\\lights\\resources\\";
-	auto img = osgDB::readImageFile(resPath + "hdr\\newport_loft.hdr");
+	std::string resPath = "D:\\04_Dev\\z\\LearnOpenGL\\resources";
+	auto img = osgDB::readImageFile(resPath + "\\textures\\hdr\\newport_loft.hdr");
 	img->setPixelFormat(GL_RGB);
 	img->setInternalTextureFormat(GL_RGB);
 	auto tex = new Texture2D(img);

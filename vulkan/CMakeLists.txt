@@ -27,4 +27,4 @@ function(compile_shader target)
     endforeach()
 endfunction()
 
-add_subdirectory(basic_pbr)
+#add_subdirectory(basic_pbr)

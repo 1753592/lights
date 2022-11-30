@@ -413,8 +413,8 @@ TestNode::TestNode()
 		program->addShader(new osg::Shader(osg::Shader::FRAGMENT, hdrFragSource));
 		ss->setAttributeAndModes(program, osg::StateAttribute::ON);
 
-		std::string resPath = "D:\\dev\\lights\\resources\\";
-		auto img = osgDB::readImageFile(resPath + "hdr\\newport_loft.hdr");
+		std::string resPath = "D:\\04_Dev\\z\\LearnOpenGL\\resources";
+		auto img = osgDB::readImageFile(resPath + "\\textures\\hdr\\newport_loft.hdr");
 		img->setPixelFormat(GL_RGB);
 		img->setInternalTextureFormat(GL_RGB);
 		auto tex = new Texture2D(img);
