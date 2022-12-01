@@ -110,23 +110,134 @@ const std::string taaShader = R"(
 #version 330 compatibility
 
 in vec2 uv;
-in vec4 clr;
 
 uniform bool init_clr;
+uniform vec2 tex_size;
 uniform vec2 taa_jitter;
 
-uniform sampler2D prev_tex;
-uniform sampler2D curr_tex;
+uniform sampler2D dep_tex;
+uniform sampler2D vel_tex;
+uniform sampler2D pre_tex;
+uniform sampler2D cur_tex;
+
+const vec2 sample_offset[9] = vec2[9](
+	vec2(-1, -1),
+	vec2( 0, -1),
+	vec2( 1, -1),
+	vec2(-1,  0),
+	vec2( 0,  0),
+	vec2( 1,  0),
+	vec2(-1,  1),
+	vec2( 0,  1),
+	vec2( 1,  1)
+);
+
+vec2 get_closest(vec2 uv)
+{
+	vec2 close_uv = uv;
+	float close_dep = 1.f;
+	vec2 del_res = vec2(1 / tex_size.x, 1 / tex_size.y);	
+	for(int i = 0; i < 9; i++){
+		vec2 uvtmp = uv + del_res * sample_offset[i]; 
+		float deptmp = texture(dep_tex, uvtmp).x;
+		if(deptmp < close_dep)
+		{
+			close_dep = deptmp;
+			close_uv = uvtmp;	
+		}
+	}
+	return close_uv;
+}
+
+vec3 rgb2YCoCg(vec3 rgb)
+{
+	return vec3(
+		dot(rgb, vec3(1, 2 ,1)),
+		dot(rgb, vec3(2, 0,-2)),
+		dot(rgb, vec3(-1,2,-1))
+	);
+}
+
+vec3 YCoCg2rgb(vec3 ycocg)
+{
+	vec3 tmp = ycocg * 0.25;
+	return vec3(
+		tmp.x + tmp.y - tmp.z,
+		tmp.x + tmp.z,
+		tmp.x - tmp.y - tmp.z	
+	);
+}
+
+//vec3 clip_aabb(vec3 cur_clr, vec3 pre_clr)
+//{
+//    vec3 aabb_min = cur_clr, aabb_max = cur_clr;
+//    vec2 delta_res = vec2(1.0 / tex_size.x, 1.0 / tex_size.y);
+//    vec3 m1 = vec3(0), m2 = vec3(0);
+//    for(int i=-1;i<=1;++i)
+//    {
+//        for(int j=-1;j<=1;++j)
+//        {
+//            vec2 uvtmp = uv + delta_res * vec2(i, j);
+//            vec3 c = rgb2YCoCg(texture(cur_tex, uvtmp).rgb);
+//            m1 += c;
+//            m2 += c * c;
+//        }
+//    }
+//
+//    const int n = 9;
+//    const float clip_gamma = 1.0f;
+//    vec3 mu = m1 / n;
+//    vec3 sigma = sqrt(abs(m2 / n - mu * mu));
+//    aabb_min = mu - clip_gamma * sigma;
+//    aabb_max = mu + clip_gamma * sigma;
+//
+//    vec3 p_clip = 0.5 * (aabb_max + aabb_min);
+//    vec3 e_clip = 0.5 * (aabb_max - aabb_min);
+//
+//    vec3 v_clip = pre_clr - p_clip;
+//    vec3 v_unit = v_clip.xyz / e_clip;
+//    vec3 a_unit = abs(v_unit);
+//    float ma_unit = max(a_unit.x, max(a_unit.y, a_unit.z));
+//
+//    if (ma_unit > 1.0)
+//        return p_clip + v_clip / ma_unit;
+//    else
+//        return pre_clr;
+//}
+
+
+vec3 clip_aabb(vec3 cur_clr, vec3 pre_clr, vec2 cur_uv)
+{
+	pre_clr = rgb2YCoCg(pre_clr);
+
+    vec3 aabb_min = cur_clr, aabb_max = cur_clr;
+    vec2 delta_res = vec2(1 / tex_size.x, 1 / tex_size.y);
+	for(int i = 0; i < 9; i++){
+		vec2 uvtmp = cur_uv + delta_res * sample_offset[i];
+		vec3 c = rgb2YCoCg(texture(cur_tex, uvtmp).rgb);
+		aabb_min = min(aabb_min, c);
+		aabb_max = max(aabb_max, c);
+    }
+
+	return YCoCg2rgb(clamp(pre_clr, aabb_min, aabb_max));
+}
+
 
 void main()
 {
+	vec2 cur_uv = uv - taa_jitter;
+	vec3 cur_clr = texture(cur_tex, cur_uv).rgb;
 
-	vec3 his_clr = texture(prev_tex, uv).rgb;
-	vec2 cur_uv = uv + taa_jitter;
-	vec3 cur_clr = texture(curr_tex, cur_uv).rgb;
-	
+	//vec2 velocity = texture(vel_tex, get_closest(uv)).rg;
+	vec2 velocity = texture(vel_tex, uv).rg;
+	vec2 vel_uv = clamp(uv - velocity, 0, 1);
+	vec3 pre_clr = texture(pre_tex, vel_uv).rgb;
+
+	//vec3 cur_yog = rgb2YCoCg(cur_clr);
+	//pre_clr = clip_aabb(cur_yog, pre_clr, cur_uv);	
+
 	//gl_FragColor = clr;
-	vec3 des_clr = mix(his_clr, cur_clr, 0.05); 
+	vec3 des_clr = mix(pre_clr, cur_clr, 0.05); 
 	gl_FragColor = vec4(des_clr, 1);
 }
 
@@ -146,8 +257,8 @@ void main()
 	vec2 uv = gl_TexCoord[0].xy;
 	//float r = texture(dep_tex, uv).r;
 	//gl_FragColor = vec4(vec3(r), 1);
-	//gl_FragColor = vec4(texture(clr_tex, uv).rgb, 1);
-	gl_FragColor = vec4(texture(vel_tex, uv).rg, 0, 1);
+	gl_FragColor = vec4(texture(clr_tex, uv).rgb, 1);
+	//gl_FragColor = vec4(texture(vel_tex, uv).rg, 0, 1);
 }
 
 )";
@@ -200,19 +311,20 @@ void TestNode::init()
 
 	_clrTex = new osg::Texture2D;
 	_clrTex->setInternalFormat(GL_RGBA);
-	_clrTex->setFilter(Texture::MIN_FILTER, Texture::NEAREST);
-	_clrTex->setFilter(Texture::MAG_FILTER, Texture::NEAREST);
+    _clrTex->setFilter(Texture::MIN_FILTER, Texture::LINEAR);
+    _clrTex->setFilter(Texture::MAG_FILTER, Texture::LINEAR);
 
 	_depTex = new osg::Texture2D;
 	_depTex->setInternalFormat(GL_DEPTH_COMPONENT);
-	_depTex->setFilter(Texture::MIN_FILTER, Texture::NEAREST);
-	_depTex->setFilter(Texture::MAG_FILTER, Texture::NEAREST);
+	_depTex->setFilter(Texture::MIN_FILTER, Texture::LINEAR);
+	_depTex->setFilter(Texture::MAG_FILTER, Texture::LINEAR);
 
 	_velTex = new osg::Texture2D;
 	_velTex->setInternalFormat(GL_RG16);
 	_velTex->setSourceFormat(GL_RG);
 	_velTex->setSourceType(GL_FLOAT);
-	_velTex->setFilter(Texture::MIN_FILTER, Texture::NEAREST);
+    _velTex->setFilter(Texture::MIN_FILTER, Texture::LINEAR);
+    _velTex->setFilter(Texture::MAG_FILTER, Texture::LINEAR);
 
 	_cam->attach(Camera::COLOR_BUFFER0, _clrTex);
 	_cam->attach(Camera::DEPTH_BUFFER, _depTex);
@@ -231,7 +343,11 @@ void TestNode::init()
 	ss->setTextureAttributeAndModes(0, _clrTex);
 	ss->setTextureAttributeAndModes(1, _taaTex1);
 	ss->setTextureAttributeAndModes(2, _taaTex2);
-	ss->getOrCreateUniform("curr_texture", osg::Uniform::SAMPLER_2D)->set(0);
+    ss->setTextureAttributeAndModes(3, _depTex);
+    ss->setTextureAttributeAndModes(4, _velTex);
+	ss->getOrCreateUniform("cur_tex", osg::Uniform::SAMPLER_2D)->set(0);
+	ss->getOrCreateUniform("dep_tex", osg::Uniform::SAMPLER_2D)->set(3);
+	ss->getOrCreateUniform("vel_tex", osg::Uniform::SAMPLER_2D)->set(4);
 	{
 		auto prg = new osg::Program;
 		prg->addShader(new osg::Shader(Shader::VERTEX, tavShader));
@@ -293,6 +409,8 @@ void TestNode::traverse(NodeVisitor& nv)
 
 			_cam->setViewport(0, 0, vp->width(), vp->height());
 			_cam->dirtyAttachmentMap();
+
+			_ssquad->getStateSet()->getOrCreateUniform("tex_size", osg::Uniform::FLOAT_VEC2)->set(osg::Vec2(vp->width(), vp->height()));
 		}
 
 		int frameNum = cv->getFrameStamp()->getFrameNumber();
@@ -323,13 +441,13 @@ void TestNode::traverse(NodeVisitor& nv)
 		ss->getOrCreateUniform("taa_jitter", osg::Uniform::FLOAT_VEC2)->set(jit);
 		if (frameNum % 2) {
 			_taaCam->attach(Camera::COLOR_BUFFER, _taaTex1);
-			ss->getOrCreateUniform("prev_tex", osg::Uniform::SAMPLER_2D)->set(2);
+			ss->getOrCreateUniform("pre_tex", osg::Uniform::SAMPLER_2D)->set(2);
 			ss = _ssquad->getStateSet();
 			ss->getOrCreateUniform("clr_tex", osg::Uniform::SAMPLER_2D)->set(1);
 		}
 		else {
 			_taaCam->attach(Camera::COLOR_BUFFER, _taaTex2);
-			ss->getOrCreateUniform("prev_tex", osg::Uniform::SAMPLER_2D)->set(1);
+			ss->getOrCreateUniform("pre_tex", osg::Uniform::SAMPLER_2D)->set(1);
 			ss = _ssquad->getStateSet();
 			ss->getOrCreateUniform("clr_tex", osg::Uniform::SAMPLER_2D)->set(2);
 		}
