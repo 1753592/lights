@@ -65,8 +65,8 @@ void main()
 	//float r = texture(dep_tex, uv).r;
 	//gl_FragColor = vec4(vec3(r), 1);
 	color = clr;
-	vec2 cur_pos = (vel_out.cur_pos.xy / vel_out.cur_pos.w) * 0.5 + 0.5;
-	vec2 pre_pos = (vel_out.pre_pos.xy / vel_out.pre_pos.w) * 0.5 + 0.5;
+	vec2 cur_pos = (vel_out.cur_pos.xy / vel_out.cur_pos.w) * 0.5;
+	vec2 pre_pos = (vel_out.pre_pos.xy / vel_out.pre_pos.w) * 0.5;
 	//velocity = cur_pos;
 	velocity = cur_pos - pre_pos;
 }
@@ -151,62 +151,77 @@ vec2 get_closest(vec2 uv)
 
 vec3 rgb2YCoCg(vec3 rgb)
 {
-	return vec3(
-		dot(rgb, vec3(1, 2 ,1)),
-		dot(rgb, vec3(2, 0,-2)),
-		dot(rgb, vec3(-1,2,-1))
-	);
+	vec3 ycocg;
+	ycocg.y = rgb.r - rgb.b;
+	float tmp = rgb.b + ycocg.y / 2;
+	ycocg.z = rgb.g - tmp;
+	ycocg.x = tmp + ycocg.z / 2;
+	return ycocg;	
 }
 
 vec3 YCoCg2rgb(vec3 ycocg)
 {
-	vec3 tmp = ycocg * 0.25;
-	return vec3(
-		tmp.x + tmp.y - tmp.z,
-		tmp.x + tmp.z,
-		tmp.x - tmp.y - tmp.z	
-	);
+	vec3 rgb;
+	float tmp = ycocg.x - ycocg.z / 2;
+	rgb.g = ycocg.z + tmp;
+	rgb.b = tmp - ycocg.y / 2;
+	rgb.r = rgb.b + ycocg.y;
+	return rgb; 
 }
 
-//vec3 clip_aabb(vec3 cur_clr, vec3 pre_clr)
-//{
-//    vec3 aabb_min = cur_clr, aabb_max = cur_clr;
-//    vec2 delta_res = vec2(1.0 / tex_size.x, 1.0 / tex_size.y);
-//    vec3 m1 = vec3(0), m2 = vec3(0);
-//    for(int i=-1;i<=1;++i)
-//    {
-//        for(int j=-1;j<=1;++j)
-//        {
-//            vec2 uvtmp = uv + delta_res * vec2(i, j);
-//            vec3 c = rgb2YCoCg(texture(cur_tex, uvtmp).rgb);
-//            m1 += c;
-//            m2 += c * c;
-//        }
-//    }
-//
-//    const int n = 9;
-//    const float clip_gamma = 1.0f;
-//    vec3 mu = m1 / n;
-//    vec3 sigma = sqrt(abs(m2 / n - mu * mu));
-//    aabb_min = mu - clip_gamma * sigma;
-//    aabb_max = mu + clip_gamma * sigma;
-//
-//    vec3 p_clip = 0.5 * (aabb_max + aabb_min);
-//    vec3 e_clip = 0.5 * (aabb_max - aabb_min);
-//
-//    vec3 v_clip = pre_clr - p_clip;
-//    vec3 v_unit = v_clip.xyz / e_clip;
-//    vec3 a_unit = abs(v_unit);
-//    float ma_unit = max(a_unit.x, max(a_unit.y, a_unit.z));
-//
-//    if (ma_unit > 1.0)
-//        return p_clip + v_clip / ma_unit;
-//    else
-//        return pre_clr;
-//}
+float luminace(vec3 color)
+{
+	return 0.25 * color.r + 0.5 * color.g + 0.25 * color.b;
+}
 
+vec3 tone_map(vec3 color)
+{
+	return color / (1 + luminace(color));
+}
+
+vec3 untone_map(vec3 color)
+{
+	return color / (1 - luminace(color));
+}
 
 vec3 clip_aabb(vec3 cur_clr, vec3 pre_clr, vec2 cur_uv)
+{
+	pre_clr = rgb2YCoCg(tone_map(pre_clr));
+    vec3 aabb_min = cur_clr, aabb_max = cur_clr;
+    vec2 delta_res = vec2(1.0 / tex_size.x, 1.0 / tex_size.y);
+    vec3 m1 = vec3(0), m2 = vec3(0);
+	for(int i = 0; i < 9; i++){
+		vec2 uvtmp = cur_uv + delta_res * sample_offset[i];
+        vec3 c = rgb2YCoCg(tone_map(texture(cur_tex, uvtmp).rgb));
+		aabb_min = min(aabb_min, c);
+		aabb_max = max(aabb_max, c);
+        //m1 += c;
+        //m2 += c * c;
+    }
+
+    //const int n = 9;
+    //const float clip_gamma = 1.0f;
+    //vec3 mu = m1 / n;
+    //vec3 sigma = sqrt(abs(m2 / n - mu * mu));
+    //vec3 aabb_min = mu - clip_gamma * sigma;
+    //vec3 aabb_max = mu + clip_gamma * sigma;
+
+    vec3 p_clip = 0.5 * (aabb_max + aabb_min);
+    vec3 e_clip = 0.5 * (aabb_max - aabb_min);
+
+    vec3 v_clip = pre_clr - p_clip;
+    vec3 v_unit = v_clip.xyz / e_clip;
+    vec3 a_unit = abs(v_unit);
+    float ma_unit = max(a_unit.x, max(a_unit.y, a_unit.z));
+
+    if (ma_unit > 1.0)
+        pre_clr = p_clip + v_clip / ma_unit;
+
+	return YCoCg2rgb(untone_map(pre_clr));
+}
+
+
+vec3 clamp_aabb(vec3 cur_clr, vec3 pre_clr, vec2 cur_uv)
 {
 	pre_clr = rgb2YCoCg(pre_clr);
 
@@ -225,16 +240,19 @@ vec3 clip_aabb(vec3 cur_clr, vec3 pre_clr, vec2 cur_uv)
 
 void main()
 {
-	vec2 cur_uv = uv - taa_jitter;
+	vec2 cur_uv = uv;
 	vec3 cur_clr = texture(cur_tex, cur_uv).rgb;
 
-	//vec2 velocity = texture(vel_tex, get_closest(uv)).rg;
-	vec2 velocity = texture(vel_tex, uv).rg;
+	vec2 velocity = texture(vel_tex, get_closest(uv)).rg;
+	//vec2 velocity = texture(vel_tex, uv).rg;
 	vec2 vel_uv = clamp(uv - velocity, 0, 1);
+	//vec2 vel_uv = uv;
+
 	vec3 pre_clr = texture(pre_tex, vel_uv).rgb;
 
-	//vec3 cur_yog = rgb2YCoCg(cur_clr);
-	//pre_clr = clip_aabb(cur_yog, pre_clr, cur_uv);	
+	vec3 cur_yog = rgb2YCoCg(tone_map(cur_clr));
+	//pre_clr = clamp_aabb(cur_yog, pre_clr, uv);	
+	pre_clr = clip_aabb(cur_yog, pre_clr, uv);	
 
 	//gl_FragColor = clr;
 	vec3 des_clr = mix(pre_clr, cur_clr, 0.05); 
@@ -316,11 +334,11 @@ void TestNode::init()
 
 	_depTex = new osg::Texture2D;
 	_depTex->setInternalFormat(GL_DEPTH_COMPONENT);
-	_depTex->setFilter(Texture::MIN_FILTER, Texture::LINEAR);
-	_depTex->setFilter(Texture::MAG_FILTER, Texture::LINEAR);
+	_depTex->setFilter(Texture::MIN_FILTER, Texture::NEAREST);
+	_depTex->setFilter(Texture::MAG_FILTER, Texture::NEAREST);
 
 	_velTex = new osg::Texture2D;
-	_velTex->setInternalFormat(GL_RG16);
+	_velTex->setInternalFormat(GL_RG16F);
 	_velTex->setSourceFormat(GL_RG);
 	_velTex->setSourceType(GL_FLOAT);
     _velTex->setFilter(Texture::MIN_FILTER, Texture::LINEAR);
@@ -430,11 +448,6 @@ void TestNode::traverse(NodeVisitor& nv)
 		_cameraBuffer->at(1) = _curMatrix;
 		_cameraBuffer->dirty();
 
-		if (_preMatrix != _curMatrix)
-		{
-			printf("");
-		}
-
 		_cam->accept(*cv);
 
 		ss = _taaquad->getOrCreateStateSet();
@@ -451,6 +464,10 @@ void TestNode::traverse(NodeVisitor& nv)
 			ss = _ssquad->getStateSet();
 			ss->getOrCreateUniform("clr_tex", osg::Uniform::SAMPLER_2D)->set(2);
 		}
+		static bool b = true;
+		ss->getOrCreateUniform("init_clr", osg::Uniform::BOOL)->set(b);
+		if (b)
+			b = false;
 
 		_taaCam->dirtyAttachmentMap();
 
