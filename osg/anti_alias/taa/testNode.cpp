@@ -255,7 +255,8 @@ void main()
 	pre_clr = clip_aabb(cur_yog, pre_clr, uv);	
 
 	//gl_FragColor = clr;
-	vec3 des_clr = mix(pre_clr, cur_clr, 0.05); 
+	float factor = clamp(0.05 + length(velocity) * 100, 0, 1);
+	vec3 des_clr = mix(pre_clr, cur_clr, factor); 
 	gl_FragColor = vec4(des_clr, 1);
 }
 
