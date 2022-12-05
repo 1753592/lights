@@ -11,10 +11,7 @@ const std::string vShader = R"(
 
 #version 430 compatibility
 
-out float dep;
 out vec4 clr;
-
-uniform mat4 taa_proj;
 
 layout(binding = 0) uniform CameraBufferObject{
 	mat4 pre_matrix;
@@ -30,9 +27,7 @@ out VelocityStep vel_out;
 
 void main()
 {
-	gl_Position = taa_proj * gl_ModelViewMatrix * gl_Vertex;
-	vec4 vtmp = gl_ModelViewProjectionMatrix * gl_Vertex; 
-	dep = vtmp.z / vtmp.w;
+	gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex; 
 
 	clr = gl_Color;
 
@@ -240,22 +235,21 @@ vec3 clamp_aabb(vec3 cur_clr, vec3 pre_clr, vec2 cur_uv)
 
 void main()
 {
-	vec2 cur_uv = uv;
+	vec2 cur_uv = uv - taa_jitter;
 	vec3 cur_clr = texture(cur_tex, cur_uv).rgb;
 
 	vec2 velocity = texture(vel_tex, get_closest(uv)).rg;
 	//vec2 velocity = texture(vel_tex, uv).rg;
 	vec2 vel_uv = clamp(uv - velocity, 0, 1);
-	//vec2 vel_uv = uv;
 
 	vec3 pre_clr = texture(pre_tex, vel_uv).rgb;
 
 	vec3 cur_yog = rgb2YCoCg(tone_map(cur_clr));
 	//pre_clr = clamp_aabb(cur_yog, pre_clr, uv);	
-	pre_clr = clip_aabb(cur_yog, pre_clr, uv);	
+	pre_clr = clip_aabb(cur_yog, pre_clr, cur_uv);	
 
-	//gl_FragColor = clr;
-	float factor = clamp(0.05 + length(velocity) * 100, 0, 1);
+	//float factor = clamp(0.05 + length(velocity) * 100, 0, 1);
+	float factor = 0.05;
 	vec3 des_clr = mix(pre_clr, cur_clr, factor); 
 	gl_FragColor = vec4(des_clr, 1);
 }
@@ -302,7 +296,8 @@ TestNode::TestNode()
 
 void TestNode::init()
 {
-	_quad = createTexturedQuadGeometry(Vec3(0, -0.5, 0), Vec3(0.5, 0.5, 0), Vec3(-0.5, 0.5, 0));
+	//_quad = createTexturedQuadGeometry(Vec3(0, -0.5, 0), Vec3(0.5, 0.5, 0), Vec3(-0.5, 0.5, 0));
+	_quad = createTexturedQuadGeometry(Vec3(-0.5, -0.5, 0), Vec3(0.5, 0, 0), Vec3(0, 0.5, 0));
 	auto clr = new Vec3Array;
 	clr->push_back(Vec3(1, 0, 0));
 	//clr->push_back(Vec3(0, 1, 0));
@@ -352,9 +347,13 @@ void TestNode::init()
 
 	_taaTex1 = new osg::Texture2D;
 	_taaTex1->setInternalFormat(GL_RGBA);
-	_taaTex1->setFilter(Texture::MIN_FILTER, Texture::NEAREST);
-	_taaTex1->setFilter(Texture::MAG_FILTER, Texture::NEAREST);
-	_taaTex2 = osg::clone(_taaTex1.get(), osg::CopyOp::DEEP_COPY_ALL);
+    _taaTex1->setFilter(Texture::MIN_FILTER, Texture::LINEAR);
+    _taaTex1->setFilter(Texture::MAG_FILTER, Texture::LINEAR);
+
+	_taaTex2 = new osg::Texture2D;
+	_taaTex2->setInternalFormat(GL_RGBA);
+    _taaTex2->setFilter(Texture::MIN_FILTER, Texture::LINEAR);
+    _taaTex2->setFilter(Texture::MAG_FILTER, Texture::LINEAR);
 
 	_taaquad = createTexturedQuadGeometry(Vec3(-1, -1, 0), Vec3(2, 0, 0), Vec3(0, 2, 0));
 	_taaquad->setCullingActive(false);
@@ -436,11 +435,11 @@ void TestNode::traverse(NodeVisitor& nv)
 		int idx = frameNum % 8;
 		auto &halt = haltonSequence[idx];
 		osg::Vec2f jit((halt.x() - 0.5) / vp->width(), (halt.y() - 0.5) / vp->height());
-		osg::Matrix proj = *cv->getProjectionMatrix();
-		proj(2, 0) += jit.x() * 2;
-		proj(2, 1) += jit.y() * 2;
 		auto ss = _quad->getOrCreateStateSet();
-		ss->getOrCreateUniform("taa_proj", osg::Uniform::FLOAT_MAT4)->set(proj);
+		//osg::Matrix proj = *cv->getProjectionMatrix();
+		//proj(2, 0) += jit.x() * 2;
+		//proj(2, 1) += jit.y() * 2;
+		//ss->getOrCreateUniform("taa_proj", osg::Uniform::FLOAT_MAT4)->set(proj);
 
 		_preMatrix = _curMatrix;
 		_curMatrix = *cv->getProjectionMatrix();
