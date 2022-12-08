@@ -39,6 +39,23 @@ void main()
 
 )";
 
+const std::string svShader = R"(
+
+#version 330 compatibility
+
+out vec4 clr;
+
+void main()
+{
+	gl_Position = gl_Vertex;
+	gl_TexCoord[0] = gl_MultiTexCoord0;
+	clr = gl_Color;
+}
+
+)";
+
+
+
 constexpr char fxaaShader[] = R"(
 
 #version 330 compatibility
@@ -49,6 +66,8 @@ uniform sampler2D dep_tex;
 
 const int search_step = 10;
 const int guess = 8;
+const float contrast_threshold = 0.0312; //0.0312-0.0833
+const float relcontrast_threshold = 0.063; //0.063-0.333
 
 float luminace(vec3 clr)
 {
@@ -68,8 +87,8 @@ void main()
 	float max_lu = max(c, max(max(n, s), max(w, e)));
 	float min_lu = min(c, min(min(n, s), min(w, e)));
 	float constract = max_lu - min_lu;
-	if(constract < 0.3){
-		gl_FragColor = texture(clr_tex, uv);
+	if(constract < max(contrast_threshold, max_lu * relcontrast_threshold)){
+		gl_FragColor = vec4(texture(clr_tex, uv).rgb, 1);
 		return;
 	}
 
@@ -103,6 +122,8 @@ void main()
 		gradient = negative;
 		opposite = is_hor ? s : w;
 	}
+	gl_FragColor = vec4(texture(clr_tex, uv + pix_step * pix_blend).rgb, 1);
+	return;
 	
 	vec2 uvedge = uv;
 	uvedge += pix_step * 0.5;
@@ -192,9 +213,10 @@ void TestNode::init()
 	_quad->setCullingActive(false);
 
 	_cam = new Camera;
-	_cam->setReferenceFrame(Transform::ABSOLUTE_RF);
 	_cam->addChild(_quad);
 	_cam->setRenderOrder(Camera::PRE_RENDER);
+    _cam->setClearMask(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    _cam->setClearColor(osg::Vec4(0, 0, 0, 0));
 	_clrTex = new osg::Texture2D;
 	_clrTex->setInternalFormat(GL_RGBA);
     _clrTex->setFilter(Texture::MIN_FILTER, Texture::LINEAR);
@@ -216,7 +238,7 @@ void TestNode::init()
 	_ssquad->setCullingActive(false);
 	{
 		auto prg = new osg::Program;
-		prg->addShader(new osg::Shader(Shader::VERTEX, vertShader));
+		prg->addShader(new osg::Shader(Shader::VERTEX, svShader));
 		prg->addShader(new osg::Shader(Shader::FRAGMENT, fxaaShader));
 		ss->setAttribute(prg);
 	}
