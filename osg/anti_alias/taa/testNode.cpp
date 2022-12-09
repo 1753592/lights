@@ -11,8 +11,6 @@ const std::string vShader = R"(
 
 #version 430 compatibility
 
-out vec4 clr;
-
 layout(binding = 0) uniform CameraBufferObject{
 	mat4 pre_matrix;
 	mat4 cur_matrix;
@@ -23,11 +21,14 @@ struct VelocityStep{
 	vec4 cur_pos;
 };
 
+out vec4 clr;
 out VelocityStep vel_out;
+
+uniform mat4 taa_proj;
 
 void main()
 {
-	gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex; 
+	gl_Position = taa_proj * gl_ModelViewMatrix * gl_Vertex; 
 
 	clr = gl_Color;
 
@@ -248,8 +249,8 @@ void main()
 	//pre_clr = clamp_aabb(cur_yog, pre_clr, uv);	
 	pre_clr = clip_aabb(cur_yog, pre_clr, cur_uv);	
 
-	//float factor = clamp(0.05 + length(velocity) * 100, 0, 1);
-	float factor = 0.05;
+	float factor = clamp(0.05 + length(velocity) * 100, 0, 1);
+	//float factor = 0.05;
 	vec3 des_clr = mix(pre_clr, cur_clr, factor); 
 	gl_FragColor = vec4(des_clr, 1);
 }
@@ -330,8 +331,8 @@ void TestNode::init()
 
 	_depTex = new osg::Texture2D;
 	_depTex->setInternalFormat(GL_DEPTH_COMPONENT);
-	_depTex->setFilter(Texture::MIN_FILTER, Texture::NEAREST);
-	_depTex->setFilter(Texture::MAG_FILTER, Texture::NEAREST);
+    _depTex->setFilter(Texture::MIN_FILTER, Texture::NEAREST);
+    _depTex->setFilter(Texture::MAG_FILTER, Texture::NEAREST);
 
 	_velTex = new osg::Texture2D;
 	_velTex->setInternalFormat(GL_RG16F);
@@ -436,10 +437,10 @@ void TestNode::traverse(NodeVisitor& nv)
 		auto &halt = haltonSequence[idx];
 		osg::Vec2f jit((halt.x() - 0.5) / vp->width(), (halt.y() - 0.5) / vp->height());
 		auto ss = _quad->getOrCreateStateSet();
-		//osg::Matrix proj = *cv->getProjectionMatrix();
-		//proj(2, 0) += jit.x() * 2;
-		//proj(2, 1) += jit.y() * 2;
-		//ss->getOrCreateUniform("taa_proj", osg::Uniform::FLOAT_MAT4)->set(proj);
+		osg::Matrix proj = *cv->getProjectionMatrix();
+		proj(2, 0) += jit.x() * 2;
+		proj(2, 1) += jit.y() * 2;
+		ss->getOrCreateUniform("taa_proj", osg::Uniform::FLOAT_MAT4)->set(proj);
 
 		_preMatrix = _curMatrix;
 		_curMatrix = *cv->getProjectionMatrix();
