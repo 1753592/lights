@@ -227,7 +227,7 @@ float l_l_d_shape(float d1, float d2)
   return s1 - s2;
 }
 
-float area(vec2 d, bvec2 left, bvec2 right)
+float cal_area(vec2 d, bvec2 left, bvec2 right)
 {
   float result = 0;
   if(left.x && left.y){
@@ -302,10 +302,10 @@ void main()
     #endif
     
     #ifdef CALCULATE_FACTOR
-      //l = mode_of_single(ltv);
-      //r = mode_of_single(rtv);
-      //float value = area(vec2(lt, rt), l, r);
-      //result.xy = vec2(-value, value);
+      l = mode_of_single(ltv);
+      r = mode_of_single(rtv);
+      float value = cal_area(vec2(lt, rt), l, r);
+      result.xy = vec2(-value, value);
     #else
       vec2 sqrtd = sqrt(round(vec2(lt , rt)));
       result.xy = smaa_area(sqrtd, ltv, rtv);
@@ -325,7 +325,7 @@ void main()
     #ifdef CALCULATE_FACTOR
       u = mode_of_single(upv);
       d = mode_of_single(dnv);
-      float value = area(vec2(up, dn), u, d);
+      float value = cal_area(vec2(up, dn), u, d);
       result.zw = vec2(-value, value);
     #else
       vec2 sqrtd = sqrt(round(vec2(up , dn)));
@@ -377,7 +377,8 @@ void main()
     gl_FragColor = texture(clr_tex, uv);
 
   //gl_FragColor = texelFetch(edge_tex, st, 0);
-  //gl_FragColor = abs(texelFetch(blend_tex, st, 0));
+  //gl_FragColor = texelFetch(blend_tex, st, 0);
+  //gl_FragColor.w = 1;
   //vec2 edge = texelFetch(edge_tex, st, 0).rg;
   //edge = abs(bl.zw) * 3;
   //gl_FragColor = mix(clr, vec4(0, edge, 1), (edge.x + edge.y) * 0.5);
