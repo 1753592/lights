@@ -110,11 +110,11 @@ const int max_step = 16;
 #define SMAA_AREATEX_MAX_DISTANCE 16
 #define SMAA_AREATEX_PIXEL_SIZE (1.0 / vec2(160, 560))
 #define SMAA_AREATEX_SUBTEX_SIZE (1.0 / 7.0)
+#define SMAA_CORNER_ROUNDING 25
+#define SMAA_CORNER_ROUNDING_NORM ((SMAA_CORNER_ROUNDING) / 100.0)
 
 #define SMAA_GLSL_4
 #define SMAA_PRESET_LOW
-
-%s;
 
 //#define CALCULATE_FACTOR 1
 //#define ROUNDING_FACTOR 1
@@ -276,6 +276,34 @@ vec2 smaa_area(vec2 dist, float e1, float e2)
   return textureLod(area_tex, texcoord, 0).rg;
 }
 
+vec2 hor_corner_pattern(vec2 w, vec4 texcoord, vec2 d)
+{
+  vec2 lr = step(d.xy, d.yx); 
+  vec2 rd = (1 - SMAA_CORNER_ROUNDING_NORM) * lr;
+  rd /= lr.x + lr.y;
+  vec2 factor = vec2(1, 1);
+  factor.x -= rd.x * textureLodOffset(edge_tex, texcoord.xy, 0, ivec2(0, -1)).r;
+  factor.x -= rd.y * textureLodOffset(edge_tex, texcoord.zw, 0, ivec2(0, -1)).r;
+  factor.y -= rd.x * textureLodOffset(edge_tex, texcoord.xy, 0, ivec2(0,  2)).r;
+  factor.y -= rd.y * textureLodOffset(edge_tex, texcoord.zw, 0, ivec2(0,  2)).r;
+  w *= clamp(factor, 0, 1);
+  return w;
+}
+
+vec2 ver_corner_pattern(vec2 w, vec4 texcoord, vec2 d)
+{
+  vec2 ud = step(d.xy, d.yx); 
+  vec2 rd = (1 - SMAA_CORNER_ROUNDING_NORM) * ud;
+  rd /= ud.x + ud.y;
+  vec2 factor = vec2(1, 1);
+  factor.x -= rd.x * textureLodOffset(edge_tex, texcoord.xy, 0, ivec2( 1, 0)).g;
+  factor.x -= rd.y * textureLodOffset(edge_tex, texcoord.zw, 0, ivec2( 1, 0)).g;
+  factor.y -= rd.x * textureLodOffset(edge_tex, texcoord.xy, 0, ivec2(-2, 0)).g;
+  factor.y -= rd.y * textureLodOffset(edge_tex, texcoord.zw, 0, ivec2(-2, 0)).g;
+  w *= clamp(factor, 0, 1);
+  return w;
+}
+
 #endif
 
 void main()
@@ -297,8 +325,11 @@ void main()
       //float right2 = texture(edge_tex, uv + vec2(rt + pix_size.x, 0.75 * pix_size.y)).r; 
       //r = mode_of_pair(right1, right2);
     #else
-      ltv = texture(edge_tex, uv + vec2(-lt * pix_size.x, 0.25 * pix_size.y)).r;
-      rtv= texture(edge_tex, uv + vec2((rt + 1) * pix_size.x, 0.25 * pix_size.y)).r;
+      vec2 lfo = vec2(-lt * pix_size.x, 0.25 * pix_size.y);
+      vec2 rto = vec2((rt + 1) * pix_size.x, 0.25 * pix_size.y);
+      vec2 lfuv = uv + lfo, rtuv = uv + rto;
+      ltv = texture(edge_tex, lfuv).r;
+      rtv = texture(edge_tex, rtuv).r;
     #endif
     
     #ifdef CALCULATE_FACTOR
@@ -307,8 +338,9 @@ void main()
       float value = cal_area(vec2(lt, rt), l, r);
       result.xy = vec2(-value, value);
     #else
-      vec2 sqrtd = sqrt(round(vec2(lt , rt)));
+      vec2 sqrtd = sqrt(vec2(lt, rt));
       result.xy = smaa_area(sqrtd, ltv, rtv);
+      result.xy = hor_corner_pattern(result.xy, vec4(lfuv, rtuv), vec2(lt, rt));
     #endif
   }
   if(edge.r > 0)
@@ -318,8 +350,11 @@ void main()
     float dn = search_ydn(uv);
     #ifdef ROUNDING_FACTOR
     #else
-      float upv = texture(edge_tex, uv + vec2(-0.25 * pix_size.x, up * pix_size.y)).g;
-      float dnv = texture(edge_tex, uv + vec2(-0.25 * pix_size.x, -(dn + 1) * pix_size.y)).g;
+      vec2 upo = vec2(-0.25 * pix_size.x, up * pix_size.y);
+      vec2 dno = vec2(-0.25 * pix_size.x, -(dn + 1) * pix_size.y);
+      vec2 upuv = uv + upo, dnuv = uv + dno;
+      float upv = texture(edge_tex, upuv).g;
+      float dnv = texture(edge_tex, dnuv).g;
     #endif
 
     #ifdef CALCULATE_FACTOR
@@ -330,6 +365,7 @@ void main()
     #else
       vec2 sqrtd = sqrt(round(vec2(up , dn)));
       result.zw = smaa_area(sqrtd, upv, dnv);
+      result.zw = ver_corner_pattern(result.zw, vec4(upuv, dnuv), vec2(up, dn));
     #endif
   }
   gl_FragColor = result;
@@ -362,7 +398,7 @@ void main()
   vec4 w = a * a * a;
   float sum = w.x + w.y + w.z + w.w;
   if(sum > 1e-5){
-    vec4 o = a * pix_size.xxyy;
+    vec4 o = a * pix_size.yyxx;
     vec4 clr = vec4(0);
     clr = texture(clr_tex, uv + vec2(0,  o.x)) * w.x + clr;
     clr = texture(clr_tex, uv + vec2(0, -o.y)) * w.y + clr;
@@ -505,9 +541,7 @@ void TestNode::init()
     sprintf(bfShaderOut, bfShader, smaa.c_str());
     std::string bfsShader = bfShaderOut;
     #else
-    char ch[8192] = {0};
-    sprintf(ch, bfShader, "");
-    std::string bfsShader = ch;
+    std::string bfsShader = bfShader;
     #endif
 
     //std::ofstream fout("test.frag", std::ios::out);
