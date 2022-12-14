@@ -19,4 +19,6 @@ private:
 
 	ref_ptr<Texture2D> _clrTex, _depTex, _edgeTex, _blendTex;
 	ref_ptr<Camera> _cam, _edgePass, _blendFactor;
+
+	ref_ptr<Texture2D> _areaTex;
 };

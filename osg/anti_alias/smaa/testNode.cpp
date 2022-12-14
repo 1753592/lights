@@ -6,7 +6,10 @@
 #include <fstream>
 
 #include <osg/Geometry>
+#include <osgDB/WriteFile>
 #include <osgUtil/CullVisitor>
+
+#include "AreaTex.h"
 
 const std::string vertShader = R"(
 
@@ -62,7 +65,7 @@ in vec4 clr;
 //layout(location = 0) out vec4 color;
 //layout(location = 1) out vec2 edge;
 
-uniform vec2 tex_size;
+uniform vec4 pix_size;
 uniform sampler2D clr_tex;
 
 const float threshold = 0.05f;
@@ -70,7 +73,7 @@ const float threshold = 0.05f;
 void main()
 {
 	vec2 uv = gl_TexCoord[0].xy;
-	vec2 des = vec2(1 / tex_size.x, 1 / tex_size.y);
+	vec2 des = pix_size.xy;
 	float c = texture(clr_tex, uv).w;	
 	float l = abs(texture(clr_tex, uv - vec2(des.x, 0)).w - c);
 	float l2 = abs(texture(clr_tex, uv - vec2(des.x * 2, 0)).w - c);
@@ -93,15 +96,27 @@ void main()
 
 constexpr char bfShader[] = R"(
 
-#version 430 compatibility
+#version 450 compatibility
 
-uniform vec2 tex_size;
-uniform vec2 pix_size;
+uniform vec4 pix_size;
+uniform vec4 SMAA_RT_METRICS;
+
 uniform sampler2D edge_tex;
+uniform sampler2D area_tex;
 
 const float rounding_factor = 0.25;
-const int max_step = 10;
+const int max_step = 16;
 
+#define SMAA_AREATEX_MAX_DISTANCE 16
+#define SMAA_AREATEX_PIXEL_SIZE (1.0 / vec2(160, 560))
+#define SMAA_AREATEX_SUBTEX_SIZE (1.0 / 7.0)
+
+#define SMAA_GLSL_4
+#define SMAA_PRESET_LOW
+
+%s;
+
+//#define CALCULATE_FACTOR 1
 //#define ROUNDING_FACTOR 1
 
 float search_xleft(vec2 uv)
@@ -159,6 +174,8 @@ float search_ydn(vec2 uv)
   }
   return min(2 * (i + e), 2 * max_step);
 }
+
+#ifdef CALCULATE_FACTOR
 
 bvec2 mode_of_single(float value)
 {
@@ -245,15 +262,32 @@ float area(vec2 d, bvec2 left, bvec2 right)
   return result;
 }
 
+#else
+
+vec2 smaa_area(vec2 dist, float e1, float e2)
+{
+  vec2 texcoord = vec2(SMAA_AREATEX_MAX_DISTANCE) * round(4.0 * vec2(e1, e2)) + dist;
+  texcoord = SMAA_AREATEX_PIXEL_SIZE * (texcoord + 0.5);
+  //texcoord.y += SMAA_AREATEX_SUBTEX_SIZE * offset;
+  //texcoord.y = 1 - texcoord.y;
+  //if(texcoord.x < 0 || texcoord.x > 1)
+  //  return vec2(0, 1);
+  //return texcoord;
+  return textureLod(area_tex, texcoord, 0).rg;
+}
+
+#endif
+
 void main()
 {
   vec2 uv = gl_TexCoord[0].xy;
   vec2 edge = texture(edge_tex, uv).rg;
   vec4 result = vec4(0);
-  if(edge.g > 0.1){
+  if(edge.g > 0){
     bvec2 l, r;
     float lt = search_xleft(uv);
     float rt = search_xright(uv);
+    float ltv, rtv;
     #ifdef ROUNDING_FACTOR
 
       //float left1 = texture(edge_tex, uv + vec2(-lt, -1.25 * pix_size.y)).r;
@@ -263,30 +297,40 @@ void main()
       //float right2 = texture(edge_tex, uv + vec2(rt + pix_size.x, 0.75 * pix_size.y)).r; 
       //r = mode_of_pair(right1, right2);
     #else
-      float ltv = texture(edge_tex, uv + vec2(-lt * pix_size.x, -0.25 * pix_size.y)).r;
-      float rtv= texture(edge_tex, uv + vec2((rt + 1) * pix_size.x, -0.25 * pix_size.y)).r;
-      l = mode_of_single(ltv);
-      r = mode_of_single(rtv);
+      ltv = texture(edge_tex, uv + vec2(-lt * pix_size.x, 0.25 * pix_size.y)).r;
+      rtv= texture(edge_tex, uv + vec2((rt + 1) * pix_size.x, 0.25 * pix_size.y)).r;
     #endif
-      float value = area(vec2(lt, rt), l, r);
-      result.xy = vec2(-value, value);
-      //result = vec4(l.x? 1: 0, l.y?1:0, 0, 1);
-      //result = vec4(r.x? 1: 0, r.y?1:0, 0, 1);
+    
+    #ifdef CALCULATE_FACTOR
+      //l = mode_of_single(ltv);
+      //r = mode_of_single(rtv);
+      //float value = area(vec2(lt, rt), l, r);
+      //result.xy = vec2(-value, value);
+    #else
+      vec2 sqrtd = sqrt(round(vec2(lt , rt)));
+      result.xy = smaa_area(sqrtd, ltv, rtv);
+    #endif
   }
-  if(edge.r > 0.1)
+  if(edge.r > 0)
   {
     bvec2 u, d;
     float up = search_yup(uv);
     float dn = search_ydn(uv);
     #ifdef ROUNDING_FACTOR
     #else
-      float upv = texture(edge_tex, uv + vec2(0.25 * pix_size.x, up * pix_size.y)).g;
-      float dnv = texture(edge_tex, uv + vec2(0.25 * pix_size.x, -(dn + 1) * pix_size.y)).g;
+      float upv = texture(edge_tex, uv + vec2(-0.25 * pix_size.x, up * pix_size.y)).g;
+      float dnv = texture(edge_tex, uv + vec2(-0.25 * pix_size.x, -(dn + 1) * pix_size.y)).g;
+    #endif
+
+    #ifdef CALCULATE_FACTOR
       u = mode_of_single(upv);
       d = mode_of_single(dnv);
-    #endif
       float value = area(vec2(up, dn), u, d);
       result.zw = vec2(-value, value);
+    #else
+      vec2 sqrtd = sqrt(round(vec2(up , dn)));
+      result.zw = smaa_area(sqrtd, upv, dnv);
+    #endif
   }
   gl_FragColor = result;
 }
@@ -297,40 +341,43 @@ constexpr char blShader[] = R"(
 
 #version 330 compatibility
 
-uniform vec2 tex_size;
 uniform sampler2D clr_tex;
 uniform sampler2D dep_tex;
 uniform sampler2D blend_tex;
 uniform sampler2D edge_tex;
+
+uniform vec4 pix_size;
 
 void main()
 {
   vec2 uv = gl_TexCoord[0].xy;
   ivec2 st = ivec2(gl_FragCoord.xy);
   vec4 bl = texelFetch(blend_tex, st, 0);
-  float br = texelFetch(blend_tex, st + ivec2(1, 0), 0).a;
-  float bb = texelFetch(blend_tex, st + ivec2(0, 1), 0).g;
-  vec4 a = vec4(bl.r, bb, bl.b, br);
+  float br = texelFetch(blend_tex, st + ivec2(1, 0), 0).w;
+  float bt = texelFetch(blend_tex, st + ivec2(0, -1), 0).y;
+  //vec4 bl = texture(blend_tex, uv, 0);
+  //float br = texture(blend_tex, uv + vec2(pix_size.x, 0)).w;
+  //float bt = texture(blend_tex, uv + vec2(0, pix_size.y)).y;
+  vec4 a = vec4(bl.x, bt, bl.z, br);
   vec4 w = a * a * a;
-  float sum = w.r + w.g + w.b + w.a;
-  if(sum > 0){
+  float sum = w.x + w.y + w.z + w.w;
+  if(sum > 1e-5){
+    vec4 o = a * pix_size.xxyy;
     vec4 clr = vec4(0);
-    clr = texture(clr_tex, uv + vec2(0, -a.r)) * w.r + clr;
-    clr = texture(clr_tex, uv + vec2(0,  a.g)) * w.g + clr;
-    clr = texture(clr_tex, uv + vec2(-a.b, 0)) * w.b + clr;
-    clr = texture(clr_tex, uv + vec2( a.a, 0)) * w.a + clr;
+    clr = texture(clr_tex, uv + vec2(0,  o.x)) * w.x + clr;
+    clr = texture(clr_tex, uv + vec2(0, -o.y)) * w.y + clr;
+    clr = texture(clr_tex, uv + vec2(-o.z, 0)) * w.z + clr;
+    clr = texture(clr_tex, uv + vec2( o.w, 0)) * w.w + clr;
     gl_FragColor = clr / sum;
+    //gl_FragColor.w = 1;
     //gl_FragColor = vec4(0, sum, 0, 1);
+    //gl_FragColor = vec4(0, 1, 0, 1);
   }
   else
     gl_FragColor = texture(clr_tex, uv);
 
-  //vec4 clr = texelFetch(clr_tex, st, 0);
-  //if(bl != vec4(0))
-  //  gl_FragColor = vec4(0, 1, 0, 1); 
-  //else
-  // gl_FragColor 
-
+  //gl_FragColor = texelFetch(edge_tex, st, 0);
+  //gl_FragColor = abs(texelFetch(blend_tex, st, 0));
   //vec2 edge = texelFetch(edge_tex, st, 0).rg;
   //edge = abs(bl.zw) * 3;
   //gl_FragColor = mix(clr, vec4(0, edge, 1), (edge.x + edge.y) * 0.5);
@@ -341,13 +388,13 @@ void main()
 std::string readFile(const std::string& file)
 {
   std::string ret;
-  auto f = fopen(file.c_str(), "rt");
+  auto f = fopen(file.c_str(), "rb");
   if (!f)
     return ret;
   fseek(f, 0, SEEK_END);
   uint64_t len = ftell(f);
   fseek(f, 0, SEEK_SET);
-  ret.resize(len);
+  ret.resize(len, 0);
   fread(&ret[0], 1, len, f);
   fclose(f);
   return ret;
@@ -419,8 +466,8 @@ void TestNode::init()
   }
 
   _blendTex = new osg::Texture2D;
-  _blendTex->setInternalFormat(GL_RGBA16F);
-  _blendTex->setSourceFormat(GL_FLOAT);
+  _blendTex->setInternalFormat(GL_RGBA8_SNORM);
+  //_blendTex->setSourceFormat(GL_FLOAT);
   _blendTex->setFilter(Texture::MIN_FILTER, Texture::LINEAR);
   _blendTex->setFilter(Texture::MAG_FILTER, Texture::LINEAR);
   _blendFactor = new Camera;
@@ -431,14 +478,42 @@ void TestNode::init()
   _blendFactor->setRenderTargetImplementation(_blendFactor->FRAME_BUFFER_OBJECT);
   _blendFactor->setImplicitBufferAttachmentMask(0);
   _blendFactor->attach(_blendFactor->COLOR_BUFFER, _blendTex);
+
+  auto img = new osg::Image;
+  img->setImage(AREATEX_WIDTH, AREATEX_HEIGHT, 0, GL_RG, GL_RG, GL_UNSIGNED_BYTE, (unsigned char *)areaTexBytes, osg::Image::NO_DELETE);
+  img->flipVertical();
+  _areaTex = new osg::Texture2D(img);
+  _areaTex->setResizeNonPowerOfTwoHint(false);
+  _areaTex->setFilter(Texture::MIN_FILTER, Texture::LINEAR);
+  _areaTex->setFilter(Texture::MAG_FILTER, Texture::LINEAR);
+
   {
     auto ss = _blendFactor->getOrCreateStateSet();
     ss->setTextureAttributeAndModes(0, _edgeTex, osg::StateAttribute::OVERRIDE);
 	  ss->addUniform(new osg::Uniform("edge_tex", 0), osg::StateAttribute::OVERRIDE);	
 
+    ss->setTextureAttributeAndModes(1, _areaTex, osg::StateAttribute::OVERRIDE);
+	  ss->addUniform(new osg::Uniform("area_tex", 1), osg::StateAttribute::OVERRIDE);	
+
     auto prg = new osg::Program;
     prg->addShader(new osg::Shader(Shader::VERTEX, svShader));
-    prg->addShader(new osg::Shader(Shader::FRAGMENT, bfShader));
+
+    #if 0
+    char bfShaderOut[70000] = {0};
+    auto smaa = readFile(std::string(RS_DIR) + "/smaa.h");
+    sprintf(bfShaderOut, bfShader, smaa.c_str());
+    std::string bfsShader = bfShaderOut;
+    #else
+    char ch[8192] = {0};
+    sprintf(ch, bfShader, "");
+    std::string bfsShader = ch;
+    #endif
+
+    //std::ofstream fout("test.frag", std::ios::out);
+    //fout << smaa; fout.close();
+    //osgDB::writeImageFile(*_areaTex->getImage(), "area.png");
+
+    prg->addShader(new osg::Shader(Shader::FRAGMENT, bfsShader));
     ss->setAttribute(prg, osg::StateAttribute::OVERRIDE);
   }
 
@@ -484,8 +559,8 @@ void TestNode::traverse(NodeVisitor& nv)
       _blendFactor->dirtyAttachmentMap();
 
       auto ss = _ssquad->getOrCreateStateSet();
-      ss->getOrCreateUniform("tex_size", osg::Uniform::FLOAT_VEC2)->set(osg::Vec2(vp->width(), vp->height()));
-      ss->getOrCreateUniform("pix_size", osg::Uniform::FLOAT_VEC2)->set(osg::Vec2(1.0 / vp->width(), 1.0 / vp->height()));
+      ss->getOrCreateUniform("pix_size", osg::Uniform::FLOAT_VEC4)->set(osg::Vec4(1.0 / vp->width(), 1.0 / vp->height(), vp->width(), vp->height()));
+      ss->getOrCreateUniform("SMAA_RT_METRICS", osg::Uniform::FLOAT_VEC4)->set(osg::Vec4(vp->width(), vp->height(), 1.0 / vp->width(), 1.0 / vp->height()));
     }
     _cam->accept(*cv);
 	  _edgePass->accept(*cv);

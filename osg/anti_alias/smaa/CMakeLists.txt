@@ -25,6 +25,8 @@ set(libs
 
 add_executable(${app_name} ${src} ${hdr})
 
+target_compile_definitions(${app_name} PRIVATE RS_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+
 set_target_properties(${app_name} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:${app_name}>"
                                                VS_DEBUGGER_COMMAND           "$<TARGET_FILE:${app_name}>"
                                                VS_DEBUGGER_ENVIRONMENT       "PATH=%PATH%;${CMAKE_PREFIX_PATH}/bin")
