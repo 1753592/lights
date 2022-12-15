@@ -122,8 +122,8 @@ void main()
 		gradient = negative;
 		opposite = is_hor ? s : w;
 	}
-	gl_FragColor = vec4(texture(clr_tex, uv + pix_step * pix_blend).rgb, 1);
-	return;
+	//gl_FragColor = vec4(texture(clr_tex, uv + pix_step * pix_blend).rgb, 1);
+	//return;
 	
 	vec2 uvedge = uv;
 	uvedge += pix_step * 0.5;

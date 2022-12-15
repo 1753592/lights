@@ -9,6 +9,8 @@
 #include <osgDB/WriteFile>
 #include <osgUtil/CullVisitor>
 
+#include <osgViewer/imgui/imgui.h>
+
 #include "AreaTex.h"
 
 const std::string vertShader = R"(
@@ -229,9 +231,19 @@ void TestNode::traverse(NodeVisitor& nv)
 
       auto ss = _ssquad->getOrCreateStateSet();
       ss->getOrCreateUniform("texture_size", osg::Uniform::FLOAT_VEC4)->set(osg::Vec4(1.0 / vp->width(), 1.0 / vp->height(), vp->width(), vp->height()));
+
+      constexpr char DIAG_DETE[] = "DIAG_DETECTION";
+      if (_diag_weight)
+        ss->setDefine(DIAG_DETE);
+      else
+        ss->removeDefine(DIAG_DETE);
     }
     _cam->accept(*cv);
 	  _edgePass->accept(*cv);
     _blendFactor->accept(*cv);
+  }else if(nv.asUpdateVisitor()) {
+		ImGui::Begin("smaa");
+    ImGui::Checkbox("diag weight", &_diag_weight);
+    ImGui::End();
   }
 }

@@ -37,6 +37,6 @@ void main()
     gl_FragColor = texture(clr_tex, uv);
 
   //gl_FragColor = texelFetch(edge_tex, st, 0);
-  //gl_FragColor = texelFetch(blend_tex, st, 0);
-  //gl_FragColor.w = 1;
+  gl_FragColor = texelFetch(blend_tex, st, 0);
+  gl_FragColor.w = 1;
 }

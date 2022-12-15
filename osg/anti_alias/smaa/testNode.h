@@ -21,4 +21,6 @@ private:
 	ref_ptr<Camera> _cam, _edgePass, _blendFactor;
 
 	ref_ptr<Texture2D> _areaTex;
+
+	bool _diag_weight;
 };

@@ -17,7 +17,8 @@ int main(int argc, char** argv)
 	viewer.addEventHandler(new osgGA::StateSetManipulator(viewer.getCamera()->getOrCreateStateSet()));
 	viewer.addEventHandler(new osgViewer::ToggleSyncToVBlankHandler);
 	viewer.addEventHandler(new osgViewer::ImGuiHandler);
-    viewer.setThreadingModel(viewer.SingleThreaded);
+  viewer.setThreadingModel(viewer.SingleThreaded);
+
 	//viewer.setLightingMode(viewer.NO_LIGHT);
 	{
         osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits;

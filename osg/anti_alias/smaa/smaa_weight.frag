@@ -1,12 +1,14 @@
 #version 450 compatibility
 
+#pragma import_defines(DIAG_DETECTION)
+
 uniform vec4 texture_size;
 
 uniform sampler2D edge_tex;
 uniform sampler2D area_tex;
 
 #define SMAA_SEARCH_STEP 16
-#define SMAA_SEARCH_STEP_DIAG 8 
+#define SMAA_SEARCH_DIAG_STEP 8 
 #define SMAA_ROUNDING_FACTOR 0.25
 #define SMAA_AREATEX_MAX_DISTANCE 16
 #define SMAA_AREATEX_DIAG_MAX_DISTANCE 20
@@ -236,7 +238,7 @@ void smaa_movc(bvec4 cond, inout vec4 c, vec4 v)
 vec2 smaa_search_diag1(vec2 uv, vec2 dir, out vec2 edge)
 {
   int i = 0; float w = 1;
-  while(i < SMAA_SEARCH_STEP_DIAG && w > 0.9)
+  while(i < SMAA_SEARCH_DIAG_STEP && w > 0.9)
   {
     uv += texture_size.xy * dir;
     edge = textureLod(edge_tex, uv, 0).rg;
@@ -248,7 +250,16 @@ vec2 smaa_search_diag1(vec2 uv, vec2 dir, out vec2 edge)
 
 vec2 smaa_search_diag2(vec2 uv, vec2 dir, out vec2 edge)
 {
-  return vec2(0);
+  int i = 0; float w = 1;
+  uv.x += 0.25 * texture_size.x;
+  while(i < SMAA_SEARCH_DIAG_STEP && w >0.9)
+  {
+    uv += texture_size.xy * dir;
+    edge = textureLod(edge_tex, uv, 0).rg;
+    edge = smaa_decode_diag_bil_access(edge);
+    w = dot(edge, vec2(0.5, 0.5));
+  }
+  return vec2(i - 1, w);
 }
 
 vec2 smaa_cal_diag_weight(vec2 uv, vec2 edge)
@@ -275,20 +286,28 @@ vec2 smaa_cal_diag_weight(vec2 uv, vec2 edge)
     weight += smaa_diag_area(d.xy, cc); 
   }
 
-  // d.xz = smaa_search_diag2(uv, vec2(-1, -1), end);
-  // if(textureLodOffset(edge_tex, uv, ivec2(1, 0)).r > 0)
-  // {
-  //   d.yw = smaa_search_diag2(uv, vec2(1, 1), end);
-  //   d.y += float(end.y > 0.9);
-  // }
-  // else
-  //   d.yw = vec2(0);
+  d.xz = smaa_search_diag2(uv, vec2(-1, 1), end);
+  if(textureLodOffset(edge_tex, uv, 0, ivec2(1, 0)).r > 0)
+  {
+    d.yw = smaa_search_diag2(uv, vec2(1, -1), end);
+    d.y += float(end.y > 0.9);
+  }
+  else
+    d.yw = vec2(0);
 
-  // if(d.x + d.y > 2.0)
-  // {
+  if(d.x + d.y > 2.0)
+  {
+    vec4 c;
+    vec4 coords = vec4(-d.x, d.x, d.y, -d.y) * texture_size.xyxy + uv.xyxy;
+    c.x = textureLodOffset(edge_tex, coords.xy, 0, ivec2(-1, 0)).g;
+    c.y = textureLodOffset(edge_tex, coords.xy, 0, ivec2(0, 1)).r;
+    c.zw = textureLodOffset(edge_tex, coords.zw, 0, ivec2(1, 0)).gr;
+    vec2 cc = vec2(2) * c.xz + c.yw;
+    smaa_movc(bvec2(step(vec2(0.9), d.zw)), cc, vec2(0, 0));
+    weight += smaa_diag_area(d.xy, cc).gr;
+  }
 
-  // }
-
+  weight = vec2(0, 0);
   return weight;
 }
 
