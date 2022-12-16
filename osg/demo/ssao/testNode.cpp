@@ -214,6 +214,8 @@ void TestNode::traverse(NodeVisitor& nv)
 		ss->addUniform(new osg::Uniform("ssao_on", ssao_on));
 	} else if (nv.getVisitorType() == nv.UPDATE_VISITOR) {
 		ImGui::Begin("xxx");
+    ImGui::SetWindowPos(ImVec2(0, 0));
+    ImGui::SetWindowSize(ImVec2(400, 200));
 		ImGui::Checkbox("ssao_on", &ssao_on);
 		ImGui::End();
 	} else if (nv.getVisitorType() == nv.EVENT_VISITOR) {

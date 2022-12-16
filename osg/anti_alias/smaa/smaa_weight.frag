@@ -18,6 +18,7 @@ uniform sampler2D area_tex;
 #define SMAA_CORNER_ROUNDING_NORM ((SMAA_CORNER_ROUNDING) / 100.0)
 
 //#define CALCULATE_FACTOR 1
+#define SMAA_DEBUG 1
 
 float smaa_search_left(vec2 uv)
 {
@@ -180,6 +181,7 @@ vec2 smaa_diag_area(vec2 dist, vec2 e)
 {
   vec2 texcoord = vec2(SMAA_AREATEX_DIAG_MAX_DISTANCE) * e + dist;
   texcoord = SMAA_AREATEX_PIXEL_SIZE * (texcoord + 0.5);
+  texcoord.x += 0.5;
   return textureLod(area_tex, texcoord, 0).rg;
 }
 
@@ -252,13 +254,23 @@ vec2 smaa_search_diag2(vec2 uv, vec2 dir, out vec2 edge)
 {
   int i = 0; float w = 1;
   uv.x += 0.25 * texture_size.x;
+  // while(i < SMAA_SEARCH_DIAG_STEP && w >0.9)
+  // {
+  //   uv += texture_size.xy * dir;
+  //   edge = textureLod(edge_tex, uv, 0).rg;
+  //   edge = smaa_decode_diag_bil_access(edge);
+  //   w = dot(edge, vec2(0.5, 0.5));
+  //   i++;
+  // }
+  uv.x += 0.5 * texture_size.x;
   while(i < SMAA_SEARCH_DIAG_STEP && w >0.9)
   {
     uv += texture_size.xy * dir;
     edge = textureLod(edge_tex, uv, 0).rg;
-    edge = smaa_decode_diag_bil_access(edge);
-    w = dot(edge, vec2(0.5, 0.5));
+    w = edge.r + edge.g;
+    i++;
   }
+
   return vec2(i - 1, w);
 }
 
@@ -276,7 +288,7 @@ vec2 smaa_cal_diag_weight(vec2 uv, vec2 edge)
   if(d.x + d.y > 2.0)
   {
     vec4 c;
-    vec4 coords = vec4(-d.x + 0.25, -d.x, d.y, d.y + 0.25) * texture_size.ywyw + uv.xyxy;
+    vec4 coords = vec4(-d.x + 0.25, -d.x, d.y, d.y + 0.25) * texture_size.xyxy + uv.xyxy;
     c.xy = textureLodOffset(edge_tex, coords.xy, 0, ivec2(-1, 0)).rg;
     c.zw = textureLodOffset(edge_tex, coords.zw, 0, ivec2(1, 0)).rg;
     c.yxwz = smaa_decode_diag_bil_access(c);
@@ -306,8 +318,6 @@ vec2 smaa_cal_diag_weight(vec2 uv, vec2 edge)
     smaa_movc(bvec2(step(vec2(0.9), d.zw)), cc, vec2(0, 0));
     weight += smaa_diag_area(d.xy, cc).gr;
   }
-
-  weight = vec2(0, 0);
   return weight;
 }
 
@@ -319,11 +329,13 @@ void main()
   vec2 edge = texture(edge_tex, uv).rg;
   vec4 result = vec4(0);
   if(edge.g > 0){
+    #ifdef DIAG_DETECTION
     result.xy = smaa_cal_diag_weight(uv, edge);
     if(result.x != -result.y){
       gl_FragColor = result;
       return;
     }
+    #endif
     float lt = smaa_search_left(uv);
     float rt = smaa_search_right(uv);
     vec2 lfo = vec2(-lt * texture_size.x, 0.25 * texture_size.y);
