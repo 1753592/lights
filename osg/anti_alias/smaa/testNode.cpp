@@ -75,6 +75,7 @@ std::string readFile(const std::string& file)
 
 TestNode::TestNode()
 {
+  setNumChildrenRequiringUpdateTraversal(1);
   setCullingActive(false);
   init();
 }
@@ -128,9 +129,9 @@ void TestNode::init()
   _edgePass->setClearMask(GL_COLOR_BUFFER_BIT);
   _edgePass->setClearColor(Vec4(0, 0, 0, 0));
   {
-	  auto ss = _edgePass->getOrCreateStateSet();
+    auto ss = _edgePass->getOrCreateStateSet();
     ss->setTextureAttributeAndModes(0, _clrTex, osg::StateAttribute::OVERRIDE);
-	  ss->addUniform(new osg::Uniform("clr_tex", 0), osg::StateAttribute::OVERRIDE);	
+    ss->addUniform(new osg::Uniform("clr_tex", 0), osg::StateAttribute::OVERRIDE);
 
     auto prg = new osg::Program;
     prg->addShader(new osg::Shader(Shader::VERTEX, svShader));
@@ -153,7 +154,7 @@ void TestNode::init()
   _blendFactor->attach(_blendFactor->COLOR_BUFFER, _blendTex);
 
   auto img = new osg::Image;
-  img->setImage(AREATEX_WIDTH, AREATEX_HEIGHT, 0, GL_RG, GL_RG, GL_UNSIGNED_BYTE, (unsigned char *)areaTexBytes, osg::Image::NO_DELETE);
+  img->setImage(AREATEX_WIDTH, AREATEX_HEIGHT, 0, GL_RG, GL_RG, GL_UNSIGNED_BYTE, (unsigned char*)areaTexBytes, osg::Image::NO_DELETE);
   img->flipVertical();
   _areaTex = new osg::Texture2D(img);
   _areaTex->setResizeNonPowerOfTwoHint(false);
@@ -163,26 +164,26 @@ void TestNode::init()
   {
     auto ss = _blendFactor->getOrCreateStateSet();
     ss->setTextureAttributeAndModes(0, _edgeTex, osg::StateAttribute::OVERRIDE);
-	  ss->addUniform(new osg::Uniform("edge_tex", 0), osg::StateAttribute::OVERRIDE);	
+    ss->addUniform(new osg::Uniform("edge_tex", 0), osg::StateAttribute::OVERRIDE);
 
     ss->setTextureAttributeAndModes(1, _areaTex, osg::StateAttribute::OVERRIDE);
-	  ss->addUniform(new osg::Uniform("area_tex", 1), osg::StateAttribute::OVERRIDE);	
+    ss->addUniform(new osg::Uniform("area_tex", 1), osg::StateAttribute::OVERRIDE);
 
     auto prg = new osg::Program;
     prg->addShader(new osg::Shader(Shader::VERTEX, svShader));
 
-    #if 0
+#if 0
     char bfShaderOut[70000] = {0};
     auto smaa = readFile(std::string(RS_DIR) + "/smaa.h");
     sprintf(bfShaderOut, bfShader, smaa.c_str());
     std::string bfsShader = bfShaderOut;
-    #else
+#else
     std::string bfsShader = readFile(std::string(RS_DIR) + "/smaa_weight.frag");
-    #endif
+#endif
 
-    //std::ofstream fout("test.frag", std::ios::out);
-    //fout << smaa; fout.close();
-    //osgDB::writeImageFile(*_areaTex->getImage(), "area.png");
+    // std::ofstream fout("test.frag", std::ios::out);
+    // fout << smaa; fout.close();
+    // osgDB::writeImageFile(*_areaTex->getImage(), "area.png");
 
     prg->addShader(new osg::Shader(Shader::FRAGMENT, bfsShader));
     ss->setAttribute(prg, osg::StateAttribute::OVERRIDE);
@@ -205,12 +206,12 @@ void TestNode::init()
     ss->setAttribute(prg);
   }
   addChild(_ssquad);
+
+  test();
 }
 
 void TestNode::traverse(NodeVisitor& nv)
 {
-  osg::Group::traverse(nv);
-
   auto cv = nv.asCullVisitor();
 
   if (cv) {
@@ -231,19 +232,27 @@ void TestNode::traverse(NodeVisitor& nv)
 
       auto ss = _ssquad->getOrCreateStateSet();
       ss->getOrCreateUniform("texture_size", osg::Uniform::FLOAT_VEC4)->set(osg::Vec4(1.0 / vp->width(), 1.0 / vp->height(), vp->width(), vp->height()));
-
-      constexpr char DIAG_DETE[] = "DIAG_DETECTION";
-      if (_diag_weight)
-        ss->setDefine(DIAG_DETE);
-      else
-        ss->removeDefine(DIAG_DETE);
     }
     _cam->accept(*cv);
-	  _edgePass->accept(*cv);
+    _edgePass->accept(*cv);
     _blendFactor->accept(*cv);
-  }else if(nv.asUpdateVisitor()) {
-		ImGui::Begin("smaa");
-    ImGui::Checkbox("diag weight", &_diag_weight);
+  } else if (nv.asUpdateVisitor()) {
+    static float xx = 0;
+    ImGui::Begin("smaa");
+    if (ImGui::Checkbox("diag weight", &_diag_weight)) {
+      test();
+    }
     ImGui::End();
   }
+  osg::Group::traverse(nv);
+}
+
+void TestNode::test()
+{
+  auto ss = _ssquad->getOrCreateStateSet();
+  constexpr char DIAG_DETE[] = "DIAG_DETECTION";
+  if (_diag_weight)
+    ss->setDefine(DIAG_DETE);
+  else
+    ss->removeDefine(DIAG_DETE);
 }

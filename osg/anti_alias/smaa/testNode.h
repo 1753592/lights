@@ -13,6 +13,9 @@ private:
 	void init();
 
 	void traverse(osg::NodeVisitor &) override;
+
+	void test();
+
 private:
 	
 	ref_ptr<Geometry> _quad, _ssquad;
@@ -22,5 +25,5 @@ private:
 
 	ref_ptr<Texture2D> _areaTex;
 
-	bool _diag_weight;
+	bool _diag_weight = true;
 };
