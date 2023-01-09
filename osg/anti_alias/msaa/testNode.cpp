@@ -50,8 +50,8 @@ void main()
     clr += texelFetch(clr_tex, uv, i) / 16;
 	  dep += texelFetch(dep_tex, uv, i).r / 16;
   }
-	//gl_FragColor = clr; 
-  gl_FragColor = vec4(vec3(dep), 1);
+	gl_FragColor = clr; 
+  //gl_FragColor = vec4(vec3(dep), 1);
 }
 
 )";
@@ -84,7 +84,7 @@ void TestNode::prepareFBO() {
   if(!_fbo)
     _fbo = new osg::FrameBufferObject;
   _fbo->setAttachment(_cam->COLOR_BUFFER, osg::FrameBufferAttachment(_clrTex));
-  _fbo->setAttachment(_cam->DEPTH_BUFFER, osg::FrameBufferAttachment(_depTex));
+  //_fbo->setAttachment(_cam->DEPTH_BUFFER, osg::FrameBufferAttachment(_depTex));
 }
 
 void TestNode::applyRenderInfo(RenderInfo&renderInfo) {
@@ -121,7 +121,8 @@ void TestNode::init()
   _cam->setReferenceFrame(Transform::ABSOLUTE_RF);
   _cam->addChild(_quad);
   _cam->setRenderOrder(Camera::PRE_RENDER);
-  _cam->setDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
+  _cam->setImplicitBufferAttachmentMask(0);
+  //_cam->setDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
   _clrTex = new osg::Texture2DMultisample(16, GL_FALSE);
   _clrTex->setInternalFormat(GL_RGBA);
   _clrTex->setFilter(Texture::MIN_FILTER, Texture::NEAREST);

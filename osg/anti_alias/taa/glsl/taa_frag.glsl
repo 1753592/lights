@@ -28,9 +28,10 @@ vec2 get_closest(vec2 uv)
 {
 	vec2 close_uv = uv;
 	float close_dep = 1.f;
-	vec2 del_res = texture_size.xy;	
+	vec2 delta_res = texture_size.xy;	
 	for(int i = 0; i < 9; i++){
-    close_uv = uv + delta_res * sample_offset[i] 
+    vec2 uvtmp = uv + delta_res * sample_offset[i]; 
+    float deptmp = texture(dep_tex, uvtmp).r;
 		if(deptmp < close_dep)
 		{
 			close_dep = deptmp;
@@ -113,8 +114,14 @@ vec3 clamp_aabb(vec3 cur_clr, vec3 pre_clr, vec2 cur_uv)
 
 void main()
 {
+	vec3 cur_clr = texture(cur_tex, uv).rgb;
+
+  if(init_clr){
+    gl_FragColor = vec4(cur_clr, 1);
+    return;
+  }
+
 	vec2 cur_uv = uv - taa_jitter;
-	vec3 cur_clr = texture(cur_tex, cur_uv).rgb;
 
 	vec2 velocity = texture(vel_tex, get_closest(uv)).rg;
 	//vec2 velocity = texture(vel_tex, uv).rg;
@@ -125,15 +132,11 @@ void main()
 	vec3 cur_ycg = rgb2YCoCg(tone_map(cur_clr));
 	vec3 pre_ycg = rgb2YCoCg(tone_map(pre_clr));
 	//pre_clr = untone_map(YCoCg2rgb(clamp_aabb(cur_ycg, pre_ycg, uv)));	
-	pre_clr = untone_map(YCoCg2rgb(clip_aabb(cur_ycg, pre_ycg, uv)));	
+	pre_clr = untone_map(YCoCg2rgb(clip_aabb(cur_ycg, pre_ycg, cur_uv)));	
 
   float factor = clamp(0.05 + length(velocity) * 100, 0, 1);
-	//float factor = 0.05;
+	//factor = 0.05;
 
-  vec3 des_clr = vec3(0);
-  if(pre_clr == vec3(0))
-    des_clr = cur_clr;
-  else
-	  des_clr = mix(pre_clr, cur_clr, factor); 
+	vec3 des_clr = mix(pre_clr, cur_clr, factor); 
 	gl_FragColor = vec4(des_clr, 1);
 }

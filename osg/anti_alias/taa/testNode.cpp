@@ -202,6 +202,9 @@ void TestNode::traverse(NodeVisitor& nv)
     _cam->accept(*cv);
 
     ss = _taaquad->getOrCreateStateSet();
+
+    bool init = _preMatrix != _curMatrix;
+    ss->getOrCreateUniform("init_clr", osg::Uniform::BOOL)->set(init);
     ss->getOrCreateUniform("taa_jitter", osg::Uniform::FLOAT_VEC2)->set(jit);
     if (frameNum % 2) {
       _taaCam->attach(Camera::COLOR_BUFFER, _taaTex1);
