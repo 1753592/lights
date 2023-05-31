@@ -33,7 +33,7 @@ set_target_properties(${app_name} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CM
                                                VS_DEBUGGER_ENVIRONMENT       "PATH=%PATH%;${CMAKE_PREFIX_PATH}/bin"
 											   VS_DEBUGGER_COMMAND_ARGUMENTS "")
 
-target_include_directories(${app_name} PRIVATE ${OSG_INCLUDE_DIR})
+target_include_directories(${app_name} PRIVATE ${OSG_INCLUDE_DIR} ${OSG_GEN_INCLUDE_PATH})
 
 foreach(lib ${libs})
 	target_link_libraries(${app_name} debug ${${lib}_DEBUG} optimized ${${lib}_RELEASE})

@@ -6,5 +6,5 @@ project(lights)
 SET_PROPERTY(GLOBAL PROPERTY USE_FOLDERS ON)
 
 add_subdirectory(osg)
-#add_subdirectory(vulkan)
+add_subdirectory(vulkan)
 
