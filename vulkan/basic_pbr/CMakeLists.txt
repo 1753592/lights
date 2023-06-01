@@ -5,16 +5,10 @@ cmake_minimum_required(VERSION 3.8.0)
 set(app_name basic_pbr)
 
 set(hdr
-	VulkanView.h
 )
 
 set(src
-	VulkanView.cpp
 	main.cpp
-)
-
-set(libs
-	OSG_LIBRARY
 )
 
 add_executable(${app_name} ${src} ${hdr})
@@ -33,17 +27,17 @@ set_target_properties(${app_name} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CM
                                                VS_DEBUGGER_ENVIRONMENT       "PATH=%PATH%;${CMAKE_PREFIX_PATH}/bin"
 											   VS_DEBUGGER_COMMAND_ARGUMENTS "")
 
-target_include_directories(${app_name} PRIVATE ${OSG_INCLUDE_DIR} ${OSG_GEN_INCLUDE_PATH})
-
 foreach(lib ${libs})
 	target_link_libraries(${app_name} debug ${${lib}_DEBUG} optimized ${${lib}_RELEASE})
 endforeach()
 
-target_include_directories(${app_name} PRIVATE ${OSG_INCLUDE_DIR})
 target_include_directories(${app_name} PRIVATE ${Vulkan_INCLUDE_DIR})
+target_include_directories(${app_name} PRIVATE ${CMAKE_SOURCE_DIR}/vulkan/baselib)
 
 target_link_libraries(${app_name} ${Vulkan_LIBRARY})
 target_link_libraries(${app_name} SDL2::SDL2 SDL2::SDL2main)
+target_link_libraries(${app_name} baselib)
+
 
 set_target_properties(${app_name} PROPERTIES FOLDER "v")
 

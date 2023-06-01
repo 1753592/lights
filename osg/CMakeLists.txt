@@ -12,7 +12,7 @@ find_package(osgGA)
 
 find_path(OSG_GEN_INCLUDE_PATH  NAMES Config GL)
 
-INCLUDE_DIRECTORIES(${OSG_GEN_INCLUDE_PATH})
+INCLUDE_DIRECTORIES(${OSG_GEN_INCLUDE_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(basic-lighting)
 add_subdirectory(basic-material)
@@ -23,5 +23,6 @@ add_subdirectory(pbr-ibl-lighting)
 add_subdirectory(pbr-ibl-lighting-rfl)
 add_subdirectory(pbr-ibl-lighting-tex)
 
+add_subdirectory(basic)
 add_subdirectory(demo)
 add_subdirectory(anti_alias)

@@ -8,6 +8,8 @@
 #include <osg/Geometry>
 #include <osgUtil/CullVisitor>
 
+#include "inc/common.h"
+
 const std::string vertShader = R"(
 
 #version 330 compatibility
@@ -167,25 +169,11 @@ void main()
 	//vec3 clr1 = texture(clr_tex, uv).rgb;
 	//vec3 clr2 = texture(clr_tex, uv + pix_step).rgb;
 	//gl_FragColor = vec4(mix(clr1, clr2, final_blend), 1); 
-	gl_FragColor = texture(clr_tex, uv + pix_step * final_blend);
+	gl_FragColor.xyz = texture(clr_tex, uv + pix_step * final_blend).xyz;
+	gl_FragColor.w = 1;
 }
 
 )";
-
-std::string readFile(const std::string& file)
-{
-  std::string ret;
-  auto f = fopen(file.c_str(), "rt");
-  if (!f)
-    return ret;
-  fseek(f, 0, SEEK_END);
-  uint64_t len = ftell(f);
-  fseek(f, 0, SEEK_SET);
-  ret.resize(len);
-  fread(&ret[0], 1, len, f);
-  fclose(f);
-  return ret;
-}
 
 TestNode::TestNode()
 {

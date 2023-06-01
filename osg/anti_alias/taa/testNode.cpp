@@ -7,6 +7,8 @@
 
 #include <Windows.h>
 
+#include "inc/common.h"
+
 const std::string vertShader = R"(
 
 #version 330 compatibility
@@ -26,20 +28,6 @@ void main()
 const osg::Vec2 haltonSequence[] = {{0.5f, 1.0f / 3},   {0.25f, 2.0f / 3},  {0.75f, 1.0f / 9},  {0.125f, 4.0f / 9},
                                     {0.625f, 7.0f / 9}, {0.375f, 2.0f / 9}, {0.875f, 5.0f / 9}, {0.0625f, 8.0f / 9}};
 
-std::string readFile(const std::string& file)
-{
-  std::string ret;
-  auto f = fopen(file.c_str(), "rb");
-  if (!f)
-    return ret;
-  fseek(f, 0, SEEK_END);
-  uint64_t len = ftell(f);
-  fseek(f, 0, SEEK_SET);
-  ret.resize(len, 0);
-  fread(&ret[0], 1, len, f);
-  fclose(f);
-  return ret;
-}
 
 TestNode::TestNode()
 {

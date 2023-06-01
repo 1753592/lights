@@ -225,7 +225,7 @@ TestNode::TestNode()
 		ss->getOrCreateUniform("lightColors", Uniform::FLOAT_VEC3, 4)->setElement(i, lightColors[i]);
 
 	ss->getOrCreateUniform("ao", Uniform::FLOAT)->set(1.f);
-	ss->getOrCreateUniform("albedo", Uniform::FLOAT_VEC3)->set(Vec3(0.5, 0, 0));
+	ss->getOrCreateUniform("albedo", Uniform::FLOAT_VEC3)->set(Vec3(0.02, 0, 0));
 }
 
 void TestNode::traverse(NodeVisitor & nv)
