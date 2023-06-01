@@ -156,7 +156,7 @@ uint32_t VulkanDevice::getQueueFamilyIndex(VkQueueFlags queueFlags) const
  *
  * @return VkResult of the device creation call
  */
-VkResult VulkanDevice::createLogicalDevice(VkPhysicalDeviceFeatures enabledFeatures, std::vector<const char *> enabledExtensions, void *pNextChain,
+VkResult VulkanDevice::realize(VkPhysicalDeviceFeatures enabledFeatures, std::vector<const char *> enabledExtensions, void *pNextChain,
                                            bool useSwapChain, VkQueueFlags requestedQueueTypes)
 {
   // Desired queues need to be requested upon logical device creation
