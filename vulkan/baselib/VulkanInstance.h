@@ -4,6 +4,9 @@
 #include "vulkan/vulkan_core.h"
 
 #include <string>
+#include <memory>
+
+class VulkanDevice;
 
 class VulkanInstance{
 public:
@@ -12,7 +15,7 @@ public:
 
   void enable_debug();
 
-  void create_device(const std::string &dev = "");
+  std::shared_ptr<VulkanDevice> create_device(const std::string &dev = "");
 
 private:
   void initialize();

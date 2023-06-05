@@ -22,15 +22,10 @@ class VulkanBuffer;
 
 class VulkanDevice {
 public:
-  struct {
-    uint32_t graphics;
-    uint32_t compute;
-    uint32_t transfer;
-  } queueFamilyIndices;
 
   explicit VulkanDevice(VkPhysicalDevice physicalDevice);
   ~VulkanDevice();
-  operator VkDevice() const { return logicalDevice; };
+  operator VkDevice() const { return _logical_device; };
 
   VkResult realize(VkPhysicalDeviceFeatures enabledFeatures, std::vector<const char *> enabledExtensions, void *pNextChain,
                                bool useSwapChain = true, VkQueueFlags requestedQueueTypes = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
@@ -54,9 +49,9 @@ public:
 
 private:
   /** @brief Physical device representation */
-  VkPhysicalDevice physicalDevice;
+  VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
   /** @brief Logical device representation (application's view of the device) */
-  VkDevice logicalDevice;
+  VkDevice _logical_device = VK_NULL_HANDLE;
   /** @brief Properties of the physical device including limits that the application can check against */
   VkPhysicalDeviceProperties properties;
   /** @brief Features of the physical device that an application can use to check if a feature is supported */
@@ -70,6 +65,11 @@ private:
   /** @brief List of extensions supported by the device */
   std::vector<std::string> supportedExtensions;
   /** @brief Default command pool for the graphics queue family index */
-  VkCommandPool commandPool = VK_NULL_HANDLE;
+  VkCommandPool _command_pool = VK_NULL_HANDLE;
   /** @brief Contains queue family indices */
+  struct {
+    uint32_t graphics;
+    uint32_t compute;
+    uint32_t transfer;
+  } queueFamilyIndices;
 };

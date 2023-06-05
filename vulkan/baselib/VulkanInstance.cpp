@@ -29,7 +29,8 @@ void VulkanInstance::enable_debug()
   vks::debug::setupDebugging(_instance);
 }
 
-void VulkanInstance::create_device(const std::string &devStr) 
+std::shared_ptr<VulkanDevice> 
+VulkanInstance::create_device(const std::string &devStr) 
 {
   uint32_t gpuCount = 0;
   if(vkEnumeratePhysicalDevices(_instance, &gpuCount, nullptr) != VK_SUCCESS) {
@@ -57,11 +58,11 @@ void VulkanInstance::create_device(const std::string &devStr)
   //vkGetPhysicalDeviceFeatures(phyDev, &deviceFeatures);
   //vkGetPhysicalDeviceMemoryProperties(phyDev, &deviceMemoryProperties);
 
-  VkPhysicalDeviceFeatures features;
+  VkPhysicalDeviceFeatures features = {};
   std::vector<const char *> extension;
   auto dev = std::make_shared<VulkanDevice>(phyDev);
   dev->realize(features, extension, nullptr);
-
+  return dev;
 }
 
 void VulkanInstance::initialize() 
