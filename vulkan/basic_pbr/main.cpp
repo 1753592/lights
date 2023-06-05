@@ -2,6 +2,7 @@
 #include <stdexcept>
 
 #include "SDL2/SDL.h"
+#include "SDL2/SDL_vulkan.h"
 
 #include "VulkanDebug.h"
 #include "VulkanView.h"
@@ -69,21 +70,26 @@ void loop(SDL_Window *win)
 
 int main(int argc, char** argv)
 {
+  SDL_Window* win = 0;
   try {
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
       throw std::runtime_error("sdl init error.");
-    auto win = SDL_CreateWindow("demo", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
+    win = SDL_CreateWindow("demo", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
     if (win == nullptr)
       throw std::runtime_error("could not create sdl window.");
 
     VulkanInstance inst;
     inst.enable_debug();
-    inst.create_device();
+    auto dev = inst.create_device();
 
-    loop(win);
+    VkSurfaceKHR surface;
+    if (!SDL_Vulkan_CreateSurface(win, inst, &surface))
+      throw std::runtime_error("could not create vk surface.");
+
   } catch (std::runtime_error& e) {
     printf("%s", e.what());
     return -1;
   }
+  loop(win);
   return 0;
 }

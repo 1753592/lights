@@ -13,11 +13,14 @@ public:
   VulkanInstance();
   ~VulkanInstance();
 
+  operator VkInstance() { return _instance; } 
+
   void enable_debug();
 
   std::shared_ptr<VulkanDevice> create_device(const std::string &dev = "");
 
 private:
+
   void initialize();
 
   VkInstance _instance = nullptr;
