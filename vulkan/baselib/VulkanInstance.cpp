@@ -11,58 +11,19 @@
 
 #include "VulkanDebug.h"
 #include "VulkanDevice.h"
+#include "VulkanSwapChain.h"
 
 
 VulkanInstance::VulkanInstance() 
 {
-  initialize();
 }
 
 VulkanInstance::~VulkanInstance() 
-{}
-
-void VulkanInstance::enable_debug()
 {
-  if (!_instance)
-    return;
-
-  vks::debug::setupDebugging(_instance);
-}
-
-std::shared_ptr<VulkanDevice> 
-VulkanInstance::create_device(const std::string &devStr) 
-{
-  uint32_t gpuCount = 0;
-  if(vkEnumeratePhysicalDevices(_instance, &gpuCount, nullptr) != VK_SUCCESS) {
-    throw std::runtime_error("Could not find any gpu.");
+  if(_instance) {
+    vks::debug::freeDebugCallback(_instance);
+    vkDestroyInstance(_instance, nullptr);
   }
-  if (gpuCount == 0) {
-    throw std::runtime_error("No device with Vulkan support found.");
-  }
-
-  std::vector<VkPhysicalDevice> physicalDevices(gpuCount);
-  if(vkEnumeratePhysicalDevices(_instance, &gpuCount, physicalDevices.data()) != VK_SUCCESS) {
-    throw std::runtime_error("Could not enumerate physical devices.");
-  }
-
-  uint32_t selectedDevice = 0;
-  VkPhysicalDeviceProperties deviceProperties;
-  if (!devStr.empty()) {
-    for (int i = 0; i < gpuCount; i++) {
-      vkGetPhysicalDeviceProperties(physicalDevices[i], &deviceProperties);
-    }
-  }
-
-  auto &phyDev = physicalDevices[selectedDevice];
-  vkGetPhysicalDeviceProperties(phyDev, &deviceProperties);
-  //vkGetPhysicalDeviceFeatures(phyDev, &deviceFeatures);
-  //vkGetPhysicalDeviceMemoryProperties(phyDev, &deviceMemoryProperties);
-
-  VkPhysicalDeviceFeatures features = {};
-  std::vector<const char *> extension;
-  auto dev = std::make_shared<VulkanDevice>(phyDev);
-  dev->realize(features, extension, nullptr);
-  return dev;
 }
 
 void VulkanInstance::initialize() 
@@ -122,4 +83,45 @@ void VulkanInstance::initialize()
 
   if (std::find(supportedExt.begin(), supportedExt.end(), VK_EXT_DEBUG_UTILS_EXTENSION_NAME) != supportedExt.end())
     vks::debugutils::setup(_instance); 
+}
+
+void VulkanInstance::enable_debug()
+{
+  if (!_instance)
+    return;
+
+  vks::debug::setupDebugging(_instance);
+}
+
+std::shared_ptr<VulkanDevice> 
+VulkanInstance::create_device(const std::string &devStr) 
+{
+  uint32_t gpuCount = 0;
+  if(vkEnumeratePhysicalDevices(_instance, &gpuCount, nullptr) != VK_SUCCESS) {
+    throw std::runtime_error("Could not find any gpu.");
+  }
+  if (gpuCount == 0) {
+    throw std::runtime_error("No device with Vulkan support found.");
+  }
+
+  std::vector<VkPhysicalDevice> physicalDevices(gpuCount);
+  if(vkEnumeratePhysicalDevices(_instance, &gpuCount, physicalDevices.data()) != VK_SUCCESS) {
+    throw std::runtime_error("Could not enumerate physical devices.");
+  }
+
+  uint32_t selectedDevice = 0;
+  VkPhysicalDeviceProperties deviceProperties;
+  if (!devStr.empty()) {
+    for (int i = 0; i < gpuCount; i++) {
+      vkGetPhysicalDeviceProperties(physicalDevices[i], &deviceProperties);
+    }
+  }
+
+  auto &phyDev = physicalDevices[selectedDevice];
+
+  VkPhysicalDeviceFeatures features = {};
+  std::vector<const char *> extension;
+  auto dev = std::make_shared<VulkanDevice>(phyDev);
+  dev->realize(features, extension, nullptr);
+  return dev;
 }

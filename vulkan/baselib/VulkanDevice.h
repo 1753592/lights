@@ -17,21 +17,24 @@
 #include <algorithm>
 #include <assert.h>
 #include <exception>
+#include <optional>
 
 class VulkanBuffer;
 
 class VulkanDevice {
 public:
 
-  explicit VulkanDevice(VkPhysicalDevice physicalDevice);
+  explicit VulkanDevice(VkPhysicalDevice _physical_device);
   ~VulkanDevice();
   operator VkDevice() const { return _logical_device; };
+  VkPhysicalDevice physical_device() { return _physical_device; }
 
   VkResult realize(VkPhysicalDeviceFeatures enabledFeatures, std::vector<const char *> enabledExtensions, void *pNextChain,
                                bool useSwapChain = true, VkQueueFlags requestedQueueTypes = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
 
   uint32_t getQueueFamilyIndex(VkQueueFlags queueFlags) const;
-  uint32_t getMemoryType(uint32_t typeBits, VkMemoryPropertyFlags properties, VkBool32 *memTypeFound = nullptr) const;
+
+  std::optional<uint32_t> getMemoryType(uint32_t typeBits, VkMemoryPropertyFlags properties) const;
 
   VkResult createBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, VkBuffer *buffer, VkDeviceMemory *memory,
                         void *data = nullptr);
@@ -44,12 +47,24 @@ public:
   VkCommandBuffer createCommandBuffer(VkCommandBufferLevel level, bool begin = false);
   void flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue, VkCommandPool pool, bool free = true);
   void flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue, bool free = true);
+
+  std::vector<VkCommandBuffer> createCommandBuffers(uint32_t n);
+  void destroyCommandBuffers(std::vector<VkCommandBuffer> &cmdbufs);
+
+  std::vector<VkFence> createFences(uint32_t n);
+
+  VkQueue getGraphicQueue(uint32_t idx);
+
   bool extensionSupported(std::string extension);
   VkFormat getSupportedDepthFormat(bool checkSamplingSupport);
 
+public:
+
+  const std::vector<VkQueueFamilyProperties> &queueFamilyProperties() { return _queueFamilyProperties; }
+
 private:
   /** @brief Physical device representation */
-  VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+  VkPhysicalDevice _physical_device = VK_NULL_HANDLE;
   /** @brief Logical device representation (application's view of the device) */
   VkDevice _logical_device = VK_NULL_HANDLE;
   /** @brief Properties of the physical device including limits that the application can check against */
@@ -61,7 +76,7 @@ private:
   /** @brief Memory types and heaps of the physical device */
   VkPhysicalDeviceMemoryProperties memoryProperties;
   /** @brief Queue family properties of the physical device */
-  std::vector<VkQueueFamilyProperties> queueFamilyProperties;
+  std::vector<VkQueueFamilyProperties> _queueFamilyProperties;
   /** @brief List of extensions supported by the device */
   std::vector<std::string> supportedExtensions;
   /** @brief Default command pool for the graphics queue family index */

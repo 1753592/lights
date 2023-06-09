@@ -4,18 +4,23 @@ set(app_name baselib)
 
 set(hdr
 	VulkanInstance.h
+	VulkanSwapChain.h
 	VulkanView.h
 	VulkanBuffer.h
 	VulkanDevice.h
 	VulkanDebug.h
+	VulkanTools.h
+	VulkanInitializers.hpp
 )
 
 set(src
 	VulkanInstance.cpp
+	VulkanSwapChain.cpp
 	VulkanView.cpp
 	VulkanBuffer.cpp
 	VulkanDevice.cpp
 	VulkanDebug.cpp
+	VulkanTools.cpp
 )
 
 find_package(Vulkan)

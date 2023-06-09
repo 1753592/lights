@@ -664,7 +664,7 @@ public:
 
 	inline Tquaternion operator+(const Tquaternion& q) const
 	{
-		return quaternion(s_ + q.s_, v_ + q.v_);
+		return quat(s_ + q.s_, v_ + q.v_);
 	}
 
 	inline Tquaternion& operator+=(const Tquaternion& q)
@@ -676,7 +676,7 @@ public:
 
 	inline Tquaternion operator-(const Tquaternion& q) const
 	{
-		return quaternion(s_ - q.s_, v_ - q.v_);
+		return quat(s_ - q.s_, v_ - q.v_);
 	}
 
 	inline Tquaternion& operator-=(const Tquaternion& q)
@@ -768,52 +768,6 @@ public:
 		return Tquaternion<T>(s_, -v_);
 	}
 
-	/*
-	inline matNM<T, 4, 4> toMatrix() const
-	{
-		matNM<T, 4, 4> m;
-
-		const T ww = w_ * w_;
-		const T xx = x_ * x_;
-		const T yy = y_ * y_;
-		const T zz = z_ * z_;
-		const T xy = x_ * y_;
-		const T xz = x_ * z_;
-		const T xw = x_ * w_;
-		const T yz = y_ * z_;
-		const T yw = y_ * w_;
-		const T zw = z_ * w_;
-
-		m[0][0] = T(1) - T(2) * (yy + zz);
-		m[0][1] = T(2) * (xy + zw);
-		m[0][2] = T(2) * (xz - yw);
-		m[0][3] = T(0);
-
-		m[1][0] = T(2) * (xy - zw);
-		m[1][1] = T(1) - T(2) * (xx + zz);
-		m[1][2] = T(2) * (yz + xw);
-		m[1][3] = T(0);
-
-		m[2][0] = T(2) * (xz + yw);
-		m[2][1] = T(2) * (yz - xw);
-		m[2][2] = T(1) - T(2) * (xx + yy);
-		m[2][3] = T(0);
-
-		m[3][0] = T(0);
-		m[3][1] = T(0);
-		m[3][2] = T(0);
-		m[3][3] = T(1);
-
-		return m;
-	}*/
-
-	/*
-	inline T length() const
-	{
-		return vmath::length( Tvec4<T>(r, v) );
-	}
-	*/
-
 private:
 	union{
 		struct{
@@ -821,19 +775,19 @@ private:
 			Tvec3<T>    v_;
 		};
 		struct{
-			T			w_;
+			T           w_;
 			T           x_;
 			T           y_;
 			T           z_;
 		};
-		T               a_[4];
+		T             a_[4];
 	};
 };
 
-typedef Tquaternion<float> quaternion;
-typedef Tquaternion<int> iquaternion;
-typedef Tquaternion<unsigned int> uquaternion;
-typedef Tquaternion<double> dquaternion;
+typedef Tquaternion<float> quat;
+typedef Tquaternion<int> quati;
+typedef Tquaternion<unsigned int> quatu;
+typedef Tquaternion<double> quatd;
 
 template <typename T>
 static inline Tquaternion<T> operator*(T a, const Tquaternion<T>& b)
@@ -1043,35 +997,35 @@ public:
 	inline bool reduce()
 	{
 		bool res = true;
-		vecN<T, w> Arr[h]; vecN<T, w>* rArr[h];
+		vecN<T, w> arr[h]; vecN<T, w>* rarr[h];
 		for (int i = 0; i < h; i++) {
 			for (int j = 0; j < w; j++) {
-				Arr[i][j] = data[j][i];
+				arr[i][j] = data[j][i];
 			}
-			rArr[i] = (Arr + i);
+			rarr[i] = (arr + i);
 		}
 		for (int i = 0; i < h; i++) {
 			for (;;) {
-				vecN<T, w> &curArr = *rArr[i];
+				vecN<T, w> &carr = *rarr[i];
 				for (int k = 0; k < i; k++) {
-					if (curArr[k]) {
-						curArr /= curArr[k];
-						curArr -= *rArr[k];
+					if (carr[k]) {
+						carr /= carr[k];
+						carr -= *rarr[k];
 					}
 				}
-				if (curArr[i] == 0) {
+				if (carr[i] == 0) {
 					int j = i + 1;
 					for (; j < h; j++) {
-						if (rArr[j][i]) {
-							auto tmp = rArr[i];
-							rArr[i] = rArr[j];
-							rArr[j] = tmp;
+						if (rarr[j][i]) {
+							auto tmp = rarr[i];
+							rarr[i] = rarr[j];
+							rarr[j] = tmp;
 							break;
 						}
 					}
 					if (j == h) { res = false; break; }
 				} else {
-					curArr /= curArr[i];
+					carr /= carr[i];
 					break;
 				}
 			}
@@ -1183,14 +1137,49 @@ public:
 		base::data[2] = v2;
 		base::data[3] = v3;
 	}
+
+	Tmat4(const Tquaternion<T> &quat) 
+	{
+    Tvec4<T> v(quat);
+    const T ww = v.w() * v.w();
+    const T xx = v.x() * v.x();
+    const T yy = v.y() * v.y();
+    const T zz = v.z() * v.z();
+    const T xy = v.x() * v.y();
+    const T xz = v.x() * v.z();
+    const T xw = v.x() * v.w();
+    const T yz = v.y() * v.z();
+    const T yw = v.y() * v.w();
+    const T zw = v.z() * v.w();
+
+		auto& m = base::data;
+
+    m[0][0] = T(1) - T(2) * (yy + zz);
+    m[0][1] = T(2) * (xy + zw);
+    m[0][2] = T(2) * (xz - yw);
+    m[0][3] = T(0);
+
+    m[1][0] = T(2) * (xy - zw);
+    m[1][1] = T(1) - T(2) * (xx + zz);
+    m[1][2] = T(2) * (yz + xw);
+    m[1][3] = T(0);
+
+    m[2][0] = T(2) * (xz + yw);
+    m[2][1] = T(2) * (yz - xw);
+    m[2][2] = T(1) - T(2) * (xx + yy);
+    m[2][3] = T(0);
+
+    m[3][0] = T(0);
+    m[3][1] = T(0);
+    m[3][2] = T(0);
+    m[3][3] = T(1);
+  }
 };
 
 typedef Tmat4<float> mat4;
 typedef Tmat4<int> mat4i;
 typedef Tmat4<unsigned int> mat4u;
 typedef Tmat4<double> mat4d;
-
-
 
 };
 
