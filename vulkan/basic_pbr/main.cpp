@@ -11,6 +11,8 @@
 #include "VulkanSwapChain.h"
 #include "VulkanTools.h"
 
+#include "SimpleShape.h"
+
 #define WM_PAINT 1
 
 VulkanInstance inst;
@@ -22,6 +24,8 @@ public:
   {
     _swapchain = std::make_shared<VulkanSwapChain>(dev); 
     _queue = dev->getGraphicQueue(0);
+
+    create_shpere();
   }
 
   ~Test()
@@ -252,6 +256,16 @@ public:
       VK_CHECK_RESULT(vkEndCommandBuffer(_cmd_bufs[i]));
     }
   }
+
+
+  void create_shpere() { 
+    Sphere sp(vec3(0), 1);
+    sp.build();
+    auto &verts = sp.get_vertex();
+    printf("");
+  }
+
+private:
 
   std::shared_ptr<VulkanDevice> _device;
   std::shared_ptr<VulkanSwapChain> _swapchain;
