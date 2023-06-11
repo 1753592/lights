@@ -262,7 +262,11 @@ public:
     Sphere sp(vec3(0), 1);
     sp.build();
     auto &verts = sp.get_vertex();
-    printf("");
+    auto &norms = sp.get_norms();
+    auto &uv = sp.get_uvs();
+    auto &index = sp.get_index();
+
+
   }
 
 private:

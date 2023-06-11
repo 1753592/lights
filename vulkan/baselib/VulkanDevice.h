@@ -36,10 +36,10 @@ public:
 
   std::optional<uint32_t> getMemoryType(uint32_t typeBits, VkMemoryPropertyFlags properties) const;
 
-  VkResult createBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, VkBuffer *buffer, VkDeviceMemory *memory,
-                        void *data = nullptr);
-  VkResult createBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VulkanBuffer *buffer, VkDeviceSize size,
-                        void *data = nullptr);
+  VkResult createBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, 
+    VkDeviceSize size, VkBuffer *buffer, VkDeviceMemory *memory, void *data = nullptr);
+  VkResult createBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, 
+    VulkanBuffer *buffer, VkDeviceSize size, void *data = nullptr);
   void copyBuffer(VulkanBuffer *src, VulkanBuffer *dst, VkQueue queue, VkBufferCopy *copyRegion = nullptr);
 
   VkCommandPool createCommandPool(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags createFlags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
