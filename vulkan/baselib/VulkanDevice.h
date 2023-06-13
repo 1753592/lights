@@ -14,7 +14,6 @@
 
 #include <vector>
 #include <string>
-#include <algorithm>
 #include <assert.h>
 #include <exception>
 #include <optional>
@@ -22,7 +21,7 @@
 
 class VulkanBuffer;
 
-class VulkanDevice {
+class VulkanDevice : public std::enable_shared_from_this<VulkanDevice>{
 public:
 
   explicit VulkanDevice(VkPhysicalDevice _physical_device);
@@ -40,13 +39,11 @@ public:
     
   uint32_t getQueueFamilyIndex(VkQueueFlags queueFlags) const;
 
-  std::optional<uint32_t> getMemoryTypeIndex(uint32_t typeBits, VkMemoryPropertyFlags properties) const;
+  std::optional<uint32_t> memory_type_index(uint32_t typeBits, VkMemoryPropertyFlags properties) const;
 
-  std::shared_ptr<VulkanBuffer> createBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, 
-    VkDeviceSize size, VkBuffer *buffer, VkDeviceMemory *memory, void *data = nullptr);
-  std::shared_ptr<VulkanBuffer> createBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, 
-    VkDeviceSize size, void *data = nullptr);
-  void copyBuffer(VulkanBuffer *src, VulkanBuffer *dst, VkQueue queue, VkBufferCopy *copyRegion = nullptr);
+  std::shared_ptr<VulkanBuffer> create_buffer(VkBufferUsageFlags usageFlags, 
+    VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, void *data = nullptr);
+  void copy_buffer(VulkanBuffer *src, VulkanBuffer *dst, VkQueue queue, VkBufferCopy *copyRegion = nullptr);
 
   VkCommandPool createCommandPool(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags createFlags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
   VkCommandBuffer createCommandBuffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin = false);

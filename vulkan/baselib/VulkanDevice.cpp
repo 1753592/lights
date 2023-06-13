@@ -259,10 +259,10 @@ VkPipelineCache VulkanDevice::get_create_pipecache()
  * @throw Throws an exception if memTypeFound is null and no memory type could be found that supports the requested properties
  */
 
-std::optional<uint32_t> VulkanDevice::getMemoryTypeIndex(uint32_t typeBits, VkMemoryPropertyFlags properties) const
+std::optional<uint32_t> VulkanDevice::memory_type_index(uint32_t typeBits, VkMemoryPropertyFlags properties) const
 {
   for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++) {
-    if ((typeBits & 1) == 1) {
+    if ((typeBits & 1)) {
       if ((memoryProperties.memoryTypes[i].propertyFlags & properties) == properties) {
         return i;
       }
@@ -327,110 +327,51 @@ uint32_t VulkanDevice::getQueueFamilyIndex(VkQueueFlags queueFlags) const
  *
  * @return VK_SUCCESS if buffer handle and memory have been created and (optionally passed) data has been copied
  */
-std::shared_ptr<VulkanBuffer> VulkanDevice::createBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, 
-    VkDeviceSize size, VkBuffer *buffer, VkDeviceMemory *memory, void *data)
+std::shared_ptr<VulkanBuffer> VulkanDevice::create_buffer(VkBufferUsageFlags usageFlags, 
+  VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, void *data)
 {
-  // Create the buffer handle
+  auto buffer = std::make_shared<VulkanBuffer>(shared_from_this());
+
   VkBufferCreateInfo bufferCreateInfo = vks::initializers::bufferCreateInfo(usageFlags, size);
   bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-  VK_CHECK_RESULT(vkCreateBuffer(_logical_device, &bufferCreateInfo, nullptr, buffer));
+  VK_CHECK_RESULT(vkCreateBuffer(_logical_device, &bufferCreateInfo, nullptr, &buffer->_buffer));
 
-  // Create the memory backing up the buffer handle
   VkMemoryRequirements memReqs;
   VkMemoryAllocateInfo memAlloc = vks::initializers::memoryAllocateInfo();
   vkGetBufferMemoryRequirements(_logical_device, *buffer, &memReqs);
   memAlloc.allocationSize = memReqs.size;
-  // Find a memory type index that fits the properties of the buffer
-  memAlloc.memoryTypeIndex = *getMemoryTypeIndex(memReqs.memoryTypeBits, memoryPropertyFlags);
-  // If the buffer has VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT set we also need to enable the appropriate flag during allocation
+
+  auto index = memory_type_index(memReqs.memoryTypeBits, memoryPropertyFlags);
+  if (!index) return nullptr;
+
+  memAlloc.memoryTypeIndex = *index;
   VkMemoryAllocateFlagsInfoKHR allocFlagsInfo{};
   if (usageFlags & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) {
     allocFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO_KHR;
     allocFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
     memAlloc.pNext = &allocFlagsInfo;
   }
-  VK_CHECK_RESULT(vkAllocateMemory(_logical_device, &memAlloc, nullptr, memory));
 
-  // If a pointer to the buffer data has been passed, map the buffer and copy over the data
+  VkDeviceMemory memory;
+  VK_CHECK_RESULT(vkAllocateMemory(_logical_device, &memAlloc, nullptr, &memory));
+  buffer->_memory = memory;
+
   if (data != nullptr) {
     void *mapped;
-    VK_CHECK_RESULT(vkMapMemory(_logical_device, *memory, 0, size, 0, &mapped));
+    VK_CHECK_RESULT(vkMapMemory(_logical_device, memory, 0, size, 0, &mapped));
     memcpy(mapped, data, size);
     // If host coherency hasn't been requested, do a manual flush to make writes visible
     if ((memoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) == 0) {
       VkMappedMemoryRange mappedRange = vks::initializers::mappedMemoryRange();
-      mappedRange.memory = *memory;
+      mappedRange.memory = memory;
       mappedRange.offset = 0;
       mappedRange.size = size;
       vkFlushMappedMemoryRanges(_logical_device, 1, &mappedRange);
     }
-    vkUnmapMemory(_logical_device, *memory);
+    vkUnmapMemory(_logical_device, memory);
   }
 
-  // Attach the memory to the buffer object
-  VK_CHECK_RESULT(vkBindBufferMemory(_logical_device, *buffer, *memory, 0));
-
-  return nullptr;
-}
-
-/**
- * Create a buffer on the device
- *
- * @param usageFlags Usage flag bit mask for the buffer (i.e. index, vertex, uniform buffer)
- * @param memoryPropertyFlags Memory properties for this buffer (i.e. device local, host visible, coherent)
- * @param buffer Pointer to a vk::Vulkan buffer object
- * @param size Size of the buffer in bytes
- * @param data Pointer to the data that should be copied to the buffer after creation (optional, if not set, no data is copied over)
- *
- * @return VK_SUCCESS if buffer handle and memory have been created and (optionally passed) data has been copied
- */
-std::shared_ptr<VulkanBuffer> VulkanDevice::createBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags,
-    VkDeviceSize size, void *data)
-{
-  auto buffer = std::make_shared<VulkanBuffer>();
-
-  //buffer->device = _logical_device;
-
-  //// Create the buffer handle
-  //VkBufferCreateInfo bufferCreateInfo = vks::initializers::bufferCreateInfo(usageFlags, size);
-  //VK_CHECK_RESULT(vkCreateBuffer(_logical_device, &bufferCreateInfo, nullptr, &buffer->buffer));
-
-  //// Create the memory backing up the buffer handle
-  //VkMemoryRequirements memReqs;
-  //VkMemoryAllocateInfo memAlloc = vks::initializers::memoryAllocateInfo();
-  //vkGetBufferMemoryRequirements(_logical_device, buffer->buffer, &memReqs);
-  //memAlloc.allocationSize = memReqs.size;
-  //// Find a memory type index that fits the properties of the buffer
-  //memAlloc.memoryTypeIndex = getMemoryTypeIndex(memReqs.memoryTypeBits, memoryPropertyFlags);
-  //// If the buffer has VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT set we also need to enable the appropriate flag during allocation
-  //VkMemoryAllocateFlagsInfoKHR allocFlagsInfo{};
-  //if (usageFlags & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) {
-  //  allocFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO_KHR;
-  //  allocFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
-  //  memAlloc.pNext = &allocFlagsInfo;
-  //}
-  //VK_CHECK_RESULT(vkAllocateMemory(_logical_device, &memAlloc, nullptr, &buffer->memory));
-
-  //buffer->alignment = memReqs.alignment;
-  //buffer->size = size;
-  //buffer->usageFlags = usageFlags;
-  //buffer->memoryPropertyFlags = memoryPropertyFlags;
-
-  //// If a pointer to the buffer data has been passed, map the buffer and copy over the data
-  //if (data != nullptr) {
-  //  VK_CHECK_RESULT(buffer->map());
-  //  memcpy(buffer->mapped, data, size);
-  //  if ((memoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) == 0)
-  //    buffer->flush();
-
-  //  buffer->unmap();
-  //}
-
-  //// Initialize a default descriptor that covers the whole buffer size
-  //buffer->setupDescriptor();
-
-  //// Attach the memory to the buffer object
-  //buffer->bind();
+  VK_CHECK_RESULT(vkBindBufferMemory(_logical_device, buffer->_buffer, memory, 0));
 
   return buffer;
 }
@@ -445,21 +386,21 @@ std::shared_ptr<VulkanBuffer> VulkanDevice::createBuffer(VkBufferUsageFlags usag
  *
  * @note Source and destination pointers must have the appropriate transfer usage flags set (TRANSFER_SRC / TRANSFER_DST)
  */
-void VulkanDevice::copyBuffer(VulkanBuffer *src, VulkanBuffer *dst, VkQueue queue, VkBufferCopy *copyRegion)
+void VulkanDevice::copy_buffer(VulkanBuffer *src, VulkanBuffer *dst, VkQueue queue, VkBufferCopy *copyRegion)
 {
-  //assert(dst->size <= src->size);
-  //assert(src->buffer);
-  //VkCommandBuffer copyCmd = createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
-  //VkBufferCopy bufferCopy{};
-  //if (copyRegion == nullptr) {
-  //  bufferCopy.size = src->size;
-  //} else {
-  //  bufferCopy = *copyRegion;
-  //}
+  assert(dst->_size <= src->_size);
+  assert(src->_buffer && dst->_buffer);
+  VkCommandBuffer copyCmd = createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+  VkBufferCopy bufferCopy{};
+  if (copyRegion == nullptr) {
+    bufferCopy.size = src->_size;
+  } else {
+    bufferCopy = *copyRegion;
+  }
 
-  //vkCmdCopyBuffer(copyCmd, src->buffer, dst->buffer, 1, &bufferCopy);
+  vkCmdCopyBuffer(copyCmd, src->_buffer, dst->_buffer, 1, &bufferCopy);
 
-  //flushCommandBuffer(copyCmd, queue);
+  flushCommandBuffer(copyCmd, queue);
 }
 
 /**

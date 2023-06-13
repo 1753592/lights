@@ -1,26 +1,13 @@
 #include "VulkanBuffer.h"
+#include "VulkanDevice.h"
 
 
-VulkanBuffer::VulkanBuffer()
+VulkanBuffer::VulkanBuffer(const std::shared_ptr<VulkanDevice>& dev) : _device(dev)
 {
 }
 
 VulkanBuffer::~VulkanBuffer()
 {
-}
-
-/**
- * Setup the default descriptor for this _buffer
- *
- * @param size (Optional) Size of the _memory range of the descriptor
- * @param offset (Optional) Byte offset from beginning
- *
- */
-void VulkanBuffer::setupDescriptor(VkDeviceSize size, VkDeviceSize offset)
-{
-  _descriptor.offset = offset;
-  _descriptor.buffer = _buffer;
-  _descriptor.range = size;
 }
 
 /**
@@ -40,7 +27,7 @@ VkResult VulkanBuffer::flush(VkDeviceSize size, VkDeviceSize offset)
   mappedRange.memory = _memory;
   mappedRange.offset = offset;
   mappedRange.size = size;
-  return vkFlushMappedMemoryRanges(_device, 1, &mappedRange);
+  return vkFlushMappedMemoryRanges(*_device, 1, &mappedRange);
 }
 
 /**
@@ -60,7 +47,7 @@ VkResult VulkanBuffer::invalidate(VkDeviceSize size, VkDeviceSize offset)
   mappedRange.memory = _memory;
   mappedRange.offset = offset;
   mappedRange.size = size;
-  return vkInvalidateMappedMemoryRanges(_device, 1, &mappedRange);
+  return vkInvalidateMappedMemoryRanges(*_device, 1, &mappedRange);
 }
 
 /**
@@ -69,9 +56,11 @@ VkResult VulkanBuffer::invalidate(VkDeviceSize size, VkDeviceSize offset)
 void VulkanBuffer::destroy()
 {
   if (_buffer) {
-    vkDestroyBuffer(_device, _buffer, nullptr);
+    vkDestroyBuffer(*_device, _buffer, nullptr);
+    _buffer = VK_NULL_HANDLE;
   }
   if (_memory) {
-    vkFreeMemory(_device, _memory, nullptr);
+    vkFreeMemory(*_device, _memory, nullptr);
+    _memory = VK_NULL_HANDLE;
   }
 }

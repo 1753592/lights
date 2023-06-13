@@ -500,7 +500,7 @@ public:
     VkMemoryAllocateInfo memAlloc = {};
     memAlloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     memAlloc.allocationSize = memReqs.size;
-    memAlloc.memoryTypeIndex = *_device->getMemoryTypeIndex(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    memAlloc.memoryTypeIndex = *_device->memory_type_index(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     VK_CHECK_RESULT(vkAllocateMemory(*_device, &memAlloc, nullptr, &vertices.mem));
 
     void *data = 0;
@@ -518,7 +518,7 @@ public:
     VK_CHECK_RESULT(vkCreateBuffer(*_device, &vertexBufferInfo, nullptr, &_vert_buf));
     vkGetBufferMemoryRequirements(*_device, _vert_buf, &memReqs);
     memAlloc.allocationSize = memReqs.size;
-    memAlloc.memoryTypeIndex = *_device->getMemoryTypeIndex(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    memAlloc.memoryTypeIndex = *_device->memory_type_index(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     VK_CHECK_RESULT(vkAllocateMemory(*_device, &memAlloc, nullptr, &_vert_mem));
     VK_CHECK_RESULT(vkBindBufferMemory(*_device, _vert_buf, _vert_mem, 0));
     
@@ -531,7 +531,7 @@ public:
     VK_CHECK_RESULT(vkCreateBuffer(*_device, &indexbufferInfo, nullptr, &indices.buffer));
     vkGetBufferMemoryRequirements(*_device, indices.buffer, &memReqs);
     memAlloc.allocationSize = memReqs.size;
-    memAlloc.memoryTypeIndex = *_device->getMemoryTypeIndex(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    memAlloc.memoryTypeIndex = *_device->memory_type_index(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     VK_CHECK_RESULT(vkAllocateMemory(*_device, &memAlloc, nullptr, &indices.mem));
     VK_CHECK_RESULT(vkMapMemory(*_device, indices.mem, 0, index_size, 0, &data));
     memcpy(data, index.data(), index_size);
@@ -543,7 +543,7 @@ public:
     VK_CHECK_RESULT(vkCreateBuffer(*_device, &indexbufferInfo, nullptr, &_index_buf));
     vkGetBufferMemoryRequirements(*_device, _index_buf, &memReqs);
     memAlloc.allocationSize = memReqs.size;
-    memAlloc.memoryTypeIndex = *_device->getMemoryTypeIndex(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    memAlloc.memoryTypeIndex = *_device->memory_type_index(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     VK_CHECK_RESULT(vkAllocateMemory(*_device, &memAlloc, nullptr, &_index_mem));
     VK_CHECK_RESULT(vkBindBufferMemory(*_device, _index_buf, _index_mem, 0));
 
