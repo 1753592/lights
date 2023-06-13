@@ -263,7 +263,7 @@ VulkanSwapChain::DepthUnit VulkanSwapChain::create_depth(uint32_t width, uint32_
   VkMemoryRequirements memReqs;
   vkGetImageMemoryRequirements(*_device, unit.image, &memReqs);
   memAlloc.allocationSize = memReqs.size;
-  auto memIndex = _device->getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+  auto memIndex = _device->getMemoryTypeIndex(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
   if (!memIndex)
     throw std::runtime_error("No proper memory type!");
   memAlloc.memoryTypeIndex = *memIndex; 

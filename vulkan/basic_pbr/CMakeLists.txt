@@ -16,6 +16,8 @@ add_executable(${app_name} ${src} ${hdr})
 set(SHADERS
 	pbr.vert
 	pbr.frag
+	test.vert
+	test.frag
 )
 
 source_group(shaders FILES ${SHADERS})

@@ -18,6 +18,7 @@
 #include <assert.h>
 #include <exception>
 #include <optional>
+#include <memory>
 
 class VulkanBuffer;
 
@@ -28,18 +29,23 @@ public:
   ~VulkanDevice();
   operator VkDevice() const { return _logical_device; };
   VkPhysicalDevice physical_device() { return _physical_device; }
+  VkCommandPool command_pool() { return _command_pool; }
 
   VkResult realize(VkPhysicalDeviceFeatures enabledFeatures, std::vector<const char *> enabledExtensions, void *pNextChain,
                                bool useSwapChain = true, VkQueueFlags requestedQueueTypes = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
 
+  VkShaderModule create_shader(const std::string &file);
+
+  VkPipelineCache get_create_pipecache();
+    
   uint32_t getQueueFamilyIndex(VkQueueFlags queueFlags) const;
 
-  std::optional<uint32_t> getMemoryType(uint32_t typeBits, VkMemoryPropertyFlags properties) const;
+  std::optional<uint32_t> getMemoryTypeIndex(uint32_t typeBits, VkMemoryPropertyFlags properties) const;
 
-  VkResult createBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, 
+  std::shared_ptr<VulkanBuffer> createBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, 
     VkDeviceSize size, VkBuffer *buffer, VkDeviceMemory *memory, void *data = nullptr);
-  VkResult createBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, 
-    VulkanBuffer *buffer, VkDeviceSize size, void *data = nullptr);
+  std::shared_ptr<VulkanBuffer> createBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, 
+    VkDeviceSize size, void *data = nullptr);
   void copyBuffer(VulkanBuffer *src, VulkanBuffer *dst, VkQueue queue, VkBufferCopy *copyRegion = nullptr);
 
   VkCommandPool createCommandPool(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags createFlags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
@@ -87,4 +93,6 @@ private:
     uint32_t compute;
     uint32_t transfer;
   } queueFamilyIndices;
+
+  VkPipelineCache _pipe_cache = VK_NULL_HANDLE;
 };
