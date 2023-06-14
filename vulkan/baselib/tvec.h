@@ -45,8 +45,8 @@ inline T radians(T angleInDegrees)
 template <typename T, int len>
 class vecN{
 public:
-	typedef class vecN<T, len> my_type;
-	typedef T ele_type;
+	using ele_type = T;
+	using self_type = vecN<T, len>;
 
 	// Default constructor does nothing, just like built-in types
 	inline vecN()
@@ -69,8 +69,8 @@ public:
 		}
 	}
 
-	template<typename T>
-	vecN(const vecN<T, len> &that)
+	template<typename U>
+	vecN(const vecN<U, len> &that)
 	{
 		for (int n = 0; n < len; n++) {
 			data_[n] = that[n];
@@ -94,7 +94,7 @@ public:
 
 	inline vecN operator+(const vecN& that) const
 	{
-		my_type result;
+		self_type result;
 		int n;
 		for(n = 0; n < len; n++)
 			result.data_[n] = data_[n] + that.data_[n];
@@ -108,7 +108,7 @@ public:
 
 	inline vecN operator-() const
 	{
-		my_type result;
+		self_type result;
 		int n;
 		for(n = 0; n < len; n++)
 			result.data_[n] = -data_[n];
@@ -117,7 +117,7 @@ public:
 
 	inline vecN operator-(const vecN& that) const
 	{
-		my_type result;
+		self_type result;
 		int n;
 		for(n = 0; n < len; n++)
 			result.data_[n] = data_[n] - that.data_[n];
@@ -131,7 +131,7 @@ public:
 
 	inline vecN operator*(const vecN& that) const
 	{
-		my_type result;
+		self_type result;
 		int n;
 		for(n = 0; n < len; n++)
 			result.data_[n] = data_[n] * that.data_[n];
@@ -145,7 +145,7 @@ public:
 
 	inline vecN operator*(const T& that) const
 	{
-		my_type result;
+		self_type result;
 		int n;
 		for(n = 0; n < len; n++)
 			result.data_[n] = data_[n] * that;
@@ -161,7 +161,7 @@ public:
 
 	inline vecN operator/(const vecN& that) const
 	{
-		my_type result;
+		self_type result;
 		int n;
 		for(n = 0; n < len; n++)
 			result.data_[n] = data_[n] / that.data_[n];
@@ -177,7 +177,7 @@ public:
 
 	inline vecN operator/(const T& that) const
 	{
-		my_type result;
+		self_type result;
 		int n;
 		for(n = 0; n < len; n++)
 			result.data_[n] = data_[n] / that;
@@ -232,18 +232,18 @@ template <typename T>
 class Tvec2 : public vecN<T, 2>{
 public:
 	typedef vecN<T, 2> base;
-	typedef Tvec2<T> my_type;
+	typedef Tvec2<T> self_type;
 
 	// Uninitialized variable
 	inline Tvec2(){}
 	// Copy constructor
-	inline Tvec2(const my_type& v)
+	inline Tvec2(const self_type& v)
 	{
 		base::data_[0] = v[0];
 		base::data_[1] = v[1];
 	}
 
-	inline my_type& operator=(const my_type &t)
+	inline self_type& operator=(const self_type &t)
 	{
 		base::data_[0] = t[0];
 		base::data_[1] = t[1];
@@ -276,8 +276,8 @@ public:
 template <typename T>
 class Tvec3 : public vecN<T, 3>{
 public:
-	typedef vecN<T, 3> base;
-	typedef Tvec3<T> my_type;
+	using base = vecN<T, 3>;
+	using self_type = Tvec3<T>;
 
 	// Uninitialized variable
 	inline Tvec3()
@@ -289,14 +289,14 @@ public:
 	{}
 
 	// Copy constructor
-	inline Tvec3(const my_type& v)
+	inline Tvec3(const self_type& v)
 	{
 		base::data_[0] = v[0];
 		base::data_[1] = v[1];
 		base::data_[2] = v[2];
 	}
 
-	inline my_type& operator= (const my_type& v)
+	inline self_type& operator= (const self_type& v)
 	{
 		base::data_[0] = v[0];
 		base::data_[1] = v[1];
@@ -366,14 +366,14 @@ template <typename T>
 class Tvec4 : public vecN<T, 4>{
 public:
 	typedef vecN<T, 4> base;
-	typedef Tvec4<T> my_type;
+	typedef Tvec4<T> self_type;
 
 	// Uninitialized variable
 	inline Tvec4()
 	{}
 
 	// Copy constructor
-	inline Tvec4(const my_type& v)
+	inline Tvec4(const self_type& v)
 	{
 		base::data_[0] = v[0];
 		base::data_[1] = v[1];
@@ -381,7 +381,7 @@ public:
 		base::data_[3] = v[3];
 	}
 
-	inline my_type& operator= (const my_type& v)
+	inline self_type& operator= (const self_type& v)
 	{
 		base::data_[0] = v[0];
 		base::data_[1] = v[1];
@@ -618,179 +618,116 @@ static inline vecN<T, len> abs(const vecN<T, len> &a)
 	return result;
 }
 
-
-
 //Quaternion///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 template <typename T>
-class Tquaternion{
+class Tquaternion {
+  template <typename T> friend class Tmat3;
 public:
-	inline Tquaternion()
-	{
+  inline Tquaternion() {}
 
-	}
+  inline Tquaternion(const Tquaternion& q) : s_(q.s_), v_(q.v_) {}
 
-	inline Tquaternion(const Tquaternion& q)
-		: s_(q.s),
-		v_(q.v)
-	{
+  inline Tquaternion(T s) : s_(s), v_(T(0)) {}
 
-	}
+  inline Tquaternion(T s, const Tvec3<T>& v) : s_(s), v_(v) {}
 
-	inline Tquaternion(T s)
-		: s_(s)
-		, v_(T(0))
-	{
+  inline Tquaternion(const Tvec4<T>& v) : s_(v[0]), v_(v[1], v[2], v[3]) {}
 
-	}
+  inline Tquaternion(T w, T x, T y, T z) : s_(w), v_(x, y, z) {}
 
-	inline Tquaternion(T s, const Tvec3<T>& v)
-		: s_(s)
-		, v_(v)
-	{
+  inline Tquaternion(const Tvec3<T>& v) : v_(v), s_(0) {}
 
-	}
+  inline T& operator[](int n) { return a_[n]; }
 
-	inline Tquaternion(const Tvec4<T>& v)
-		: s_(v[0])
-		, v_(v[1], v[2], v[3])
-	{}
+  inline const T& operator[](int n) const { return a_[n]; }
 
-	inline Tquaternion(T w, T x, T y, T z)
-		: s_(w)
-		, v_(x, y, z)
-	{}
+  inline Tquaternion operator+(const Tquaternion& q) const { return quat(s_ + q.s_, v_ + q.v_); }
 
-	inline Tquaternion(const Tvec3<T>& v) : v_(v), s_(0) {}
+  inline Tquaternion& operator+=(const Tquaternion& q)
+  {
+    s_ += q.s_;
+    v_ += q.v_;
+    return *this;
+  }
 
-	inline T& operator[](int n)
-	{
-		return a_[n];
-	}
+  inline Tquaternion operator-(const Tquaternion& q) const { return quat(s_ - q.s_, v_ - q.v_); }
 
-	inline const T& operator[](int n) const
-	{
-		return a_[n];
-	}
+  inline Tquaternion& operator-=(const Tquaternion& q)
+  {
+    s_ -= q.s_;
+    v_ -= q.v_;
 
-	inline Tquaternion operator+(const Tquaternion& q) const
-	{
-		return quat(s_ + q.s_, v_ + q.v_);
-	}
+    return *this;
+  }
 
-	inline Tquaternion& operator+=(const Tquaternion& q)
-	{
-		s_ += q.s_;
-		v_ += q.v_;
-		return *this;
-	}
+  inline Tquaternion operator-() const { return Tquaternion(-s_, -v_); }
 
-	inline Tquaternion operator-(const Tquaternion& q) const
-	{
-		return quat(s_ - q.s_, v_ - q.v_);
-	}
+  inline Tquaternion operator*(const T s) const { return Tquaternion(a_[0] * s, a_[1] * s, a_[2] * s, a_[3] * s); }
 
-	inline Tquaternion& operator-=(const Tquaternion& q)
-	{
-		s_ -= q.s_;
-		v_ -= q.v_;
+  inline Tquaternion& operator*=(const T s)
+  {
+    s_ *= s;
+    v_ *= s;
+    return *this;
+  }
 
-		return *this;
-	}
+  inline Tquaternion operator*(const Tquaternion& q) const
+  {
+    const T& w1 = a_[0];
+    const T& x1 = a_[1];
+    const T& y1 = a_[2];
+    const T& z1 = a_[3];
+    const T& w2 = q.a_[0];
+    const T& x2 = q.a_[1];
+    const T& y2 = q.a_[2];
+    const T& z2 = q.a_[3];
 
-	inline Tquaternion operator-() const
-	{
-		return Tquaternion(-s_, -v_);
-	}
+    return Tquaternion(w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2, w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2, w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+                       w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2);
+  }
 
-	inline Tquaternion operator*(const T s) const
-	{
-		return Tquaternion(a_[0] * s, a_[1] * s, a_[2] * s, a_[3] * s);
-	}
+  inline Tquaternion operator/(const T s) const { return Tquaternion(a_[0] / s, a_[1] / s, a_[2] / s, a_[3] / s); }
 
-	inline Tquaternion& operator*=(const T s)
-	{
-		s_ *= s;
-		v_ *= s;
-		return *this;
-	}
+  inline Tquaternion& operator/=(const T t)
+  {
+    s_ /= t;
+    v_ /= t;
+    return *this;
+  }
 
-	inline Tquaternion operator*(const Tquaternion& q) const
-	{
-		const T w1 = a_[0];
-		const T x1 = a_[1];
-		const T y1 = a_[2];
-		const T z1 = a_[3];
-		const T w2 = q.a_[0];
-		const T x2 = q.a_[1];
-		const T y2 = q.a_[2];
-		const T z2 = q.a_[3];
+  inline operator Tvec4<T>&() { return *(Tvec4<T>*)&a_[0]; }
 
-		return Tquaternion(w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
-						   w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
-						   w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
-						   w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2);
-	}
+  inline operator const Tvec4<T>&() const { return *(const Tvec4<T>*)&a_[0]; }
 
-	inline Tquaternion operator/(const T s) const
-	{
-		return Tquaternion(a_[0] / s, a_[1] / s, a_[2] / s, a_[3] / s);
-	}
+  inline operator Tvec3<T>&() { return v_; }
 
-	inline Tquaternion& operator/=(const T t)
-	{
-		s_ /= t;
-		v_ /= t;
-		return *this;
-	}
+  inline operator const Tvec3<T>&() const { return v_; }
 
-	inline operator Tvec4<T>&() { return *(Tvec4<T>*)&a_[0]; }
+  inline bool operator==(const Tquaternion& q) const { return (s_ == q.s_) && (v_ == q.v_); }
 
-	inline operator const Tvec4<T>&() const { return *(const Tvec4<T>*)&a_[0]; }
+  inline bool operator!=(const Tquaternion& q) const { return (s_ != q.s_) || (v_ != q.v_); }
 
-	inline operator Tvec3<T> &() { return v_; }
+  static Tquaternion<T> rotate(const T& rad, const T& x, const T& y, const T& z) { return rotate(rad, Tvec3<T>(x, y, z)); }
 
-	inline operator const Tvec3<T> &() const { return v_; }
+  static Tquaternion<T> rotate(const T& rad, const Tvec3<T>& axis) { return Tquaternion<T>(cos(rad / T(2.0)), normalize(axis) * sin(rad / T(2.0))); }
 
-	inline bool operator==(const Tquaternion& q) const
-	{
-		return (s_ == q.s_) && (v_ == q.v_);
-	}
-
-	inline bool operator!=(const Tquaternion& q) const
-	{
-		return (s_ != q.s_) || (v_ != q.v_);
-	}
-
-	static Tquaternion<T> rotate(const T& rad, const T& x, const T& y, const T& z)
-	{
-		return rotate(rad, vec3(x, y, z));
-	}
-
-	static Tquaternion<T> rotate(const T& rad, const vec3& axis)
-	{
-		return Tquaternion<T>(cos(rad), normalize(axis) * sin(rad));
-	}
-
-	inline Tquaternion<T> conjugate() const
-	{
-		return Tquaternion<T>(s_, -v_);
-	}
+  inline Tquaternion<T> conjugate() const { return Tquaternion<T>(s_, -v_); }
 
 private:
-	union{
-		struct{
-			T           s_;
-			Tvec3<T>    v_;
-		};
-		struct{
-			T           w_;
-			T           x_;
-			T           y_;
-			T           z_;
-		};
-		T             a_[4];
-	};
+  union {
+    struct {
+      T s_;
+      Tvec3<T> v_;
+    };
+    struct {
+      T w_;
+      T x_;
+      T y_;
+      T z_;
+    };
+    T a_[4];
+  };
 };
 
 typedef Tquaternion<float> quat;
@@ -817,241 +754,238 @@ static inline Tquaternion<T> normalize(const Tquaternion<T>& q)
 }
 
 template <typename T, const int w, const int h>
-class matNM{
+class matNM {
 public:
-	typedef class matNM<T, w, h> my_type;
-	typedef class vecN<T, h> vector_type;
+  typedef class matNM<T, w, h> self_type;
+  typedef class vecN<T, h> vector_type;
 
-	// Default constructor does nothing, just like built-in types
-	inline matNM()
-	{
-		// Uninitialized variable
-	}
+  // Default constructor does nothing, just like built-in types
+  inline matNM()
+  {
+    // Uninitialized variable
+  }
 
-	// Copy constructor
-	inline matNM(const matNM& that)
-	{
-		assign(that);
-	}
+  // Copy constructor
+  inline matNM(const matNM& that) { assign(that); }
 
-	// Construction from element type
-	// explicit to prevent assignment from T
-	explicit inline matNM(T f)
-	{
-		for(int n = 0; n < w; n++){
-			data[n] = f;
-		}
-	}
+  // Construction from element self_type
+  // explicit to prevent assignment from T
+  explicit inline matNM(T f)
+  {
+    for (int n = 0; n < w; n++) {
+      data[n] = f;
+    }
+  }
 
-	template<typename TT>
-	matNM(const matNM<TT, w, h> &that) {
-		for (int n = 0; n < w; n++) {
-			data[n] = that[n];
-		}
-	}
+  template <typename U>
+  matNM(const matNM<U, w, h>& that)
+  {
+    for (int n = 0; n < w; n++) {
+      data[n] = that[n];
+    }
+  }
 
-	// Construction from vector
-	inline matNM(const vector_type& v)
-	{
-		for(int n = 0; n < w; n++){
-			data[n] = v;
-		}
-	}
+  template <const int m, const int n>
+  matNM(const matNM<T, m, n>& that)
+  {
+    constexpr int col = m < w ? m : w;
+    constexpr int row = n < h ? n : h;
+    for (int i = 0; i < col; i++)
+      for (int j = 0; j < row; j++)
+        data[i][j] = that[i][j];
+  }
 
-	// Assignment operator
-	inline matNM& operator=(const my_type& that)
-	{
-		assign(that);
-		return *this;
-	}
+  // Construction from vector
+  inline matNM(const vector_type& v)
+  {
+    for (int n = 0; n < w; n++) {
+      data[n] = v;
+    }
+  }
 
-	template<typename TT>
-	matNM& operator=(const matNM<TT, w, h> &that) 
-	{
-		for (int n = 0; n < w; n++) {
-			data[n] = that[n];
-		}
-		return *this;
-	}
+  // Assignment operator
+  inline matNM& operator=(const self_type& that)
+  {
+    assign(that);
+    return *this;
+  }
 
-	inline matNM operator+(const my_type& that) const
-	{
-		my_type result;
-		int n;
-		for(n = 0; n < w; n++)
-			result.data[n] = data[n] + that.data[n];
-		return result;
-	}
+  template <typename U>
+  matNM& operator=(const matNM<U, w, h>& that)
+  {
+    for (int n = 0; n < w; n++) {
+      data[n] = that[n];
+    }
+    return *this;
+  }
 
-	inline my_type& operator+=(const my_type& that)
-	{
-		return (*this = *this + that);
-	}
+  inline matNM operator+(const self_type& that) const
+  {
+    self_type result;
+    int n;
+    for (n = 0; n < w; n++)
+      result.data[n] = data[n] + that.data[n];
+    return result;
+  }
 
-	inline my_type operator-(const my_type& that) const
-	{
-		my_type result;
-		int n;
-		for(n = 0; n < w; n++)
-			result.data[n] = data[n] - that.data[n];
-		return result;
-	}
+  inline self_type& operator+=(const self_type& that) { return (*this = *this + that); }
 
-	inline my_type& operator-=(const my_type& that)
-	{
-		return (*this = *this - that);
-	}
+  inline self_type operator-(const self_type& that) const
+  {
+    self_type result;
+    int n;
+    for (n = 0; n < w; n++)
+      result.data[n] = data[n] - that.data[n];
+    return result;
+  }
 
-	inline my_type operator*(const T& that) const
-	{
-		my_type result;
-		int n;
-		for(n = 0; n < w; n++)
-			result.data[n] = data[n] * that;
-		return result;
-	}
+  inline self_type& operator-=(const self_type& that) { return (*this = *this - that); }
 
-	inline my_type& operator*=(const T& that)
-	{
-		int n;
-		for(n = 0; n < w; n++)
-			data[n] = data[n] * that;
-		return *this;
-	}
+  inline self_type operator*(const T& that) const
+  {
+    self_type result;
+    int n;
+    for (n = 0; n < w; n++)
+      result.data[n] = data[n] * that;
+    return result;
+  }
 
-	// Matrix multiply.
-	// this * that not that * this
-	inline my_type operator*(const my_type& that) const
-	{
-		my_type result(0);
+  inline self_type& operator*=(const T& that)
+  {
+    int n;
+    for (n = 0; n < w; n++)
+      data[n] = data[n] * that;
+    return *this;
+  }
 
-		for(int j = 0; j < w; j++){
-			for(int i = 0; i < h; i++){
-				T sum(0);
+  // Matrix multiply.
+  // this * that not that * this
+  inline self_type operator*(const self_type& that) const
+  {
+    self_type result(0);
 
-				for(int n = 0; n < w; n++){
-					sum += data[n][i] * that[j][n];
-				}
+    for (int j = 0; j < w; j++) {
+      for (int i = 0; i < h; i++) {
+        T sum(0);
 
-				result[j][i] = sum;
-			}
-		}
+        for (int n = 0; n < w; n++) {
+          sum += data[n][i] * that[j][n];
+        }
 
-		return result;
-	}
+        result[j][i] = sum;
+      }
+    }
 
-	// 	inline vector_type operator*(const vector_type_multiply &that) const
-	// 	{
-	// 		vector_type vec;
-	// 		T sum(0);
-	// 		for(int i = 0; i < h; i++){
-	// 			sum = 0;
-	// 			for(int j = 0; j < w; j++){
-	// 				sum += data[j][i] * that[j];
-	// 			}
-	// 			vec[i] = sum;
-	// 		}
-	// 		return vec;
-	// 	}
+    return result;
+  }
 
-	inline my_type& operator*=(const my_type& that)
-	{
-		return (*this = *this * that);
-	}
+  // 	inline vector_type operator*(const vector_type_multiply &that) const
+  // 	{
+  // 		vector_type vec;
+  // 		T sum(0);
+  // 		for(int i = 0; i < h; i++){
+  // 			sum = 0;
+  // 			for(int j = 0; j < w; j++){
+  // 				sum += data[j][i] * that[j];
+  // 			}
+  // 			vec[i] = sum;
+  // 		}
+  // 		return vec;
+  // 	}
 
-	inline vector_type& operator[](int n) { return data[n]; }
-	inline const vector_type& operator[](int n) const { return data[n]; }
-	inline operator T*() { return &data[0][0]; }
-	inline operator const T*() const { return &data[0][0]; }
+  inline self_type& operator*=(const self_type& that) { return (*this = *this * that); }
 
-	inline matNM<T, h, w> transpose(void) const
-	{
-		matNM<T, h, w> result;
-		int x, y;
+  inline vector_type& operator[](int n) { return data[n]; }
+  inline const vector_type& operator[](int n) const { return data[n]; }
+  inline operator T*() { return &data[0][0]; }
+  inline operator const T*() const { return &data[0][0]; }
 
-		for(y = 0; y < w; y++){
-			for(x = 0; x < h; x++){
-				result[x][y] = data[y][x];
-			}
-		}
+  inline matNM<T, h, w> transpose(void) const
+  {
+    matNM<T, h, w> result;
+    int x, y;
 
-		return result;
-	}
+    for (y = 0; y < w; y++) {
+      for (x = 0; x < h; x++) {
+        result[x][y] = data[y][x];
+      }
+    }
 
-	static inline my_type identity()
-	{
-		my_type result(0);
+    return result;
+  }
 
-		for(int i = 0; i < w; i++){
-			result[i][i] = 1;
-		}
+  static inline self_type identity()
+  {
+    self_type result(0);
 
-		return result;
-	}
+    for (int i = 0; i < w; i++) {
+      result[i][i] = 1;
+    }
 
-	static inline int width(void) { return w; }
-	static inline int height(void) { return h; }
+    return result;
+  }
 
-	inline void reset(const T *ele)
-	{
-		memcpy(data, ele, sizeof(T) * w * h);
-	}
+  static inline int width(void) { return w; }
+  static inline int height(void) { return h; }
 
-	inline void reset(const T *ele, int n)
-	{
-		memcpy(data, ele, sizeof(T) * n);
-	}
+  inline void reset(const T* ele) { memcpy(data, ele, sizeof(T) * w * h); }
 
-	inline bool reduce()
-	{
-		bool res = true;
-		vecN<T, w> arr[h]; vecN<T, w>* rarr[h];
-		for (int i = 0; i < h; i++) {
-			for (int j = 0; j < w; j++) {
-				arr[i][j] = data[j][i];
-			}
-			rarr[i] = (arr + i);
-		}
-		for (int i = 0; i < h; i++) {
-			for (;;) {
-				vecN<T, w> &carr = *rarr[i];
-				for (int k = 0; k < i; k++) {
-					if (carr[k]) {
-						carr /= carr[k];
-						carr -= *rarr[k];
-					}
-				}
-				if (carr[i] == 0) {
-					int j = i + 1;
-					for (; j < h; j++) {
-						if (rarr[j][i]) {
-							auto tmp = rarr[i];
-							rarr[i] = rarr[j];
-							rarr[j] = tmp;
-							break;
-						}
-					}
-					if (j == h) { res = false; break; }
-				} else {
-					carr /= carr[i];
-					break;
-				}
-			}
-		}
-		return res;
-	}
+  inline void reset(const T* ele, int n) { memcpy(data, ele, sizeof(T) * n); }
+
+  inline bool reduce()
+  {
+    bool res = true;
+    vecN<T, w> arr[h];
+    vecN<T, w>* rarr[h];
+    for (int i = 0; i < h; i++) {
+      for (int j = 0; j < w; j++) {
+        arr[i][j] = data[j][i];
+      }
+      rarr[i] = (arr + i);
+    }
+    for (int i = 0; i < h; i++) {
+      for (;;) {
+        vecN<T, w>& carr = *rarr[i];
+        for (int k = 0; k < i; k++) {
+          if (carr[k]) {
+            carr /= carr[k];
+            carr -= *rarr[k];
+          }
+        }
+        if (carr[i] == 0) {
+          int j = i + 1;
+          for (; j < h; j++) {
+            if (rarr[j][i]) {
+              auto tmp = rarr[i];
+              rarr[i] = rarr[j];
+              rarr[j] = tmp;
+              break;
+            }
+          }
+          if (j == h) {
+            res = false;
+            break;
+          }
+        } else {
+          carr /= carr[i];
+          break;
+        }
+      }
+    }
+    return res;
+  }
 
 protected:
-	// Column primary data (essentially, array of vectors)
-	vecN<T, h> data[w];
+  // Column primary data (essentially, array of vectors)
+  vecN<T, h> data[w];
 
-	// Assignment function - called from assignment operator and copy constructor.
-	inline void assign(const matNM& that)
-	{
-		int n;
-		for(n = 0; n < w; n++)
-			data[n] = that.data[n];
-	}
+  // Assignment function - called from assignment operator and copy constructor.
+  inline void assign(const matNM& that)
+  {
+    int n;
+    for (n = 0; n < w; n++)
+      data[n] = that.data[n];
+  }
 };
 
 /*
@@ -1060,16 +994,16 @@ class TmatN : public matNM<T,N,N>
 {
 public:
 	typedef matNM<T,N,N> base;
-	typedef TmatN<T,N> my_type;
+	typedef TmatN<T,N> self_type;
 
 	inline TmatN() {}
-	inline TmatN(const my_type& that) : base(that) {}
+	inline TmatN(const self_type& that) : base(that) {}
 	inline TmatN(float f) : base(f) {}
 	inline TmatN(const vecN<T,4>& v) : base(v) {}
 
-	inline my_type transpose(void)
+	inline self_type transpose(void)
 	{
-		my_type result;
+		self_type result;
 		int x, y;
 
 		for (y = 0; y < h; y++)
@@ -1086,70 +1020,43 @@ public:
 */
 
 template <typename T>
-class Tmat2 : public matNM<T, 2, 2>{
+class Tmat2 : public matNM<T, 2, 2> {
 public:
-	typedef matNM<T, 2, 2> base;
-	typedef Tmat2<T> my_type;
+  typedef matNM<T, 2, 2> base;
+  typedef Tmat2<T> self_type;
 
-	inline Tmat2() {}
-	inline Tmat2(const my_type& that) : base(that) {}
-	inline Tmat2(const base& that) : base(that) {}
-	inline Tmat2(const vecN<T, 2>& v) : base(v) {}
-	inline Tmat2(const vecN<T, 2>& v0,
-				 const vecN<T, 2>& v1)
-	{
-		base::data[0] = v0;
-		base::data[1] = v1;
-	}
+  inline Tmat2() {}
+  inline Tmat2(const self_type& that) : base(that) {}
+  inline Tmat2(const base& that) : base(that) {}
+  inline Tmat2(const vecN<T, 2>& v) : base(v) {}
+  inline Tmat2(const vecN<T, 2>& v0, const vecN<T, 2>& v1)
+  {
+    base::data[0] = v0;
+    base::data[1] = v1;
+  }
 };
 typedef Tmat2<float> mat2;
 
 template <typename T>
-class Tmat3 : public matNM<T, 3, 3>{
+class Tmat3 : public matNM<T, 3, 3> {
 public:
-	typedef matNM<T, 3, 3> base;
-	typedef Tmat3<T> my_type;
+  typedef matNM<T, 3, 3> base;
+  typedef Tmat3<T> self_type;
 
-	inline Tmat3() {}
-	inline Tmat3(const my_type& that) : base(that) {}
-	inline Tmat3(const vecN<T, 3>& v) : base(v) {}
-	inline Tmat3(const vecN<T, 3>& v0, const vecN<T, 3>& v1, const vecN<T, 3>& v2)
-	{
-		base::data[0] = v0;
-		base::data[1] = v1;
-		base::data[2] = v2;
-	}
-};
-typedef Tmat3<float> mat3;
-typedef Tmat3<int> imat3;
-typedef Tmat3<unsigned int> umat3;
-typedef Tmat3<double> dmat3;
+  inline Tmat3() {}
+  inline Tmat3(const self_type& that) : base(that) {}
+  inline Tmat3(const vecN<T, 3>& v) : base(v) {}
+  inline Tmat3(const vecN<T, 3>& v0, const vecN<T, 3>& v1, const vecN<T, 3>& v2)
+  {
+    base::data[0] = v0;
+    base::data[1] = v1;
+    base::data[2] = v2;
+  }
 
-template <typename T>
-class Tmat4 : public matNM<T, 4, 4>{
-public:
-	typedef matNM<T, 4, 4> base;
-	typedef Tmat4<T> my_type;
-
-	inline Tmat4() {}
-	inline Tmat4(const my_type& that) : base(that) {}
-	inline Tmat4(const base& that) : base(that) {}
-	inline Tmat4(const vecN<T, 4>& v) : base(v) {}
-	inline Tmat4(const vecN<T, 4>& v0,
-				 const vecN<T, 4>& v1,
-				 const vecN<T, 4>& v2,
-				 const vecN<T, 4>& v3)
-	{
-		base::data[0] = v0;
-		base::data[1] = v1;
-		base::data[2] = v2;
-		base::data[3] = v3;
-	}
-
-	Tmat4(const Tquaternion<T> &quat) 
-	{
+  Tmat3(const Tquaternion<T>& quat)
+  {
     Tvec4<T> v(quat);
-    const T ww = v.w() * v.w();
+    // const T ww = v.w() * v.w();
     const T xx = v.x() * v.x();
     const T yy = v.y() * v.y();
     const T zz = v.z() * v.z();
@@ -1160,27 +1067,54 @@ public:
     const T yw = v.y() * v.w();
     const T zw = v.z() * v.w();
 
-		auto& m = base::data;
+    auto& m = base::data;
 
     m[0][0] = T(1) - T(2) * (yy + zz);
     m[0][1] = T(2) * (xy + zw);
     m[0][2] = T(2) * (xz - yw);
-    m[0][3] = T(0);
 
     m[1][0] = T(2) * (xy - zw);
     m[1][1] = T(1) - T(2) * (xx + zz);
     m[1][2] = T(2) * (yz + xw);
-    m[1][3] = T(0);
 
     m[2][0] = T(2) * (xz + yw);
     m[2][1] = T(2) * (yz - xw);
     m[2][2] = T(1) - T(2) * (xx + yy);
-    m[2][3] = T(0);
+  }
+};
+typedef Tmat3<float> mat3;
+typedef Tmat3<int> imat3;
+typedef Tmat3<unsigned int> umat3;
+typedef Tmat3<double> dmat3;
 
-    m[3][0] = T(0);
-    m[3][1] = T(0);
-    m[3][2] = T(0);
-    m[3][3] = T(1);
+template <typename T>
+class Tmat4 : public matNM<T, 4, 4> {
+public:
+  typedef matNM<T, 4, 4> base;
+  typedef Tmat4<T> self_type;
+
+  inline Tmat4() {}
+  inline Tmat4(const self_type& that) : base(that) {}
+  inline Tmat4(const base& that) : base(that) {}
+  inline Tmat4(const vecN<T, 4>& v) : base(v) {}
+  inline Tmat4(const vecN<T, 4>& v0, const vecN<T, 4>& v1, const vecN<T, 4>& v2, const vecN<T, 4>& v3)
+  {
+    base::data[0] = v0;
+    base::data[1] = v1;
+    base::data[2] = v2;
+    base::data[3] = v3;
+  }
+
+  inline Tmat4(const Tmat3<T>& that) : base(that)
+  {
+    base::data[0][3] = T(0);
+    base::data[1][3] = T(0);
+    base::data[2][3] = T(0);
+
+    base::data[3][0] = T(0);
+    base::data[3][1] = T(0);
+    base::data[3][2] = T(0);
+    base::data[3][3] = T(1);
   }
 };
 
@@ -1189,6 +1123,49 @@ typedef Tmat4<int> mat4i;
 typedef Tmat4<unsigned int> mat4u;
 typedef Tmat4<double> mat4d;
 
-};
+template <typename T, const int w, const int h>
+Tquaternion<T> matquat(const matNM<T, w, h> &m)
+{
+  Tquaternion<T> q;
+  T tq[4];
+  tq[0] = 1 + m[0][0] + m[1][1] + m[2][2];
+  tq[1] = 1 + m[0][0] - m[1][1] - m[2][2];
+  tq[2] = 1 - m[0][0] + m[1][1] - m[2][2];
+  tq[3] = 1 - m[0][0] - m[1][1] + m[2][2];
+  int i = 0, j = 0;
+  for (i = 1; i < 4; i++)
+    j = (tq[i] > tq[j]) ? i : j;
+  if (j == 0) {
+    q.w_ = tq[0];
+    q.x_ = m[1][2] - m[2][1];
+    q.y_ = m[2][0] - m[0][2];
+    q.z_ = m[0][1] - m[1][0];
+  } else if (j == 1) {
+    q.w_ = m[1][2] - m[2][1];
+    q.x_ = tq[1];
+    q.y_ = m[0][1] + m[1][0];
+    q.z_ = m[2][0] + m[0][2];
+  } else if (j == 2) {
+    q.w_ = m[2][0] - m[0][2];
+    q.x_ = m[0][1] + m[1][0];
+    q.y_ = tq[2];
+    q.z_ = m[1][2] + m[2][1];
+  } else /* if (j==3) */
+  {
+    q.w_ = m[0][1] - m[1][0];
+    q.x_ = m[2][0] + m[0][2];
+    q.y_ = m[1][2] + m[2][1];
+    q.z_ = tq[3];
+  }
+
+  T s = sqrt(0.25 / tq[j]);
+  q.w_ *= s;
+  q.x_ *= s;
+  q.y_ *= s;
+  q.z_ *= s;
+  return q;
+}
+
+};  // namespace tg
 
 #endif /* __TVEC_INC__ */

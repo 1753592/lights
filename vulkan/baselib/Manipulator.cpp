@@ -1,13 +1,32 @@
 #include "Manipulator.h"
+#include "tvec.h"
 
 #include <stdio.h>
 
 using tg::vec3;
 using tg::vec4;
+using tg::vec3d;
+using tg::vec4d;
 
 Manipulator::Manipulator()
 {
   home(vec3(0, -5, 0), vec3(0), vec3(0, 0, 1));
+
+  vec3d v(1, 1, 1);
+  vec3 t(v);
+  vec3 x = v;
+  //v = tg::normalize(v);
+  //auto m = tg::rotate<double>(45.0 / 180 * M_PI, tg::vec3(0, 0, 1));
+  //auto q = tg::matquat(m);
+  //float l1 = tg::length(tg::vec4d(q));
+
+  //auto v1 = q * v * q.conjugate();
+
+  //auto q1 = tg::quatd::rotate(45.0 / 180 * M_PI, vec3d(0, 0, 1));
+  //float l2 = tg::length(vec4d(q1));
+
+  //auto v2 = q1 * v * q1.conjugate();
+  //printf("");
 }
 
 Manipulator::~Manipulator()

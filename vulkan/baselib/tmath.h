@@ -390,40 +390,6 @@ static inline vecN<T, N> operator/(const T s, const vecN<T, N>& v)
 	return result;
 }
 
-/*
-template <typename T>
-static inline void quaternionToMatrix(const Tquaternion<T>& q, matNM<T,4,4>& m)
-{
-	m[0][0] = q[0] * q[0] + q[1] * q[1] - q[2] * q[2] - q[3] * q[3];
-	m[0][1] = T(2) * (q[1] * q[2] + q[0] * q[3]);
-	m[0][2] = T(2) * (q[1] * q[3] - q[0] * q[2]);
-	m[0][3] = 0.0f;
-
-	m[1][0] = T(2) * (q[1] * q[2] - q[0] * q[3]);
-	m[1][1] = q[0] * q[0] - q[1] * q[1] + q[2] * q[2] - q[3] * q[3];
-	m[1][2] = T(2) * (q[2] * q[3] + q[0] * q[1]);
-	m[1][3] = 0.0f;
-
-	m[2][0] = T(2) * (q[1] * q[3] + q[0] * q[2]);
-	m[2][1] = T(2) * (q[2] * q[3] - q[0] * q[1]);
-	m[2][2] = q[0] * q[0] - q[1] * q[1] - q[2] * q[2] + q[3] * q[3];
-	m[2][3] = 0.0f;
-
-	m[3][0] = 0.0f;
-	m[3][1] = 0.0f;
-	m[3][2] = 0.0f;
-	m[3][3] = 1.0f;
-}
-*/
-
-template <typename T>
-static inline matNM<T, 4, 4> rotate_matrix(const Tquaternion<T>& q)
-{
-  matNM<T, 4, 4> m;
-
-	return m;
-}
-
 template <typename T>
 static inline T mix(const T& A, const T& B, typename T::ele_type t)
 {
