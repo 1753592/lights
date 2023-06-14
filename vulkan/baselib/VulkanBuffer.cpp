@@ -8,6 +8,14 @@ VulkanBuffer::VulkanBuffer(const std::shared_ptr<VulkanDevice>& dev) : _device(d
 
 VulkanBuffer::~VulkanBuffer()
 {
+  if(_buffer) {
+    vkDestroyBuffer(*_device, _buffer, nullptr);
+    _buffer = VK_NULL_HANDLE;
+  }
+  if(_memory) {
+    vkFreeMemory(*_device, _memory, nullptr);
+    _memory = VK_NULL_HANDLE;
+  }
 }
 
 /**

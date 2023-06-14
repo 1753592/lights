@@ -1,6 +1,8 @@
 #include <exception>
 #include <stdexcept>
 
+#define NEAR_EQUAL_ZERO 1
+
 #include "Manipulator.h"
 
 #include "SDL2/SDL.h"
@@ -71,6 +73,11 @@ public:
       _vert_buf = VK_NULL_HANDLE;
     }
 
+    if(_norm_buf) {
+      vkDestroyBuffer(*_device, _norm_buf, nullptr);
+      _norm_buf = VK_NULL_HANDLE;
+    }
+
     if(_vert_mem) {
       vkFreeMemory(*_device, _vert_mem, nullptr);
       _vert_mem = VK_NULL_HANDLE;
@@ -86,6 +93,15 @@ public:
       _index_mem = VK_NULL_HANDLE;
     }
 
+    if(_descript_pool) {
+      vkDestroyDescriptorPool(*_device, _descript_pool, nullptr);
+      _descript_pool = VK_NULL_HANDLE;
+    }
+
+    if(_descript_layout) {
+      vkDestroyDescriptorSetLayout(*_device, _descript_layout, nullptr);
+      _descript_layout = VK_NULL_HANDLE;
+    }
 
     if(_pipe_layout) {
       vkDestroyPipelineLayout(*_device, _pipe_layout, nullptr);
@@ -232,14 +248,14 @@ public:
           case SDL_USEREVENT:
             if (event.user.code == WM_PAINT)
               draw();
-              break;
+            break;
           case SDL_MOUSEMOTION:
             if (event.motion.state & SDL_BUTTON_LMASK) {
               _manip.rotate(event.motion.xrel, event.motion.yrel);
               update_ubo();
             } else if (event.motion.state & SDL_BUTTON_MMASK) {
             } else if (event.motion.state & SDL_BUTTON_RMASK) {
-              _manip.translate(event.motion.xrel, event.motion.yrel);
+              _manip.translate(event.motion.xrel, -event.motion.yrel);
               update_ubo();
             }
             update();
@@ -250,6 +266,12 @@ public:
             update();
             break;
           }
+          case SDL_KEYUP: {
+          if (event.key.keysym.scancode == SDL_SCANCODE_SPACE)
+              _manip.home();
+            update_ubo();
+            update();
+          } break;
           default:
             break;
         }
@@ -290,8 +312,9 @@ public:
 
       {
         VkViewport viewport = {};
+        viewport.y = _h;
         viewport.width = _w;
-        viewport.height = _h;
+        viewport.height = -_h;
         viewport.minDepth = 0;
         viewport.maxDepth = 1;
         vkCmdSetViewport(cmd_buf, 0, 1, &viewport);
@@ -315,8 +338,11 @@ public:
       }
 
       {
-        VkDeviceSize offset[1] = {0};
-        vkCmdBindVertexBuffers(cmd_buf, 0, 1, &_vert_buf, offset);
+        VkDeviceSize offset[2] = {0, 0};
+        VkBuffer buf[2] = {};
+        buf[0] = _vert_buf;
+        buf[1] = _norm_buf;
+        vkCmdBindVertexBuffers(cmd_buf, 0, 2, &_vert_buf, offset);
         vkCmdBindIndexBuffer(cmd_buf, _index_buf, 0, VK_INDEX_TYPE_UINT16);
         vkCmdDrawIndexed(cmd_buf, _count, 1, 0, 0, 1);
       }
@@ -371,6 +397,7 @@ public:
 
     VkDescriptorPool desPool;
     VK_CHECK_RESULT(vkCreateDescriptorPool(*_device, &descriptorPoolInfo, nullptr, &desPool));
+    _descript_pool = desPool;
 
     VkDescriptorSetAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -411,7 +438,7 @@ public:
 
     VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = {};
     inputAssemblyState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssemblyState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
+    inputAssemblyState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
 
     VkPipelineRasterizationStateCreateInfo rasterizationState = {};
     rasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
@@ -461,22 +488,29 @@ public:
     multisampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
     multisampleState.pSampleMask = nullptr;
 
-    VkVertexInputBindingDescription vertexInputBinding = {};
-    vertexInputBinding.binding = 0;  // vkCmdBindVertexBuffers
-    vertexInputBinding.stride = sizeof(vec3);
-    vertexInputBinding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    VkVertexInputBindingDescription vertexInputBindings[2] = {};
+    vertexInputBindings[0].binding = 0;  // vkCmdBindVertexBuffers
+    vertexInputBindings[0].stride = sizeof(vec3);
+    vertexInputBindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    vertexInputBindings[1].binding = 1;  // vkCmdBindVertexBuffers
+    vertexInputBindings[1].stride = sizeof(vec3);
+    vertexInputBindings[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
     VkVertexInputAttributeDescription vertexInputAttributs[2] = {};
     vertexInputAttributs[0].binding = 0;
     vertexInputAttributs[0].location = 0;
     vertexInputAttributs[0].format = VK_FORMAT_R32G32B32_SFLOAT;
     vertexInputAttributs[0].offset = 0;
+    vertexInputAttributs[1].binding = 1;
+    vertexInputAttributs[1].location = 1;
+    vertexInputAttributs[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+    vertexInputAttributs[1].offset = 0;
 
     VkPipelineVertexInputStateCreateInfo vertexInputState = {};
     vertexInputState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputState.vertexBindingDescriptionCount = 1;
-    vertexInputState.pVertexBindingDescriptions = &vertexInputBinding;
-    vertexInputState.vertexAttributeDescriptionCount = 1;
+    vertexInputState.vertexBindingDescriptionCount = 2;
+    vertexInputState.pVertexBindingDescriptions = vertexInputBindings;
+    vertexInputState.vertexAttributeDescriptionCount = 2;
     vertexInputState.pVertexAttributeDescriptions = vertexInputAttributs;
 
     VkPipelineShaderStageCreateInfo shaderStages[2] = {};
@@ -516,13 +550,15 @@ public:
     ubo.view = _manip.view_matrix();
     ubo.model = tg::mat4::identity();
     ubo.prj = tg::perspective<float>(fov, float(_w) / _h, 0.1, 1000); 
+    //tg::near_clip(ubo.prj, tg::vec4(0, 0, -1, 0.5));
     uint8_t *data = 0;
     VK_CHECK_RESULT(vkMapMemory(*_device, _ubo_buf->memory(), 0, sizeof(ubo), 0, (void **)&data));
     memcpy(data, &ubo, sizeof(ubo));
     vkUnmapMemory(*_device, _ubo_buf->memory());
   }
 
-  void create_sphere() { 
+  void create_sphere()
+  {
     Sphere sp(vec3(0), 1);
     sp.build();
     auto &verts = sp.get_vertex();
@@ -531,7 +567,7 @@ public:
     auto &index = sp.get_index();
     _count = index.size();
 
-    struct StageBuffer{
+    struct StageBuffer {
       VkBuffer buffer;
       VkDeviceMemory mem;
     };
@@ -554,7 +590,7 @@ public:
 
     void *data = 0;
     VK_CHECK_RESULT(vkMapMemory(*_device, vertices.mem, 0, memAlloc.allocationSize, 0, &data));
-    uint64_t offset = 0; 
+    uint64_t offset = 0;
     memcpy(data, verts.data(), verts.size() * sizeof(vec3));
     offset += verts.size() * sizeof(vec3);
     memcpy((uint8_t *)data + offset, norms.data(), norms.size() * sizeof(vec3));
@@ -570,7 +606,7 @@ public:
     memAlloc.memoryTypeIndex = *_device->memory_type_index(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     VK_CHECK_RESULT(vkAllocateMemory(*_device, &memAlloc, nullptr, &_vert_mem));
     VK_CHECK_RESULT(vkBindBufferMemory(*_device, _vert_buf, _vert_mem, 0));
-    
+
     uint64_t index_size = index.size() * sizeof(uint16_t);
     VkBufferCreateInfo indexbufferInfo = {};
     indexbufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -640,6 +676,16 @@ public:
     vkDestroyBuffer(*_device, indices.buffer, nullptr);
     vkFreeMemory(*_device, vertices.mem, nullptr);
     vkFreeMemory(*_device, indices.mem, nullptr);
+
+    {
+      uint64_t norm_size = norms.size() * sizeof(vec3);
+      VkBufferCreateInfo vertexBufferInfo = {};
+      vertexBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+      vertexBufferInfo.size = norm_size;
+      vertexBufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+      VK_CHECK_RESULT(vkCreateBuffer(*_device, &vertexBufferInfo, nullptr, &_norm_buf));
+      VK_CHECK_RESULT(vkBindBufferMemory(*_device, _norm_buf, _vert_mem, norm_size));
+    }
   }
 
 private:
@@ -662,13 +708,14 @@ private:
   std::vector<VkFramebuffer> _frame_bufs;
   std::vector<VkFence> _fences;
 
-  VkBuffer _vert_buf;
+  VkBuffer _vert_buf, _norm_buf;
   VkDeviceMemory _vert_mem;
   VkBuffer _index_buf;
   VkDeviceMemory _index_mem;
 
-  VkDescriptorSetLayout _descript_layout = VK_NULL_HANDLE;
+  VkDescriptorPool _descript_pool = VK_NULL_HANDLE;
   VkDescriptorSet _descript_set = VK_NULL_HANDLE;
+  VkDescriptorSetLayout _descript_layout = VK_NULL_HANDLE;
 
   VkPipelineLayout _pipe_layout = VK_NULL_HANDLE;
   VkPipeline _pipeline = VK_NULL_HANDLE;

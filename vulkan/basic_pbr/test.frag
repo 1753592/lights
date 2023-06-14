@@ -1,7 +1,7 @@
 #version 450
 
 //layout(location = 0) in vec3 fragPos;
-//layout(location = 1) in vec3 fragNormal;
+layout(location = 1) in vec3 vp_norm;
 //layout(location = 2) in vec2 fragUV;
 
 layout(location = 0) out vec4 out_color;
@@ -18,5 +18,5 @@ layout(location = 0) out vec4 out_color;
 
 void main(void)
 {
-	out_color = vec4(1, 0, 0, 1);
+  out_color = vec4(vp_norm, 1);
 }

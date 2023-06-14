@@ -100,31 +100,42 @@ inline mat4 frustum(float left, float right, float bottom, float top, float n, f
 template<typename T>
 inline Tmat4<T> perspective(T fovy, T aspect, T n, T f)
 {
-	T q = 1.0f / tan(radians(0.5f * fovy));
-	T A = q / aspect;
-	T B = (n + f) / (n - f);
-	T C = (2.0f * n * f) / (n - f);
+  T q = 1.0f / tan(radians(0.5f * fovy));
+  T A = q / aspect;
+#ifdef NEAR_EQUAL_ZERO
+  T B = f / (n - f);
+  T C = n * f / (n - f);
+#else
+  T B = (n + f) / (n - f);
+  T C = (2.0f * n * f) / (n - f);
+#endif
 
-	Tmat4<T> result;
+  Tmat4<T> result;
 
-	result[0] = Tvec4<T>(A, 0.0f, 0.0f, 0.0f);
-	result[1] = Tvec4<T>(0.0f, q, 0.0f, 0.0f);
-	result[2] = Tvec4<T>(0.0f, 0.0f, B, -1.0f);
-	result[3] = Tvec4<T>(0.0f, 0.0f, C, 0.0f);
+  result[0] = Tvec4<T>(A, 0.0f, 0.0f, 0.0f);
+  result[1] = Tvec4<T>(0.0f, q, 0.0f, 0.0f);
+  result[2] = Tvec4<T>(0.0f, 0.0f, B, -1.0f);
+  result[3] = Tvec4<T>(0.0f, 0.0f, C, 0.0f);
 
-	return result;
+  return result;
 }
 
 inline mat4 ortho(float left, float right, float bottom, float top, float n, float f)
 {
-	return mat4(vec4(2.0f / (right - left), 0.0f, 0.0f, 0.0f),
-				vec4(0.0f, 2.0f / (top - bottom), 0.0f, 0.0f),
-				vec4(0.0f, 0.0f, 2.0f / (n - f), 0.0f),
-				vec4((left + right) / (left - right), (bottom + top) / (bottom - top), (n + f) / (f - n), 1.0f));
+  return mat4(vec4(2.0f / (right - left), 0.0f, 0.0f, 0.0f), 
+							vec4(0.0f, 2.0f / (top - bottom), 0.0f, 0.0f),
+#ifdef NEAR_EQUAL_ZERO
+              vec4(0.0f, 0.0f, 1.0f / (n - f), 0.0f), 
+							vec4((left + right) / (left - right), (bottom + top) / (bottom - top), f / (n - f), 1.0f)
+#else
+              vec4(0.0f, 0.0f, 2.0f / (n - f), 0.0f), 
+							vec4((left + right) / (left - right), (bottom + top) / (bottom - top), (n + f) / (n - f), 1.0f)
+#endif
+  );
 }
 
 //reverse///////////////////////////////////////////////////////////////////////
-inline void viewPlane(const mat4& transmat, vec4& l, vec4& r, vec4& b, vec4& t, vec4& n, vec4& f)
+inline void view_planes(const mat4& transmat, vec4& l, vec4& r, vec4& b, vec4& t, vec4& n, vec4& f)
 {
 	//mi represent ith row of transmat;
 	// left = m4 + m1
@@ -143,29 +154,28 @@ inline void viewPlane(const mat4& transmat, vec4& l, vec4& r, vec4& b, vec4& t, 
 
 inline float sgn(float x)
 {
-	if(x > 0)
-		return 1;
-	else if(x < 0)
-		return -1;
-	else
-		return 0;
+  if (x > 0)
+    return 1.f;
+  else if (x < 0)
+    return -1.f;
+  return 0.f;
 }
 
 //frustum space clip
-inline void clip(mat4& transmat, const vec4& clip_plane)
+inline void near_clip(mat4& prjmat, const vec4& clip_plane)
 {
 	vec4 q;
-	q[0] = (sgn(clip_plane[0]) + transmat[2][0]) / transmat[0][0];
-	q[1] = (sgn(clip_plane[1]) + transmat[2][1]) / transmat[1][1];
+	q[0] = (sgn(clip_plane[0]) + prjmat[2][0]) / prjmat[0][0];
+	q[1] = (sgn(clip_plane[1]) + prjmat[2][1]) / prjmat[1][1];
 	q[2] = -1;
-	q[3] = (1 + transmat[2][2]) / transmat[3][2];
+	q[3] = (1 + prjmat[2][2]) / prjmat[3][2];
 
 	q = clip_plane * (2.f / dot<float>(clip_plane, q));
 
-	transmat[0][2] = q[0];
-	transmat[1][2] = q[1];
-	transmat[2][2] = q[2] + 1;
-	transmat[3][2] = q[3];
+	prjmat[0][2] = q[0];
+	prjmat[1][2] = q[1];
+	prjmat[2][2] = q[2] + 1;
+	prjmat[3][2] = q[3];
 }
 
 template <typename T>

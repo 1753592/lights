@@ -12,7 +12,7 @@ class Sphere {
   float _rad;
 
   constexpr static uint32_t x_segs = 64;
-  constexpr static uint32_t y_segs = 64;
+  constexpr static uint32_t y_segs = 32;
 
   std::vector<vec3> _verts, _norms;
   std::vector<vec2> _uvs;
@@ -25,10 +25,10 @@ public:
 
   void build()
   {
-    _verts.reserve(x_segs * y_segs);
+    _verts.reserve(x_segs * (y_segs + 1));
     _norms.reserve(_verts.size());
     _uvs.reserve(_verts.size());
-    for (uint32_t y = 0; y < y_segs; y++) {
+    for (uint32_t y = 0; y <= y_segs; y++) {
       for (uint32_t x = 0; x < x_segs; x++) {
         float xSegment = (float)x / (float)x_segs;
         float ySegment = (float)y / (float)y_segs;
@@ -42,21 +42,17 @@ public:
       }
     }
 
-    _indices.reserve(y_segs * x_segs * 6);
-    bool oddRow = false;
+    _indices.resize((x_segs + 1) * (y_segs << 1));
+    uint32_t count1 = 0, count2 = 0;
     for (unsigned int y = 0; y < y_segs; ++y) {
-      if (!oddRow) {
-        for (unsigned int x = 0; x <= x_segs; ++x) {
-          _indices.push_back((y + 1) * (x_segs + 1) + x);
-          _indices.push_back(y * (x_segs + 1) + x);
-        }
-      } else {
-        for (int x = x_segs; x >= 0; --x) {
-          _indices.push_back(y * (x_segs + 1) + x);
-          _indices.push_back((y + 1) * (x_segs + 1) + x);
-        }
+      count1 = y * x_segs;
+      count2 = (y * (x_segs + 1)) << 1;
+      for (unsigned int x = 0; x < x_segs; ++x) {
+        _indices[count2 + (x << 1)] = count1 + x + x_segs;
+        _indices[count2 + (x << 1) + 1] = count1 + x;
       }
-      oddRow = !oddRow;
+      _indices[count2 + (x_segs << 1)] = count1 + x_segs;
+      _indices[count2 + (x_segs << 1) + 1] = count1;
     }
   }
 

@@ -7,7 +7,9 @@ public:
   Manipulator();
   ~Manipulator();
 
-  void home(const tg::vec3 &eye, const tg::vec3 pos, const tg::vec3 up);
+  void set_home(const tg::vec3 &eye, const tg::vec3 pos, const tg::vec3 up);
+
+  void home();
 
   void rotate(int x, int y);
 
@@ -24,4 +26,6 @@ private:
   tg::vec3 _eye;
   tg::vec3 _pos;
   tg::vec3 _up;
+
+  tg::vec3 _home[3];
 };
