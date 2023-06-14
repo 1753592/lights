@@ -11,6 +11,8 @@ set(hdr
 	VulkanDebug.h
 	VulkanTools.h
 	VulkanInitializers.hpp
+
+	Manipulator.h
 )
 
 set(src
@@ -21,6 +23,8 @@ set(src
 	VulkanDevice.cpp
 	VulkanDebug.cpp
 	VulkanTools.cpp
+
+	Manipulator.cpp
 )
 
 find_package(Vulkan)

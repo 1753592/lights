@@ -1,6 +1,9 @@
 #ifndef __TVEC_INC__
 #define __TVEC_INC__
 
+#define NOMINMAX 1
+
+#include <cmath>
 
 namespace tg
 {
@@ -66,8 +69,8 @@ public:
 		}
 	}
 
-	template<typename TT>
-	vecN(const vecN<TT, len> &that)
+	template<typename T>
+	vecN(const vecN<T, len> &that)
 	{
 		for (int n = 0; n < len; n++) {
 			data_[n] = that[n];
@@ -386,10 +389,8 @@ public:
 		base::data_[3] = v[3];
 		return *this;
 	}
-
-	inline Tvec4(const base& v)
-		: base(v)
-	{}
+	
+	inline Tvec4(const base& v) : base(v) {}
 
 	// vec4(x, y, z, w);
 	inline Tvec4(T x, T y, T z, T w)
@@ -452,6 +453,14 @@ public:
 		base::data_[1] = v[0];
 		base::data_[2] = v[1];
 		base::data_[3] = v[2];
+	}
+
+	inline Tvec4(const Tvec3<T> &v) 
+	{
+		base::data_[0] = v[0];
+		base::data_[1] = v[1];
+		base::data_[2] = v[2];
+		base::data_[3] = 0;
 	}
 
 	inline void operator=(const T& t)
@@ -629,28 +638,30 @@ public:
 	}
 
 	inline Tquaternion(T s)
-		: s_(s),
-		v_(T(0))
+		: s_(s)
+		, v_(T(0))
 	{
 
 	}
 
 	inline Tquaternion(T s, const Tvec3<T>& v)
-		: s_(s),
-		v_(v)
+		: s_(s)
+		, v_(v)
 	{
 
 	}
 
 	inline Tquaternion(const Tvec4<T>& v)
-		: s_(v[0]),
-		v_(v[1], v[2], v[3])
+		: s_(v[0])
+		, v_(v[1], v[2], v[3])
 	{}
 
 	inline Tquaternion(T w, T x, T y, T z)
-		: s_(w),
-		v_(x, y, z)
+		: s_(w)
+		, v_(x, y, z)
 	{}
+
+	inline Tquaternion(const Tvec3<T>& v) : v_(v), s_(0) {}
 
 	inline T& operator[](int n)
 	{
@@ -733,15 +744,13 @@ public:
 		return *this;
 	}
 
-	inline operator Tvec4<T>&()
-	{
-		return *(Tvec4<T>*)&a_[0];
-	}
+	inline operator Tvec4<T>&() { return *(Tvec4<T>*)&a_[0]; }
 
-	inline operator const Tvec4<T>&() const
-	{
-		return *(const Tvec4<T>*)&a_[0];
-	}
+	inline operator const Tvec4<T>&() const { return *(const Tvec4<T>*)&a_[0]; }
+
+	inline operator Tvec3<T> &() { return v_; }
+
+	inline operator const Tvec3<T> &() const { return v_; }
 
 	inline bool operator==(const Tquaternion& q) const
 	{
@@ -911,7 +920,6 @@ public:
 	}
 
 	// Matrix multiply.
-	// TODO: This only works for square matrices. Need more template skill to make a non-square version.
 	// this * that not that * this
 	inline my_type operator*(const my_type& that) const
 	{

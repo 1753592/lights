@@ -1,6 +1,8 @@
 #include <exception>
 #include <stdexcept>
 
+#include "Manipulator.h"
+
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_vulkan.h"
 
@@ -9,6 +11,7 @@
 #include "VulkanInstance.h"
 #include "VulkanDevice.h"
 #include "VulkanSwapChain.h"
+#include "VulkanBuffer.h"
 #include "VulkanTools.h"
 #include "VulkanInitializers.hpp"
 
@@ -16,7 +19,17 @@
 
 #define WM_PAINT 1
 
+constexpr float fov = 60;
+
+
 VulkanInstance inst;
+
+struct {
+  tg::mat4 prj;
+  tg::mat4 view;
+  tg::mat4 model;
+  tg::vec4 cam;
+} ubo;
 
 class Test{
 public:
@@ -28,6 +41,7 @@ public:
 
     create_sphere();
     create_pipe_layout();
+    create_descriptor_set();
   }
 
   ~Test()
@@ -106,6 +120,8 @@ public:
     create_pipeline();
 
     apply_resource();
+
+    update_ubo();
   }
 
   void apply_resource() 
@@ -209,6 +225,8 @@ public:
               _swapchain->realize(_w, _h, true);
               free_resource();
               apply_resource();
+              update_ubo();
+              update();
             }
             break;
           case SDL_USEREVENT:
@@ -217,35 +235,18 @@ public:
               break;
           case SDL_MOUSEMOTION:
             if (event.motion.state & SDL_BUTTON_LMASK) {
-              //  tg::vec3 tmp = _cam - _pos;
-              //  float xrad = event.motion.xrel / 100.f;
-              //  float yrad = event.motion.yrel / 100.f;
-              //  osg::Matrixf m;
-              //  m.makeRotate(-xrad, _up);
-              //  tmp = m.preMult(tmp);
-              //  osg::Vec3 rt = _up ^ tmp;
-              //  m.makeRotate(-yrad, rt);
-              //  tmp = m.preMult(tmp);
-              //  _up = m.preMult(_up);
-              //  _cam = _pos + tmp;
-              //} else if (event.motion.state & SDL_BUTTON_RMASK) {
-              //  osg::Vec3 tmp = _cam - _pos;
-              //  tmp.normalize();
-              //  osg::Vec3 rt = _up ^ tmp;
-              //  rt *= -event.motion.xrel * 0.1;
-              //  auto up = _up * event.motion.yrel * 0.1;
-              //  _cam += rt;
-              //  _cam += up;
-              //  _pos += rt;
-              //  _pos += up;
+              _manip.rotate(event.motion.xrel, event.motion.yrel);
+              update_ubo();
             } else if (event.motion.state & SDL_BUTTON_MMASK) {
+            } else if (event.motion.state & SDL_BUTTON_RMASK) {
+              _manip.translate(event.motion.xrel, event.motion.yrel);
+              update_ubo();
             }
             update();
             break;
           case SDL_MOUSEWHEEL: {
-            // osg::Vec3 tmp = _cam - _pos;
-            // tmp *= event.wheel.y;
-            //_cam += tmp * 0.1;
+            _manip.zoom(event.wheel.y);
+            update_ubo();
             update();
             break;
           }
@@ -306,6 +307,10 @@ public:
       }
 
       {
+        vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipe_layout, 0, 1, &_descript_set, 0, nullptr);
+      }
+
+      {
         vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);
       }
 
@@ -324,45 +329,77 @@ public:
 
   void create_pipe_layout() 
   {
-    //VkDescriptorPoolSize typeCounts[1];
-    //typeCounts[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    //typeCounts[0].descriptorCount = 1;
+    VkDescriptorSetLayoutBinding layoutBinding = {};
+    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    layoutBinding.descriptorCount = 1;
+    layoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    layoutBinding.pImmutableSamplers = nullptr;
 
-    //VkDescriptorPoolCreateInfo descriptorPoolInfo = {};
-    //descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    //descriptorPoolInfo.pNext = nullptr;
-    //descriptorPoolInfo.poolSizeCount = 1;
-    //descriptorPoolInfo.pPoolSizes = typeCounts;
-    //descriptorPoolInfo.maxSets = 1;
+    VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
+    descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    descriptorLayout.pNext = nullptr;
+    descriptorLayout.bindingCount = 1;
+    descriptorLayout.pBindings = &layoutBinding;
 
-    //VkDescriptorPool desPool;
-    //VK_CHECK_RESULT(vkCreateDescriptorPool(*_device, &descriptorPoolInfo, nullptr, &desPool));
-
-
-    //VkDescriptorSetLayoutBinding layoutBinding = {};
-    //layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    //layoutBinding.descriptorCount = 1;
-    //layoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    //layoutBinding.pImmutableSamplers = nullptr;
-
-    //VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
-    //descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    //descriptorLayout.pNext = nullptr;
-    //descriptorLayout.bindingCount = 1;
-    //descriptorLayout.pBindings = &layoutBinding;
-
-    //VkDescriptorSetLayout desLayout;
-    //VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*_device, &descriptorLayout, nullptr, &desLayout));
+    VkDescriptorSetLayout desLayout;
+    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*_device, &descriptorLayout, nullptr, &desLayout));
+    _descript_layout = desLayout;
 
     VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = {};
     pPipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pPipelineLayoutCreateInfo.pNext = nullptr;
-    pPipelineLayoutCreateInfo.setLayoutCount = 0;
-    //pPipelineLayoutCreateInfo.pSetLayouts = &desLayout;
+    pPipelineLayoutCreateInfo.setLayoutCount = 1;
+    pPipelineLayoutCreateInfo.pSetLayouts = &desLayout;
 
     VkPipelineLayout pipe_layout;
     VK_CHECK_RESULT(vkCreatePipelineLayout(*_device, &pPipelineLayoutCreateInfo, nullptr, &pipe_layout));
     _pipe_layout = pipe_layout;
+  }
+
+  void create_descriptor_set() 
+  {
+    VkDescriptorPoolSize typeCounts[1];
+    typeCounts[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    typeCounts[0].descriptorCount = 1;
+
+    VkDescriptorPoolCreateInfo descriptorPoolInfo = {};
+    descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    descriptorPoolInfo.pNext = nullptr;
+    descriptorPoolInfo.poolSizeCount = 1;
+    descriptorPoolInfo.pPoolSizes = typeCounts;
+    descriptorPoolInfo.maxSets = 1;
+
+    VkDescriptorPool desPool;
+    VK_CHECK_RESULT(vkCreateDescriptorPool(*_device, &descriptorPoolInfo, nullptr, &desPool));
+
+    VkDescriptorSetAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = desPool;
+    allocInfo.descriptorSetCount = 1;
+    allocInfo.pSetLayouts = &_descript_layout;
+
+    VkDescriptorSet des_set;
+    VK_CHECK_RESULT(vkAllocateDescriptorSets(*_device, &allocInfo, &des_set));
+    _descript_set = des_set;
+
+    VkDescriptorBufferInfo descriptor = {};
+    _ubo_buf = _device->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sizeof(ubo));
+    descriptor.buffer = *_ubo_buf;
+    descriptor.offset = 0;
+    descriptor.range = sizeof(ubo);
+
+    VkWriteDescriptorSet writeDescriptorSet = {};
+
+    // Binding 0 : Uniform buffer
+    writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writeDescriptorSet.dstSet = _descript_set;
+    writeDescriptorSet.descriptorCount = 1;
+    writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    writeDescriptorSet.pBufferInfo = &descriptor;
+    writeDescriptorSet.dstBinding = 0;
+
+    vkUpdateDescriptorSets(*_device, 1, &writeDescriptorSet, 0, nullptr);
   }
 
   void create_pipeline() 
@@ -471,6 +508,18 @@ public:
 
     vkDestroyShaderModule(*_device, shaderStages[0].module, nullptr);
     vkDestroyShaderModule(*_device, shaderStages[1].module, nullptr);
+  }
+
+  void update_ubo() 
+  {
+    ubo.cam = _manip.eye();
+    ubo.view = _manip.view_matrix();
+    ubo.model = tg::mat4::identity();
+    ubo.prj = tg::perspective<float>(fov, float(_w) / _h, 0.1, 1000); 
+    uint8_t *data = 0;
+    VK_CHECK_RESULT(vkMapMemory(*_device, _ubo_buf->memory(), 0, sizeof(ubo), 0, (void **)&data));
+    memcpy(data, &ubo, sizeof(ubo));
+    vkUnmapMemory(*_device, _ubo_buf->memory());
   }
 
   void create_sphere() { 
@@ -618,10 +667,17 @@ private:
   VkBuffer _index_buf;
   VkDeviceMemory _index_mem;
 
+  VkDescriptorSetLayout _descript_layout = VK_NULL_HANDLE;
+  VkDescriptorSet _descript_set = VK_NULL_HANDLE;
+
   VkPipelineLayout _pipe_layout = VK_NULL_HANDLE;
   VkPipeline _pipeline = VK_NULL_HANDLE;
 
+  std::shared_ptr<VulkanBuffer> _ubo_buf;
+
   uint32_t _count;
+
+  Manipulator _manip;
 };
 
 

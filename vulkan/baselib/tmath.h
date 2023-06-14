@@ -1,9 +1,8 @@
 #ifndef __TMATH_INC__
 #define __TMATH_INC__
 
-#include <cmath>
-
 #include "tvec.h"
+#include <algorithm>
 
 namespace tg
 {
@@ -125,21 +124,21 @@ inline mat4 ortho(float left, float right, float bottom, float top, float n, flo
 }
 
 //reverse///////////////////////////////////////////////////////////////////////
-inline void viewPlane(const mat4& transMat, vec4& l, vec4& r, vec4& b, vec4& t, vec4& n, vec4& f)
+inline void viewPlane(const mat4& transmat, vec4& l, vec4& r, vec4& b, vec4& t, vec4& n, vec4& f)
 {
-	//mi represent ith row of transMat;
+	//mi represent ith row of transmat;
 	// left = m4 + m1
-	l = vec4(transMat[0][0] + transMat[0][3], transMat[1][0] + transMat[1][3], transMat[2][0] + transMat[2][3], transMat[3][0] + transMat[3][3]);
+	l = vec4(transmat[0][0] + transmat[0][3], transmat[1][0] + transmat[1][3], transmat[2][0] + transmat[2][3], transmat[3][0] + transmat[3][3]);
 	// right = m4 - m1
-	r = vec4(transMat[0][3] - transMat[0][0], transMat[1][3] - transMat[1][0], transMat[2][3] - transMat[2][0], transMat[3][3] - transMat[3][0]);
+	r = vec4(transmat[0][3] - transmat[0][0], transmat[1][3] - transmat[1][0], transmat[2][3] - transmat[2][0], transmat[3][3] - transmat[3][0]);
 	// bottom = m2 + m4
-	b = vec4(transMat[0][1] + transMat[0][3], transMat[1][1] + transMat[1][3], transMat[2][1] + transMat[2][3], transMat[3][1] + transMat[3][3]);
+	b = vec4(transmat[0][1] + transmat[0][3], transmat[1][1] + transmat[1][3], transmat[2][1] + transmat[2][3], transmat[3][1] + transmat[3][3]);
 	// top = m4 - m2
-	t = vec4(transMat[0][3] - transMat[0][1], transMat[1][3] - transMat[1][1], transMat[2][3] - transMat[2][1], transMat[3][3] - transMat[3][1]);
+	t = vec4(transmat[0][3] - transmat[0][1], transmat[1][3] - transmat[1][1], transmat[2][3] - transmat[2][1], transmat[3][3] - transmat[3][1]);
 	// near = m3 + m4
-	n = vec4(transMat[0][2] + transMat[0][3], transMat[1][2] + transMat[1][3], transMat[2][2] + transMat[2][3], transMat[3][2] + transMat[3][3]);
+	n = vec4(transmat[0][2] + transmat[0][3], transmat[1][2] + transmat[1][3], transmat[2][2] + transmat[2][3], transmat[3][2] + transmat[3][3]);
 	// far = m4 - m3
-	f = vec4(transMat[0][3] - transMat[0][2], transMat[1][3] - transMat[1][2], transMat[2][3] - transMat[2][2], transMat[3][3] - transMat[3][2]);
+	f = vec4(transmat[0][3] - transmat[0][2], transmat[1][3] - transmat[1][2], transmat[2][3] - transmat[2][2], transmat[3][3] - transmat[3][2]);
 }
 
 inline float sgn(float x)
@@ -153,20 +152,20 @@ inline float sgn(float x)
 }
 
 //frustum space clip
-inline void clip(mat4& transMat, const vec4& clipPlane)
+inline void clip(mat4& transmat, const vec4& clip_plane)
 {
 	vec4 q;
-	q[0] = (sgn(clipPlane[0]) + transMat[2][0]) / transMat[0][0];
-	q[1] = (sgn(clipPlane[1]) + transMat[2][1]) / transMat[1][1];
+	q[0] = (sgn(clip_plane[0]) + transmat[2][0]) / transmat[0][0];
+	q[1] = (sgn(clip_plane[1]) + transmat[2][1]) / transmat[1][1];
 	q[2] = -1;
-	q[3] = (1 + transMat[2][2]) / transMat[3][2];
+	q[3] = (1 + transmat[2][2]) / transmat[3][2];
 
-	q = clipPlane * (2.f / dot<float>(clipPlane, q));
+	q = clip_plane * (2.f / dot<float>(clip_plane, q));
 
-	transMat[0][2] = q[0];
-	transMat[1][2] = q[1];
-	transMat[2][2] = q[2] + 1;
-	transMat[3][2] = q[3];
+	transmat[0][2] = q[0];
+	transmat[1][2] = q[1];
+	transmat[2][2] = q[2] + 1;
+	transmat[3][2] = q[3];
 }
 
 template <typename T>
@@ -197,7 +196,7 @@ inline Tmat4<T> translate(const vecN<T, 3>& v)
 }
 
 template <typename T>
-inline Tmat4<T> lookat(const vecN<T, 3>& eye, const vecN<T, 3>& up, const vecN<T, 3>& center = vecN<T, 3>())
+inline Tmat4<T> lookat(const vecN<T, 3>& eye, const vecN<T, 3>& center = vecN<T, 3>(), const vecN<T, 3>& up = vecN<T, 3>(0, 0, 1))
 {
 	const Tvec3<T> f = normalize(center - eye);
 	const Tvec3<T> upN = normalize(up);
@@ -270,7 +269,7 @@ inline Tmat4<T> rotate(T angle_x, T angle_y, T angle_z)
 		rotate(angle_x, 1.0f, 0.0f, 0.0f);
 }
 
-template <typename T, const int N>
+template <typename T, int N>
 static inline vecN<T, N> min(const vecN<T, N>& x, const vecN<T, N>& y)
 {
 	vecN<T, N> t;
@@ -418,9 +417,11 @@ static inline void quaternionToMatrix(const Tquaternion<T>& q, matNM<T,4,4>& m)
 */
 
 template <typename T>
-static inline void quaternionToMatrix(const Tquaternion<T>& q, matNM<T, 4, 4>& m)
+static inline matNM<T, 4, 4> rotate_matrix(const Tquaternion<T>& q)
 {
-	m = q.toMatrix();
+  matNM<T, 4, 4> m;
+
+	return m;
 }
 
 template <typename T>
@@ -436,7 +437,7 @@ static inline T mix(const T& A, const T& B, const T& t)
 }
 
 template <typename T, const int N>
-static inline bool inverseMat(matNM<T, N, N> &des, const matNM<T, N, N>& ori)
+static inline bool inverse(matNM<T, N, N> &des, const matNM<T, N, N>& ori)
 {
 	const int width = 2 * N;
 	T mat[N][width];
