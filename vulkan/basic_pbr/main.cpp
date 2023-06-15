@@ -338,13 +338,11 @@ public:
       }
 
       {
-        VkDeviceSize offset[2] = {0, 0};
-        VkBuffer buf[2] = {};
-        buf[0] = _vert_buf;
-        buf[1] = _norm_buf;
-        vkCmdBindVertexBuffers(cmd_buf, 0, 2, &_vert_buf, offset);
+        VkDeviceSize offset[2] = {0, _vert_count * sizeof(vec3)};
+        VkBuffer bufs[2] = {}; bufs[0] = _vert_buf; bufs[1] = _vert_buf;
+        vkCmdBindVertexBuffers(cmd_buf, 0, 2, bufs, offset);
         vkCmdBindIndexBuffer(cmd_buf, _index_buf, 0, VK_INDEX_TYPE_UINT16);
-        vkCmdDrawIndexed(cmd_buf, _count, 1, 0, 0, 1);
+        vkCmdDrawIndexed(cmd_buf, _index_count, 1, 0, 0, 1);
       }
 
       vkCmdEndRenderPass(cmd_buf);
@@ -565,7 +563,8 @@ public:
     auto &norms = sp.get_norms();
     auto &uv = sp.get_uvs();
     auto &index = sp.get_index();
-    _count = index.size();
+    _vert_count = verts.size();
+    _index_count = index.size();
 
     struct StageBuffer {
       VkBuffer buffer;
@@ -722,7 +721,8 @@ private:
 
   std::shared_ptr<VulkanBuffer> _ubo_buf;
 
-  uint32_t _count;
+  uint32_t _vert_count = 0;
+  uint32_t _index_count = 0;
 
   Manipulator _manip;
 };
