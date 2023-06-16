@@ -1,109 +1,115 @@
 #version 450
 
-layout(location = 0) in vec3 fragPos;
-layout(location = 1) in vec3 fragNormal;
-layout(location = 2) in vec2 fragUV;
+layout(location = 0) in vec3 vp_pos;
+layout(location = 1) in vec3 vp_norm;
+layout(location = 2) in flat int instance_idx;
+//layout(location = 2) in vec2 fragUV;
 
-layout(location = 0) out vec4 outColor;
+layout(location = 0) out vec4 frag_color;
 
-layout(binding = 0) uniform UniformBufferObject {
-    vec3 camPos;
-    mat4 model;
-    mat4 view;
+layout(binding = 0) uniform MatrixObject{
     mat4 proj;
+    mat4 view;
+    mat4 model;
+    vec4 cam;
 } ubo;
 
 layout(binding = 1) uniform Lights{
-	vec3 lightPositions[4];
-	vec3 lightColors[4];
-}
-lights;
+	vec3 light_pos[4];
+	vec3 light_color[4];
+} lights;
 
-layout(set=1, binding = 2) uniform MaterialBufferObject{
+layout(binding = 2) uniform MaterialObject{
 	float metallic;
 	float roughness;
 	float ao;
-	vec3 albedo;
-}
-mbo;
+	vec3	albedo;
+} mbos[49];
 
 const float pi = 3.14159265359;
 
-vec3 fresnelSchlick(float cosTheta, vec3 f0)
+vec3 fresnel_schlick(float cosTheta, vec3 f0)
 {
 	return f0 + (1.0 - f0) * pow(1.0 - cosTheta, 5.0);
 }
 
-float distributionGGX(vec3 n, vec3 h, float roughness)
+float distribution_GGX(vec3 n, vec3 h, float roughness)
 {
 	float a = roughness * roughness;
 	float a2 = a * a;
-	float ndotH = max(dot(n, h), 0.0);
-	float ndotH2 = ndotH * ndotH;
+	float ndot_h = max(dot(n, h), 0.0);
+	float ndot_h2 = ndot_h * ndot_h;
 
-	float denom = ndotH2 * (a2 - 1.0) + 1.0;
+	float denom = ndot_h2 * (a2 - 1.0) + 1.0;
 	denom = pi * denom * denom;
 
 	return a2 / max(denom, 0.0000001);
 }
 
-float schlickGGX(float ndotV, float roughness)
+float schlick_GGX(float ndotv, float roughness)
 {
 	float r = (roughness + 1.0);
 	float k = (r * r) / 8.0;
 
-	float denom = ndotV * (1.0 - k) + k;
+	float denom = ndotv * (1.0 - k) + k;
 
-	return ndotV / denom;
+	return ndotv / denom;
 }
 
-float smithGeometry(vec3 n, vec3 v, vec3 l, float roughness)
+float smith_Geometry(vec3 n, vec3 v, vec3 l, float roughness)
 {
-	float ndotV = max(dot(n, v), 0.0);
-	float ndotL = max(dot(n, l), 0.0);
-	float ggx2 = schlickGGX(ndotV, roughness);
-	float ggx1 = schlickGGX(ndotL, roughness);
+	float ndotv = max(dot(n, v), 0.0);
+	float ndotl = max(dot(n, l), 0.0);
+	float ggx2 = schlick_GGX(ndotv, roughness);
+	float ggx1 = schlick_GGX(ndotl, roughness);
 
 	return ggx1 * ggx2;
 }
 
 void main(void)
 {
-	vec3 n = normalize(fragNormal);
-	vec3 v = normalize(ubo.camPos - fragPos);
+	int idx = instance_idx;
+	vec3 mate_albedo = mbos[idx].albedo;
+	float mate_roughness = mbos[idx].roughness;
+	float mate_metallic = mbos[idx].metallic ;
+	float mate_ao = mbos[idx].ao;
+
+	vec3 cam = ubo.cam.xyz;
+	vec3 n = normalize(vp_norm);
+	vec3 v = normalize(cam - vp_pos);
 
 	vec3 f0 = vec3(0.04);
-	f0 = mix(f0, mbo.albedo, mbo.metallic);
+	f0 = mix(f0, mate_albedo, mate_metallic);
 	vec3 lo = vec3(0.0);
 	for (int i = 0; i < 4; i++) {
-		vec3 l = normalize(lights.lightPositions[i] - fragPos);
+		vec3 l = normalize(lights.light_pos[i] - vp_pos);
 		vec3 h = normalize(v + l);
-		float distance = length(lights.lightPositions[i] - fragPos);
+		float distance = length(lights.light_pos[i] - vp_pos);
 		float attenuation = 1.0 / (distance * distance);
-		vec3 radiance = lights.lightColors[i] * attenuation;
+		vec3 radiance = lights.light_color[i] * attenuation;
 
-		float nv = distributionGGX(n, h, mbo.roughness);
-		float gv = smithGeometry(n, v, l, mbo.roughness);
-		vec3 fv = fresnelSchlick(clamp(dot(h, v), 0.0, 1.0), f0);
+		float nv = distribution_GGX(n, h, mate_roughness);
+		float gv = smith_Geometry(n, v, l, mate_roughness);
+		vec3 fv = fresnel_schlick(clamp(dot(h, v), 0.0, 1.0), f0);
 
 		vec3 nominator = nv * gv * fv;
 		float denominator = 4 * max(dot(n, v), 0) * max(dot(n, l), 0.0);
 		vec3 specular = nominator / max(denominator, 0.000001);
 
 		vec3 ks = fv; vec3 kd = vec3(1.0) - ks;
-		kd *= (1.0 - mbo.metallic);
+		kd *= (1.0 - mate_metallic);
 
-		float ndotL = max(dot(n, l), 0);
+		float ndotl = max(dot(n, l), 0);
 
-		lo += (kd * mbo.albedo / pi + specular) * radiance * ndotL;
+		lo += (kd * mate_albedo / pi + specular) * radiance * ndotl;
 	}
 
-	vec3 ambient = vec3(0.03) * mbo.albedo * mbo.ao;
+	vec3 ambient = vec3(0.03) * mate_albedo * mate_ao;
 	vec3 color = ambient + lo;
 
 	//color = color / (color + vec3(1.0));
 	//color = pow(color, vec3(1.0 / 2.2));
 
-	outColor = vec4(color, 1.0);
-	//outColor = vec4(lights.lightColors[0], 1.0);
+	frag_color = vec4(color, 1.0);
+	//frag_color = vec4(lights.light_color[0], 1.0);
 }

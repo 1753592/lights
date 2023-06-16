@@ -13,15 +13,15 @@ set(src
 
 add_executable(${app_name} ${src} ${hdr})
 
-set(SHADERS
+set(shaders
 	pbr.vert
 	pbr.frag
-	test.vert
-	test.frag
+	#test.vert
+	#test.frag
 )
 
-source_group(shaders FILES ${SHADERS})
-target_sources(${app_name} PRIVATE ${SHADERS})
+source_group(shaders FILES ${shaders})
+target_sources(${app_name} PRIVATE ${shaders})
 
 
 set_target_properties(${app_name} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -43,6 +43,4 @@ target_link_libraries(${app_name} baselib)
 
 set_target_properties(${app_name} PROPERTIES FOLDER "v")
 
-
-compile_shader(${app_name} ENV opengl FORMAT bin SOURCES ${SHADERS})
-
+compile_shader(${app_name} ENV opengl FORMAT bin SOURCES ${shaders})

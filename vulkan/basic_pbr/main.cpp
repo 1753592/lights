@@ -31,19 +31,34 @@ struct {
   tg::mat4 view;
   tg::mat4 model;
   tg::vec4 cam;
-} ubo;
+} matirx_ubo;
 
-class Test{
+struct{
+  struct alignas(16) aligned_vec3 : vec3 {};
+  aligned_vec3 light_pos[4] = {vec3(10, 10, 10), vec3(-10, 10, 10), vec3(-10, 10, -10), vec3(10, 10, -10)};
+  aligned_vec3 light_color[4] = {vec3(300), vec3(300), vec3(300), vec3(300)};
+} lights_ubo;
+
+struct alignas(16){
+  struct alignas(16) aligned_vec3 : vec3 {};
+
+	float metallic;
+	float roughness;
+	float ao;
+	aligned_vec3 albedo;
+} material_ubo;
+
+class Test {
 public:
-  Test(const std::shared_ptr<VulkanDevice> &dev) 
-    : _device(dev)
+  Test(const std::shared_ptr<VulkanDevice> &dev) : _device(dev)
   {
-    _swapchain = std::make_shared<VulkanSwapChain>(dev); 
+    _manip.set_home(vec3(0, -30, 0), vec3(0), vec3(0, 0, 1));
+
+    _swapchain = std::make_shared<VulkanSwapChain>(dev);
     _queue = dev->getGraphicQueue(0);
 
     create_sphere();
     create_pipe_layout();
-    create_descriptor_set();
   }
 
   ~Test()
@@ -57,14 +72,14 @@ public:
     _device->destroyCommandBuffers(_cmd_bufs);
 
     vkDestroyRenderPass(*_device, _render_pass, nullptr);
-    
+
     vkDestroySemaphore(*_device, _presentSemaphore, nullptr);
     vkDestroySemaphore(*_device, _renderSemaphore, nullptr);
 
     auto surface = _swapchain->surface();
     _swapchain.reset();
 
-    if(surface) {
+    if (surface) {
       vkDestroySurfaceKHR(inst, surface, nullptr);
     }
 
@@ -73,48 +88,38 @@ public:
       _vert_buf = VK_NULL_HANDLE;
     }
 
-    if(_norm_buf) {
-      vkDestroyBuffer(*_device, _norm_buf, nullptr);
-      _norm_buf = VK_NULL_HANDLE;
-    }
-
-    if(_vert_mem) {
+    if (_vert_mem) {
       vkFreeMemory(*_device, _vert_mem, nullptr);
       _vert_mem = VK_NULL_HANDLE;
     }
 
-    if(_index_buf) {
+    if (_index_buf) {
       vkDestroyBuffer(*_device, _index_buf, nullptr);
       _index_buf = VK_NULL_HANDLE;
     }
 
-    if(_index_mem) {
+    if (_index_mem) {
       vkFreeMemory(*_device, _index_mem, nullptr);
       _index_mem = VK_NULL_HANDLE;
     }
 
-    if(_descript_pool) {
+    if (_descript_pool) {
       vkDestroyDescriptorPool(*_device, _descript_pool, nullptr);
       _descript_pool = VK_NULL_HANDLE;
     }
 
-    if(_descript_layout) {
-      vkDestroyDescriptorSetLayout(*_device, _descript_layout, nullptr);
-      _descript_layout = VK_NULL_HANDLE;
-    }
-
-    if(_pipe_layout) {
+    if (_pipe_layout) {
       vkDestroyPipelineLayout(*_device, _pipe_layout, nullptr);
       _pipe_layout = VK_NULL_HANDLE;
     }
 
-    if(_pipeline) {
+    if (_pipeline) {
       vkDestroyPipeline(*_device, _pipeline, nullptr);
       _pipeline = VK_NULL_HANDLE;
     }
   }
 
-  void set_window(SDL_Window *win) 
+  void set_window(SDL_Window *win)
   {
     SDL_GetWindowSize(win, &_w, &_h);
 
@@ -130,7 +135,7 @@ public:
     int count = _swapchain->image_count();
 
     _render_pass = _swapchain->create_render_pass();
-    
+
     _cmd_bufs = _device->createCommandBuffers(count);
 
     create_pipeline();
@@ -140,7 +145,7 @@ public:
     update_ubo();
   }
 
-  void apply_resource() 
+  void apply_resource()
   {
     int count = _swapchain->image_count();
     _depth = _swapchain->create_depth(_w, _h);
@@ -148,10 +153,10 @@ public:
 
     build_command_buffers(_frame_bufs, _render_pass);
 
-    if(_fences.size() != _cmd_bufs.size()) {
+    if (_fences.size() != _cmd_bufs.size()) {
       for (auto fence : _fences)
         vkDestroyFence(*_device, fence, nullptr);
-      _fences = _device->createFences(_cmd_bufs.size()); 
+      _fences = _device->createFences(_cmd_bufs.size());
     }
   }
 
@@ -167,7 +172,7 @@ public:
     _depth = {VK_NULL_HANDLE};
   }
 
-  void create_sync_object() 
+  void create_sync_object()
   {
     VkSemaphoreCreateInfo semaphoreCreateInfo = {};
     semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -180,7 +185,7 @@ public:
     VK_CHECK_RESULT(vkCreateSemaphore(*_device, &semaphoreCreateInfo, nullptr, &_renderSemaphore));
   }
 
-  void update() 
+  void update()
   {
     SDL_Event ev;
     ev.type = SDL_USEREVENT;
@@ -188,28 +193,28 @@ public:
     SDL_PushEvent(&ev);
   }
 
-  void draw() 
-  { 
-    //vkWaitForFences(*_device, 1, _fences[]);
-    auto [result, index] = _swapchain->acquire_image(_presentSemaphore); 
+  void draw()
+  {
+    // vkWaitForFences(*_device, 1, _fences[]);
+    auto [result, index] = _swapchain->acquire_image(_presentSemaphore);
     if (!((result == VK_SUCCESS) || (result == VK_SUBOPTIMAL_KHR))) {
       VK_CHECK_RESULT(result);
     }
-  
+
     VK_CHECK_RESULT(vkWaitForFences(*_device, 1, &_fences[index], VK_TRUE, UINT64_MAX));
     VK_CHECK_RESULT(vkResetFences(*_device, 1, &_fences[index]));
 
     VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.pWaitDstStageMask = &waitStageMask;                // Pointer to the list of pipeline stages that the semaphore waits will occur at
-    submitInfo.waitSemaphoreCount = 1;                            // One wait semaphore
-    submitInfo.signalSemaphoreCount = 1;                          // One signal semaphore
-    submitInfo.pCommandBuffers = &_cmd_bufs[index];               // Command buffers(s) to execute in this batch (submission)
-    submitInfo.commandBufferCount = 1;                            // One command buffer
+    submitInfo.pWaitDstStageMask = &waitStageMask;   // Pointer to the list of pipeline stages that the semaphore waits will occur at
+    submitInfo.waitSemaphoreCount = 1;               // One wait semaphore
+    submitInfo.signalSemaphoreCount = 1;             // One signal semaphore
+    submitInfo.pCommandBuffers = &_cmd_bufs[index];  // Command buffers(s) to execute in this batch (submission)
+    submitInfo.commandBufferCount = 1;               // One command buffer
 
-		submitInfo.pWaitSemaphores = &_presentSemaphore;      // Semaphore(s) to wait upon before the submitted command buffer starts executing
-		submitInfo.pSignalSemaphores = &_renderSemaphore;     // Semaphore(s) to be signaled when command buffers have completed
+    submitInfo.pWaitSemaphores = &_presentSemaphore;   // Semaphore(s) to wait upon before the submitted command buffer starts executing
+    submitInfo.pSignalSemaphores = &_renderSemaphore;  // Semaphore(s) to be signaled when command buffers have completed
 
     // Submit to the graphics queue passing a wait fence
     VK_CHECK_RESULT(vkQueueSubmit(_queue, 1, &submitInfo, _fences[index]));
@@ -267,7 +272,7 @@ public:
             break;
           }
           case SDL_KEYUP: {
-          if (event.key.keysym.scancode == SDL_SCANCODE_SPACE)
+            if (event.key.keysym.scancode == SDL_SCANCODE_SPACE)
               _manip.home();
             update_ubo();
             update();
@@ -291,8 +296,7 @@ public:
     clearValues[0].color = {{0.0, 0.0, 0.2, 1.0}};
     clearValues[1].depthStencil = {1, 0};
 
-    
-		VkRenderPassBeginInfo renderPassBeginInfo = {};
+    VkRenderPassBeginInfo renderPassBeginInfo = {};
     renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     renderPassBeginInfo.pNext = nullptr;
     renderPassBeginInfo.renderPass = renderPass;
@@ -303,7 +307,7 @@ public:
     renderPassBeginInfo.clearValueCount = 2;
     renderPassBeginInfo.pClearValues = clearValues;
 
-    for(int i = 0; i < _cmd_bufs.size(); i++) {
+    for (int i = 0; i < _cmd_bufs.size(); i++) {
       renderPassBeginInfo.framebuffer = framebuffers[i];
       auto &cmd_buf = _cmd_bufs[i];
       VK_CHECK_RESULT(vkBeginCommandBuffer(cmd_buf, &buf_info));
@@ -330,7 +334,8 @@ public:
       }
 
       {
-        vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipe_layout, 0, 1, &_descript_set, 0, nullptr);
+        VkDescriptorSet sets[2] = {_matrix_set, _material_set};
+        vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipe_layout, 0, 2, sets, 0, nullptr);
       }
 
       {
@@ -339,10 +344,12 @@ public:
 
       {
         VkDeviceSize offset[2] = {0, _vert_count * sizeof(vec3)};
-        VkBuffer bufs[2] = {}; bufs[0] = _vert_buf; bufs[1] = _vert_buf;
+        VkBuffer bufs[2] = {};
+        bufs[0] = _vert_buf;
+        bufs[1] = _vert_buf;
         vkCmdBindVertexBuffers(cmd_buf, 0, 2, bufs, offset);
         vkCmdBindIndexBuffer(cmd_buf, _index_buf, 0, VK_INDEX_TYPE_UINT16);
-        vkCmdDrawIndexed(cmd_buf, _index_count, 1, 0, 0, 1);
+        vkCmdDrawIndexed(cmd_buf, _index_count, 49, 0, 0, 0);
       }
 
       vkCmdEndRenderPass(cmd_buf);
@@ -351,83 +358,165 @@ public:
     }
   }
 
-  void create_pipe_layout() 
+  void create_pipe_layout()
   {
-    VkDescriptorSetLayoutBinding layoutBinding = {};
-    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutBinding.descriptorCount = 1;
-    layoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    layoutBinding.pImmutableSamplers = nullptr;
+    VkDescriptorSetLayoutBinding layoutBinding[2] = {};
+    layoutBinding[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    layoutBinding[0].descriptorCount = 1;
+    layoutBinding[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutBinding[0].pImmutableSamplers = nullptr;
+
+    layoutBinding[1].binding = 1;
+    layoutBinding[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    layoutBinding[1].descriptorCount = 1;
+    layoutBinding[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutBinding[1].pImmutableSamplers = nullptr;
 
     VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
     descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     descriptorLayout.pNext = nullptr;
-    descriptorLayout.bindingCount = 1;
-    descriptorLayout.pBindings = &layoutBinding;
+    descriptorLayout.bindingCount = 2;
+    descriptorLayout.pBindings = layoutBinding;
 
-    VkDescriptorSetLayout desLayout;
-    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*_device, &descriptorLayout, nullptr, &desLayout));
-    _descript_layout = desLayout;
+    VkDescriptorSetLayout matrix_lay, material_lay;
+    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*_device, &descriptorLayout, nullptr, &matrix_lay));
+  
+    {
+      VkDescriptorSetLayoutBinding material_binding = {};
+      material_binding.binding = 2;
+      material_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+      material_binding.descriptorCount = 49;
+      material_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+      descriptorLayout.bindingCount = 1;
+      descriptorLayout.pBindings = &material_binding; 
+
+      VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*_device, &descriptorLayout, nullptr, &material_lay));
+    }
+
+
+    VkDescriptorSetLayout layouts[2] = {matrix_lay, material_lay};
 
     VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = {};
     pPipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pPipelineLayoutCreateInfo.pNext = nullptr;
-    pPipelineLayoutCreateInfo.setLayoutCount = 1;
-    pPipelineLayoutCreateInfo.pSetLayouts = &desLayout;
+    pPipelineLayoutCreateInfo.setLayoutCount = 2;
+    pPipelineLayoutCreateInfo.pSetLayouts = layouts;
 
     VkPipelineLayout pipe_layout;
     VK_CHECK_RESULT(vkCreatePipelineLayout(*_device, &pPipelineLayoutCreateInfo, nullptr, &pipe_layout));
     _pipe_layout = pipe_layout;
-  }
 
-  void create_descriptor_set() 
-  {
+    //----------------------------------------------------------------------------------------------------
+
     VkDescriptorPoolSize typeCounts[1];
     typeCounts[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    typeCounts[0].descriptorCount = 1;
+    typeCounts[0].descriptorCount = 100;
 
     VkDescriptorPoolCreateInfo descriptorPoolInfo = {};
     descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     descriptorPoolInfo.pNext = nullptr;
     descriptorPoolInfo.poolSizeCount = 1;
     descriptorPoolInfo.pPoolSizes = typeCounts;
-    descriptorPoolInfo.maxSets = 1;
-
+    descriptorPoolInfo.maxSets = 50;
+    
     VkDescriptorPool desPool;
     VK_CHECK_RESULT(vkCreateDescriptorPool(*_device, &descriptorPoolInfo, nullptr, &desPool));
     _descript_pool = desPool;
+
+    //----------------------------------------------------------------------------------------------------
 
     VkDescriptorSetAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = desPool;
     allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &_descript_layout;
+    allocInfo.pSetLayouts = &matrix_lay;
 
-    VkDescriptorSet des_set;
-    VK_CHECK_RESULT(vkAllocateDescriptorSets(*_device, &allocInfo, &des_set));
-    _descript_set = des_set;
-
+    VK_CHECK_RESULT(vkAllocateDescriptorSets(*_device, &allocInfo, &_matrix_set));
+    
+    int sz = ((sizeof(matirx_ubo) + 63) >> 8) << 8;
+    int light_sz = sizeof(lights_ubo);
     VkDescriptorBufferInfo descriptor = {};
     _ubo_buf = _device->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sizeof(ubo));
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sz + light_sz);
     descriptor.buffer = *_ubo_buf;
     descriptor.offset = 0;
-    descriptor.range = sizeof(ubo);
+    descriptor.range = sizeof(matirx_ubo);
 
     VkWriteDescriptorSet writeDescriptorSet = {};
-
-    // Binding 0 : Uniform buffer
     writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writeDescriptorSet.dstSet = _descript_set;
+    writeDescriptorSet.dstSet = _matrix_set;
     writeDescriptorSet.descriptorCount = 1;
     writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     writeDescriptorSet.pBufferInfo = &descriptor;
     writeDescriptorSet.dstBinding = 0;
 
     vkUpdateDescriptorSets(*_device, 1, &writeDescriptorSet, 0, nullptr);
+
+    {
+      descriptor.offset = sz;
+      descriptor.range = sizeof(lights_ubo);
+      writeDescriptorSet.dstSet = _matrix_set;
+      writeDescriptorSet.dstBinding = 1;
+      vkUpdateDescriptorSets(*_device, 1, &writeDescriptorSet, 0, nullptr);
+    }
+
+    {
+      VkDescriptorSetAllocateInfo allocInfo = {};
+      allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+      allocInfo.descriptorPool = desPool;
+      allocInfo.descriptorSetCount = 1;
+      allocInfo.pSetLayouts = &material_lay;
+
+      VK_CHECK_RESULT(vkAllocateDescriptorSets(*_device, &allocInfo, &_material_set));
+
+      int sz = sizeof(material_ubo) * 49;
+      _material_buf = _device->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sz);
+      VkDescriptorBufferInfo descriptor[49] = {};
+      for (int i = 0; i < 49; i++) {
+        descriptor[i].buffer = *_material_buf;
+        descriptor[i].offset = 0;
+        descriptor[i].range = VK_WHOLE_SIZE;
+      }
+
+      VkWriteDescriptorSet writeDescriptorSet = {};
+      writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+      writeDescriptorSet.dstSet = _material_set;
+      writeDescriptorSet.descriptorCount = 49;
+      writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+      writeDescriptorSet.pBufferInfo = descriptor;
+      writeDescriptorSet.dstBinding = 2;
+
+      vkUpdateDescriptorSets(*_device, 1, &writeDescriptorSet, 0, nullptr);
+    }
+
+    vkDestroyDescriptorSetLayout(*_device, matrix_lay, nullptr);
+    vkDestroyDescriptorSetLayout(*_device, material_lay, nullptr);
+
+
+    uint8_t *data = 0;
+    VK_CHECK_RESULT(vkMapMemory(*_device, _ubo_buf->memory(), sz, sizeof(lights_ubo), 0, (void **)&data));
+    memcpy(data, &lights_ubo, sizeof(lights_ubo));
+    vkUnmapMemory(*_device, _ubo_buf->memory());
+
+    {
+      decltype(material_ubo) mate_bufs[49];
+      for (int i = 0; i < 49; i++) {
+        mate_bufs[i].metallic = (i / 7) / 7.f;
+        mate_bufs[i].roughness = std::max((i % 7) / 7.f, 0.05f);
+        mate_bufs[i].ao = 1;
+        mate_bufs[i].albedo.set(0.5, 0, 0);
+      }
+
+      uint8_t *data = 0;
+      VK_CHECK_RESULT(vkMapMemory(*_device, _material_buf->memory(), 0, _material_buf->size(), 0, (void **)&data));
+      memcpy(data, &mate_bufs, _material_buf->size());
+      vkUnmapMemory(*_device, _material_buf->memory());
+    }
   }
 
-  void create_pipeline() 
+  void create_pipeline()
   {
     VkGraphicsPipelineCreateInfo pipelineCreateInfo = {};
     pipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -514,13 +603,13 @@ public:
     VkPipelineShaderStageCreateInfo shaderStages[2] = {};
     shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-    shaderStages[0].module = _device->create_shader("test.vert.spv");
+    shaderStages[0].module = _device->create_shader("pbr.vert.spv");
     shaderStages[0].pName = "main";
     assert(shaderStages[0].module != VK_NULL_HANDLE);
 
     shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    shaderStages[1].module = _device->create_shader("test.frag.spv");
+    shaderStages[1].module = _device->create_shader("pbr.frag.spv");
     shaderStages[1].pName = "main";
     assert(shaderStages[1].module != VK_NULL_HANDLE);
 
@@ -542,16 +631,16 @@ public:
     vkDestroyShaderModule(*_device, shaderStages[1].module, nullptr);
   }
 
-  void update_ubo() 
+  void update_ubo()
   {
-    ubo.cam = _manip.eye();
-    ubo.view = _manip.view_matrix();
-    ubo.model = tg::mat4::identity();
-    ubo.prj = tg::perspective<float>(fov, float(_w) / _h, 0.1, 1000); 
-    //tg::near_clip(ubo.prj, tg::vec4(0, 0, -1, 0.5));
+    matirx_ubo.cam = _manip.eye();
+    matirx_ubo.view = _manip.view_matrix();
+    matirx_ubo.model = tg::mat4::identity();
+    matirx_ubo.prj = tg::perspective<float>(fov, float(_w) / _h, 0.1, 1000);
+    // tg::near_clip(matirx_ubo.prj, tg::vec4(0, 0, -1, 0.5));
     uint8_t *data = 0;
-    VK_CHECK_RESULT(vkMapMemory(*_device, _ubo_buf->memory(), 0, sizeof(ubo), 0, (void **)&data));
-    memcpy(data, &ubo, sizeof(ubo));
+    VK_CHECK_RESULT(vkMapMemory(*_device, _ubo_buf->memory(), 0, sizeof(matirx_ubo), 0, (void **)&data));
+    memcpy(data, &matirx_ubo, sizeof(matirx_ubo));
     vkUnmapMemory(*_device, _ubo_buf->memory());
   }
 
@@ -675,20 +764,9 @@ public:
     vkDestroyBuffer(*_device, indices.buffer, nullptr);
     vkFreeMemory(*_device, vertices.mem, nullptr);
     vkFreeMemory(*_device, indices.mem, nullptr);
-
-    {
-      uint64_t norm_size = norms.size() * sizeof(vec3);
-      VkBufferCreateInfo vertexBufferInfo = {};
-      vertexBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-      vertexBufferInfo.size = norm_size;
-      vertexBufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-      VK_CHECK_RESULT(vkCreateBuffer(*_device, &vertexBufferInfo, nullptr, &_norm_buf));
-      VK_CHECK_RESULT(vkBindBufferMemory(*_device, _norm_buf, _vert_mem, norm_size));
-    }
   }
 
 private:
-
   std::shared_ptr<VulkanDevice> _device;
   std::shared_ptr<VulkanSwapChain> _swapchain;
 
@@ -707,19 +785,23 @@ private:
   std::vector<VkFramebuffer> _frame_bufs;
   std::vector<VkFence> _fences;
 
-  VkBuffer _vert_buf, _norm_buf;
+  VkBuffer _vert_buf;
   VkDeviceMemory _vert_mem;
   VkBuffer _index_buf;
   VkDeviceMemory _index_mem;
 
   VkDescriptorPool _descript_pool = VK_NULL_HANDLE;
-  VkDescriptorSet _descript_set = VK_NULL_HANDLE;
-  VkDescriptorSetLayout _descript_layout = VK_NULL_HANDLE;
+
+  VkDescriptorSet _matrix_set = VK_NULL_HANDLE;
+  VkDescriptorSet _light_set = VK_NULL_HANDLE;
+  VkDescriptorSet _material_set = VK_NULL_HANDLE;
 
   VkPipelineLayout _pipe_layout = VK_NULL_HANDLE;
   VkPipeline _pipeline = VK_NULL_HANDLE;
 
   std::shared_ptr<VulkanBuffer> _ubo_buf;
+
+  std::shared_ptr<VulkanBuffer> _material_buf;
 
   uint32_t _vert_count = 0;
   uint32_t _index_count = 0;
