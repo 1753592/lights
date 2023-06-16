@@ -33,7 +33,7 @@ Manipulator::~Manipulator()
 {
 }
 
-void Manipulator::set_home(const tg::vec3& eye, const tg::vec3 pos, const tg::vec3 up)
+void Manipulator::set_home(const tg::vec3& eye, const tg::vec3 &pos, const tg::vec3 &up)
 {
   _eye = eye;
   _pos = pos;
@@ -54,26 +54,32 @@ void Manipulator::home()
 
 void Manipulator::rotate(int x, int y)
 {
-  vec3 tmp = _eye - _pos;
-  vec3 rt = tg::cross(_up, tmp);
+  vec3d tmp = _eye - _pos;
+  vec3d rt = tg::cross(_up, tmp);
   if (x) {
     float xrad = x / 100.f;
-    auto q = tg::quat::rotate(-xrad, _up);
-    auto xtmp = q * tg::quat(tmp) * q.conjugate();
+    auto q = tg::quatd::rotate(-xrad, _up);
+    auto xtmp = q * tg::quatd(tmp) * q.conjugate();
     tmp = xtmp;
-    rt = q * rt * q.conjugate();
+    rt = tg::normalize(tg::cross(_up, tmp));
   }
 
   if (y) {
     float yrad = y / 100.f;
-    auto q = tg::quat::rotate(-yrad, rt);
-    auto ytmp = q * tg::quat(tmp) * q.conjugate(); 
+    auto q = tg::quatd::rotate(-yrad, rt);
+    auto ytmp = q * tg::quatd(tmp) * q.conjugate();
     //_up = q * tg::quat(_up) * q.conjugate();
     tmp = ytmp;
   }
 
   _eye = _pos + tmp;
   _up = tg::normalize(tg::cross(tmp, rt));
+
+  if (tg::length(tg::cross(tmp, vec3d(0, 0, 1))) > 1e-4) {
+    rt = tg::cross(vec3d(0, 0, 1), tmp);
+    _up = tg::normalize(tg::cross(tmp, rt));
+  } else
+    _up = tg::normalize(tg::cross(tmp, rt));
 }
 
 void Manipulator::translate(int x, int y)

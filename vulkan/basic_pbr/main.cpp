@@ -35,7 +35,7 @@ struct {
 
 struct{
   struct alignas(16) aligned_vec3 : vec3 {};
-  aligned_vec3 light_pos[4] = {vec3(10, 10, 10), vec3(-10, 10, 10), vec3(-10, 10, -10), vec3(10, 10, -10)};
+  aligned_vec3 light_pos[4] = {vec3(10, -10, 10), vec3(-10, -10, 10), vec3(-10, -10, -10), vec3(10, -10, -10)};
   aligned_vec3 light_color[4] = {vec3(300), vec3(300), vec3(300), vec3(300)};
 } lights_ubo;
 
@@ -334,13 +334,11 @@ public:
       }
 
       {
-        VkDescriptorSet sets[2] = {_matrix_set, _material_set};
-        vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipe_layout, 0, 2, sets, 0, nullptr);
-      }
-
-      {
         vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);
       }
+
+      VkDescriptorSet dessets[2] = {_matrix_set, _material_set};
+      vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipe_layout, 0, 2, dessets, 0, nullptr);
 
       {
         VkDeviceSize offset[2] = {0, _vert_count * sizeof(vec3)};
@@ -385,7 +383,7 @@ public:
       VkDescriptorSetLayoutBinding material_binding = {};
       material_binding.binding = 2;
       material_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-      material_binding.descriptorCount = 49;
+      material_binding.descriptorCount = 1;
       material_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
       descriptorLayout.bindingCount = 1;
@@ -411,14 +409,14 @@ public:
 
     VkDescriptorPoolSize typeCounts[1];
     typeCounts[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    typeCounts[0].descriptorCount = 100;
+    typeCounts[0].descriptorCount = 10;
 
     VkDescriptorPoolCreateInfo descriptorPoolInfo = {};
     descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     descriptorPoolInfo.pNext = nullptr;
     descriptorPoolInfo.poolSizeCount = 1;
     descriptorPoolInfo.pPoolSizes = typeCounts;
-    descriptorPoolInfo.maxSets = 50;
+    descriptorPoolInfo.maxSets = 10;
     
     VkDescriptorPool desPool;
     VK_CHECK_RESULT(vkCreateDescriptorPool(*_device, &descriptorPoolInfo, nullptr, &desPool));
@@ -473,19 +471,17 @@ public:
       int sz = sizeof(material_ubo) * 49;
       _material_buf = _device->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sz);
-      VkDescriptorBufferInfo descriptor[49] = {};
-      for (int i = 0; i < 49; i++) {
-        descriptor[i].buffer = *_material_buf;
-        descriptor[i].offset = 0;
-        descriptor[i].range = VK_WHOLE_SIZE;
-      }
+      VkDescriptorBufferInfo descriptor = {};
+      descriptor.buffer = *_material_buf;
+      descriptor.offset = 0;
+      descriptor.range = sz;
 
       VkWriteDescriptorSet writeDescriptorSet = {};
       writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
       writeDescriptorSet.dstSet = _material_set;
-      writeDescriptorSet.descriptorCount = 49;
+      writeDescriptorSet.descriptorCount = 1;
       writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-      writeDescriptorSet.pBufferInfo = descriptor;
+      writeDescriptorSet.pBufferInfo = &descriptor;
       writeDescriptorSet.dstBinding = 2;
 
       vkUpdateDescriptorSets(*_device, 1, &writeDescriptorSet, 0, nullptr);
@@ -506,7 +502,7 @@ public:
         mate_bufs[i].metallic = (i / 7) / 7.f;
         mate_bufs[i].roughness = std::max((i % 7) / 7.f, 0.05f);
         mate_bufs[i].ao = 1;
-        mate_bufs[i].albedo.set(0.5, 0, 0);
+        mate_bufs[i].albedo.set(1, 0, 0);
       }
 
       uint8_t *data = 0;
@@ -793,7 +789,6 @@ private:
   VkDescriptorPool _descript_pool = VK_NULL_HANDLE;
 
   VkDescriptorSet _matrix_set = VK_NULL_HANDLE;
-  VkDescriptorSet _light_set = VK_NULL_HANDLE;
   VkDescriptorSet _material_set = VK_NULL_HANDLE;
 
   VkPipelineLayout _pipe_layout = VK_NULL_HANDLE;

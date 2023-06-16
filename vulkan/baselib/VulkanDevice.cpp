@@ -372,6 +372,7 @@ std::shared_ptr<VulkanBuffer> VulkanDevice::create_buffer(VkBufferUsageFlags usa
   }
 
   VK_CHECK_RESULT(vkBindBufferMemory(_logical_device, buffer->_buffer, memory, 0));
+  buffer->_size = size;
 
   return buffer;
 }

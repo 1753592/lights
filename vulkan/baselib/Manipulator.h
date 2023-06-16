@@ -7,7 +7,7 @@ public:
   Manipulator();
   ~Manipulator();
 
-  void set_home(const tg::vec3 &eye, const tg::vec3 pos, const tg::vec3 up);
+  void set_home(const tg::vec3 &eye, const tg::vec3 &pos, const tg::vec3 &up);
 
   void home();
 
@@ -17,15 +17,15 @@ public:
 
   void zoom(float in);
 
-  const tg::vec3 & eye() const { return _eye; }
+  const tg::vec3d & eye() const { return _eye; }
 
   tg::mat4 view_matrix();
 
 private:
 
-  tg::vec3 _eye;
-  tg::vec3 _pos;
-  tg::vec3 _up;
+  tg::vec3d _eye;
+  tg::vec3d _pos;
+  tg::vec3d _up;
 
-  tg::vec3 _home[3];
+  tg::vec3d _home[3];
 };

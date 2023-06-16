@@ -10,21 +10,27 @@ find_package(SDL2)
 find_program(glslc_executable NAMES glslc HINTS Vulkan::glslc)
 function(compile_shader target)
     cmake_parse_arguments(PARSE_ARGV 1 arg "" "ENV;FORMAT" "SOURCES")
+    #set(spvs)
     foreach(source ${arg_SOURCES})
+        set(out_file ${CMAKE_CURRENT_SOURCE_DIR}/${source}.spv)
+        set(src_file ${CMAKE_CURRENT_SOURCE_DIR}/${source})
         add_custom_command(
-            OUTPUT ${source}.spv
-            DEPENDS ${source}
+            OUTPUT ${out_file}
+            DEPENDS ${src_file}
             #DEPFILE ${source}.d
             COMMAND
                 ${glslc_executable}
                 #$<$<BOOL:${arg_ENV}>:--target-env=${arg_ENV}>
                 $<$<BOOL:${arg_FORMAT}>:-mfmt=${arg_FORMAT}>
                 #-MD -MF ${source}.d
-                -o ${CMAKE_CURRENT_SOURCE_DIR}/${source}.spv
-                ${CMAKE_CURRENT_SOURCE_DIR}/${source}
+                -o ${out_file} 
+                ${src_file} 
         )
         target_sources(${target} PRIVATE ${source}.spv)
+        list(APPEND spvs ${CMAKE_CURRENT_SOURCE_DIR}/${source}.spv)
     endforeach()
+    #add_custom_target(shader_spv DEPENDS ${spvs})
+    #add_dependencies(${target} shader_spv)
 endfunction()
 
 add_subdirectory(baselib)

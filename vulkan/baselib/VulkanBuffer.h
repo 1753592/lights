@@ -10,8 +10,8 @@ public:
   ~VulkanBuffer();
 
   operator VkBuffer() const { return _buffer; }
-
   VkDeviceMemory memory() { return _memory; }
+  VkDeviceSize size() { return _size; }
 
   VkResult flush(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);
   VkResult invalidate(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);

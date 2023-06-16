@@ -43,169 +43,161 @@ inline T radians(T angleInDegrees)
 }
 
 template <typename T, int len>
-class vecN{
+class vecN {
 public:
-	using ele_type = T;
-	using self_type = vecN<T, len>;
+  using ele_type = T;
+  using self_type = vecN<T, len>;
 
-	// Default constructor does nothing, just like built-in types
-	inline vecN()
-	{
-		// Uninitialized variable
-		assign(0);
-	}
+  // Default constructor does nothing, just like built-in types
+  inline vecN()
+  {
+    // Uninitialized variable
+    assign(0);
+  }
 
-	// Copy constructor
-	inline vecN(const vecN& that)
-	{
-		assign(that);
-	}
+  // Copy constructor
+  inline vecN(const vecN& that) { assign(that); }
 
-	// Construction from scalar
-	inline vecN(T s)
-	{
-		for(int n = 0; n < len; n++){
-			data_[n] = s;
-		}
-	}
+  // Construction from scalar
+  inline vecN(T s)
+  {
+    for (int n = 0; n < len; n++) {
+      data_[n] = s;
+    }
+  }
 
-	template<typename U>
-	vecN(const vecN<U, len> &that)
-	{
-		for (int n = 0; n < len; n++) {
-			data_[n] = that[n];
-		}
-	}
+  template <typename U>
+  vecN(const vecN<U, len>& that)
+  {
+    for (int n = 0; n < len; n++) {
+      data_[n] = that[n];
+    }
+  }
 
-	// Assignment operator
-	inline vecN<T, len>& operator=(const vecN& that)
-	{
-		assign(that);
-		return *this;
-	}
+  // Assignment operator
+  inline vecN<T, len>& operator=(const vecN& that)
+  {
+    assign(that);
+    return *this;
+  }
 
-	inline vecN<T, len>& operator=(const T& that)
-	{
-		for(int n = 0; n < len; n++)
-			data_[n] = that;
+  inline vecN<T, len>& operator=(const T& that)
+  {
+    for (int n = 0; n < len; n++)
+      data_[n] = that;
 
-		return *this;
-	}
+    return *this;
+  }
 
-	inline vecN operator+(const vecN& that) const
-	{
-		self_type result;
-		int n;
-		for(n = 0; n < len; n++)
-			result.data_[n] = data_[n] + that.data_[n];
-		return result;
-	}
+  template<typename U, const int m>
+  inline vecN<T, len>& operator=(const vecN<U, m> &that)
+  {
+    constexpr int sz = len < m ? len : m;
+    for (int i = 0; i < sz; i++)
+      data_[i] = that[i];
+    return *this;
+  }
 
-	inline vecN& operator+=(const vecN& that)
-	{
-		return (*this = *this + that);
-	}
+  inline vecN operator+(const vecN& that) const
+  {
+    self_type result;
+    int n;
+    for (n = 0; n < len; n++)
+      result.data_[n] = data_[n] + that.data_[n];
+    return result;
+  }
 
-	inline vecN operator-() const
-	{
-		self_type result;
-		int n;
-		for(n = 0; n < len; n++)
-			result.data_[n] = -data_[n];
-		return result;
-	}
+  inline vecN& operator+=(const vecN& that) { return (*this = *this + that); }
 
-	inline vecN operator-(const vecN& that) const
-	{
-		self_type result;
-		int n;
-		for(n = 0; n < len; n++)
-			result.data_[n] = data_[n] - that.data_[n];
-		return result;
-	}
+  inline vecN operator-() const
+  {
+    self_type result;
+    int n;
+    for (n = 0; n < len; n++)
+      result.data_[n] = -data_[n];
+    return result;
+  }
 
-	inline vecN& operator-=(const vecN& that)
-	{
-		return (*this = *this - that);
-	}
+  inline vecN operator-(const vecN& that) const
+  {
+    self_type result;
+    int n;
+    for (n = 0; n < len; n++)
+      result.data_[n] = data_[n] - that.data_[n];
+    return result;
+  }
 
-	inline vecN operator*(const vecN& that) const
-	{
-		self_type result;
-		int n;
-		for(n = 0; n < len; n++)
-			result.data_[n] = data_[n] * that.data_[n];
-		return result;
-	}
+  inline vecN& operator-=(const vecN& that) { return (*this = *this - that); }
 
-	inline vecN& operator*=(const vecN& that)
-	{
-		return (*this = *this * that);
-	}
+  inline vecN operator*(const vecN& that) const
+  {
+    self_type result;
+    int n;
+    for (n = 0; n < len; n++)
+      result.data_[n] = data_[n] * that.data_[n];
+    return result;
+  }
 
-	inline vecN operator*(const T& that) const
-	{
-		self_type result;
-		int n;
-		for(n = 0; n < len; n++)
-			result.data_[n] = data_[n] * that;
-		return result;
-	}
+  inline vecN& operator*=(const vecN& that) { return (*this = *this * that); }
 
-	inline vecN& operator*=(const T& that)
-	{
-		assign(*this * that);
+  inline vecN operator*(const T& that) const
+  {
+    self_type result;
+    int n;
+    for (n = 0; n < len; n++)
+      result.data_[n] = data_[n] * that;
+    return result;
+  }
 
-		return *this;
-	}
+  inline vecN& operator*=(const T& that)
+  {
+    assign(*this * that);
 
-	inline vecN operator/(const vecN& that) const
-	{
-		self_type result;
-		int n;
-		for(n = 0; n < len; n++)
-			result.data_[n] = data_[n] / that.data_[n];
-		return result;
-	}
+    return *this;
+  }
 
-	inline vecN& operator/=(const vecN& that)
-	{
-		assign(*this / that);
+  inline vecN operator/(const vecN& that) const
+  {
+    self_type result;
+    int n;
+    for (n = 0; n < len; n++)
+      result.data_[n] = data_[n] / that.data_[n];
+    return result;
+  }
 
-		return *this;
-	}
+  inline vecN& operator/=(const vecN& that)
+  {
+    assign(*this / that);
 
-	inline vecN operator/(const T& that) const
-	{
-		self_type result;
-		int n;
-		for(n = 0; n < len; n++)
-			result.data_[n] = data_[n] / that;
-		return result;
-	}
+    return *this;
+  }
 
-	inline vecN& operator/=(const T& that)
-	{
-		assign(*this / that);
-		return *this;
-	}
+  inline vecN operator/(const T& that) const
+  {
+    self_type result;
+    int n;
+    for (n = 0; n < len; n++)
+      result.data_[n] = data_[n] / that;
+    return result;
+  }
 
-	inline T& operator[](int n) { return data_[n]; }
-	inline const T& operator[](int n) const { return data_[n]; }
+  inline vecN& operator/=(const T& that)
+  {
+    assign(*this / that);
+    return *this;
+  }
 
-	inline static int size(void) { return len; }
+  inline T& operator[](int n) { return data_[n]; }
+  inline const T& operator[](int n) const { return data_[n]; }
 
-	inline operator const T* () const { return &data_[0]; }
+  inline static int size(void) { return len; }
+
+  inline operator const T*() const { return &data_[0]; }
 
 protected:
+  T data_[len];
 
-	T data_[len];
-
-	inline void assign(const vecN& that)
-	{
-		for(int n = 0; n < len; n++)
-			data_[n] = that.data_[n];
-	}
+  inline void assign(const vecN& that) { memcpy(data_, that.data_, sizeof(T) * len); }
 };
 
 template<int len>
@@ -274,217 +266,247 @@ public:
 };
 
 template <typename T>
-class Tvec3 : public vecN<T, 3>{
+class Tvec3 : public vecN<T, 3> {
 public:
-	using base = vecN<T, 3>;
-	using self_type = Tvec3<T>;
+  using base = vecN<T, 3>;
+  using self_type = Tvec3<T>;
 
-	// Uninitialized variable
-	inline Tvec3()
-		: base(0)
-	{}
+  // Uninitialized variable
+  inline Tvec3() : base(0) {}
 
-	inline Tvec3( T t )
-		: base( t )
-	{}
+  inline Tvec3(T t) : base(t) {}
 
-	// Copy constructor
-	inline Tvec3(const self_type& v)
-	{
-		base::data_[0] = v[0];
-		base::data_[1] = v[1];
-		base::data_[2] = v[2];
-	}
+  // Copy constructor
+  inline Tvec3(const self_type& v)
+  {
+    base::data_[0] = v[0];
+    base::data_[1] = v[1];
+    base::data_[2] = v[2];
+  }
 
-	inline self_type& operator= (const self_type& v)
-	{
-		base::data_[0] = v[0];
-		base::data_[1] = v[1];
-		base::data_[2] = v[2];
-		return *this;
-	}
+  inline self_type& operator=(const self_type& v)
+  {
+    base::data_[0] = v[0];
+    base::data_[1] = v[1];
+    base::data_[2] = v[2];
+    return *this;
+  }
 
-	inline Tvec3(const base& v)
-		: base(v)
-	{}
+  inline Tvec3(const base& v) : base(v) {}
 
-	// vec3(x, y, z);
-	inline Tvec3(T x, T y, T z)
-	{
-		base::data_[0] = x;
-		base::data_[1] = y;
-		base::data_[2] = z;
-	}
+  // vec3(x, y, z);
+  inline Tvec3(T x, T y, T z)
+  {
+    base::data_[0] = x;
+    base::data_[1] = y;
+    base::data_[2] = z;
+  }
 
-	// vec3(v, z);
-	inline Tvec3(const Tvec2<T>& v, T z)
-	{
-		base::data_[0] = v[0];
-		base::data_[1] = v[1];
-		base::data_[2] = z;
-	}
+  // vec3(v, z);
+  inline Tvec3(const Tvec2<T>& v, T z)
+  {
+    base::data_[0] = v[0];
+    base::data_[1] = v[1];
+    base::data_[2] = z;
+  }
 
-	// vec3(x, v)
-	inline Tvec3(T x, const Tvec2<T>& v)
-	{
-		base::data_[0] = x;
-		base::data_[1] = v[0];
-		base::data_[2] = v[1];
-	}
+  // vec3(x, v)
+  inline Tvec3(T x, const Tvec2<T>& v)
+  {
+    base::data_[0] = x;
+    base::data_[1] = v[0];
+    base::data_[2] = v[1];
+  }
 
-	inline Tvec3(const vecN<T, 4>& v)
-	{
-		base::data_[0] = v[0];
-		base::data_[1] = v[1];
-		base::data_[2] = v[2];
-	}
+  inline Tvec3(const vecN<T, 4>& v)
+  {
+    base::data_[0] = v[0];
+    base::data_[1] = v[1];
+    base::data_[2] = v[2];
+  }
 
-	inline void operator=(const T& t)
-	{
-		base::data_[0] = t;
-		base::data_[1] = t;
-		base::data_[2] = t;
-	}
+  inline self_type operator=(const T& t)
+  {
+    base::data_[0] = t;
+    base::data_[1] = t;
+    base::data_[2] = t;
+    return *this;
+  }
 
-	inline void operator=(vecN<T, 4> vec)
-	{
-		base::data_[0] = vec[0];
-		base::data_[1] = vec[1];
-		base::data_[2] = vec[2];
-	}
+  inline self_type operator=(const vecN<T, 4> &vec)
+  {
+    base::data_[0] = vec[0];
+    base::data_[1] = vec[1];
+    base::data_[2] = vec[2];
+    return *this;
+  }
 
-	inline T& x() { return base::data_[0]; }
-	inline T& y() { return base::data_[1]; }
-	inline T& z() { return base::data_[2]; }
+  template <typename U>
+  inline Tvec3(const Tvec3<U>& that) : base(that)
+  { }
 
-	inline const T& x() const { return base::data_[0]; }
-	inline const T& y() const { return base::data_[1]; }
-	inline const T& z() const { return base::data_[2]; }
+  template<typename U, int n>
+  inline self_type operator=(vecN<U, n> vec)
+  {
+    base::operator=(vec); 
+    return *this;
+  }
+
+  inline T& x() { return base::data_[0]; }
+  inline T& y() { return base::data_[1]; }
+  inline T& z() { return base::data_[2]; }
+
+  inline const T& x() const { return base::data_[0]; }
+  inline const T& y() const { return base::data_[1]; }
+  inline const T& z() const { return base::data_[2]; }
+
+  inline void set(const T& x, const T& y, const T& z)
+  {
+    base::data_[0] = x;
+    base::data_[1] = y;
+    base::data_[2] = z;
+  }
 };
 
 template <typename T>
-class Tvec4 : public vecN<T, 4>{
+class Tvec4 : public vecN<T, 4> {
 public:
-	typedef vecN<T, 4> base;
-	typedef Tvec4<T> self_type;
+  typedef vecN<T, 4> base;
+  typedef Tvec4<T> self_type;
 
-	// Uninitialized variable
-	inline Tvec4()
-	{}
+  // Uninitialized variable
+  inline Tvec4() {}
 
-	// Copy constructor
-	inline Tvec4(const self_type& v)
-	{
-		base::data_[0] = v[0];
-		base::data_[1] = v[1];
-		base::data_[2] = v[2];
-		base::data_[3] = v[3];
-	}
+  // Copy constructor
+  inline Tvec4(const self_type& v)
+  {
+    base::data_[0] = v[0];
+    base::data_[1] = v[1];
+    base::data_[2] = v[2];
+    base::data_[3] = v[3];
+  }
 
-	inline self_type& operator= (const self_type& v)
-	{
-		base::data_[0] = v[0];
-		base::data_[1] = v[1];
-		base::data_[2] = v[2];
-		base::data_[3] = v[3];
-		return *this;
-	}
-	
-	inline Tvec4(const base& v) : base(v) {}
+  template <typename U>
+  inline Tvec4(const Tvec4<U>& that) : base(that)
+  {
+  }
 
-	// vec4(x, y, z, w);
-	inline Tvec4(T x, T y, T z, T w)
-	{
-		base::data_[0] = x;
-		base::data_[1] = y;
-		base::data_[2] = z;
-		base::data_[3] = w;
-	}
+  template <typename U, int n>
+  inline self_type operator=(vecN<U, n> vec)
+  {
+    base::operator=(vec);
+    return *this;
+  }
 
-	// vec4(v, z, w);
-	inline Tvec4(const Tvec2<T>& v, T z, T w)
-	{
-		base::data_[0] = v[0];
-		base::data_[1] = v[1];
-		base::data_[2] = z;
-		base::data_[3] = w;
-	}
+  inline self_type& operator=(const self_type& v)
+  {
+    base::data_[0] = v[0];
+    base::data_[1] = v[1];
+    base::data_[2] = v[2];
+    base::data_[3] = v[3];
+    return *this;
+  }
 
-	// vec4(x, v, w);
-	inline Tvec4(T x, const Tvec2<T>& v, T w)
-	{
-		base::data_[0] = x;
-		base::data_[1] = v[0];
-		base::data_[2] = v[1];
-		base::data_[3] = w;
-	}
+  inline Tvec4(const base& v) : base(v) {}
 
-	// vec4(x, y, v);
-	inline Tvec4(T x, T y, const Tvec2<T>& v)
-	{
-		base::data_[0] = x;
-		base::data_[1] = y;
-		base::data_[2] = v[0];
-		base::data_[3] = v[1];
-	}
+  // vec4(x, y, z, w);
+  inline Tvec4(T x, T y, T z, T w)
+  {
+    base::data_[0] = x;
+    base::data_[1] = y;
+    base::data_[2] = z;
+    base::data_[3] = w;
+  }
 
-	// vec4(v1, v2);
-	inline Tvec4(const Tvec2<T>& u, const Tvec2<T>& v)
-	{
-		base::data_[0] = u[0];
-		base::data_[1] = u[1];
-		base::data_[2] = v[0];
-		base::data_[3] = v[1];
-	}
+  // vec4(v, z, w);
+  inline Tvec4(const Tvec2<T>& v, T z, T w)
+  {
+    base::data_[0] = v[0];
+    base::data_[1] = v[1];
+    base::data_[2] = z;
+    base::data_[3] = w;
+  }
 
-	// vec4(v, w);
-	inline Tvec4(const Tvec3<T>& v, T w)
-	{
-		base::data_[0] = v[0];
-		base::data_[1] = v[1];
-		base::data_[2] = v[2];
-		base::data_[3] = w;
-	}
+  // vec4(x, v, w);
+  inline Tvec4(T x, const Tvec2<T>& v, T w)
+  {
+    base::data_[0] = x;
+    base::data_[1] = v[0];
+    base::data_[2] = v[1];
+    base::data_[3] = w;
+  }
 
-	// vec4(x, v);
-	inline Tvec4(T x, const Tvec3<T>& v)
-	{
-		base::data_[0] = x;
-		base::data_[1] = v[0];
-		base::data_[2] = v[1];
-		base::data_[3] = v[2];
-	}
+  // vec4(x, y, v);
+  inline Tvec4(T x, T y, const Tvec2<T>& v)
+  {
+    base::data_[0] = x;
+    base::data_[1] = y;
+    base::data_[2] = v[0];
+    base::data_[3] = v[1];
+  }
 
-	inline Tvec4(const Tvec3<T> &v) 
-	{
-		base::data_[0] = v[0];
-		base::data_[1] = v[1];
-		base::data_[2] = v[2];
-		base::data_[3] = 0;
-	}
+  // vec4(v1, v2);
+  inline Tvec4(const Tvec2<T>& u, const Tvec2<T>& v)
+  {
+    base::data_[0] = u[0];
+    base::data_[1] = u[1];
+    base::data_[2] = v[0];
+    base::data_[3] = v[1];
+  }
 
-	inline void operator=(const T& t)
-	{
-		base::data_[0] = t;
-		base::data_[1] = t;
-		base::data_[2] = t;
-		base::data_[3] = t;
-	}
+  // vec4(v, w);
+  inline Tvec4(const Tvec3<T>& v, T w)
+  {
+    base::data_[0] = v[0];
+    base::data_[1] = v[1];
+    base::data_[2] = v[2];
+    base::data_[3] = w;
+  }
 
-	inline operator Tvec3<T>()
-	{
-		return Tvec3<T>(base::data_[0], base::data_[1], base::data_[2]);
-	}
+  // vec4(x, v);
+  inline Tvec4(T x, const Tvec3<T>& v)
+  {
+    base::data_[0] = x;
+    base::data_[1] = v[0];
+    base::data_[2] = v[1];
+    base::data_[3] = v[2];
+  }
 
-	inline T& x() { return base::data_[0]; }
-	inline T& y() { return base::data_[1]; }
-	inline T& z() { return base::data_[2]; }
-	inline T& w() { return base::data_[3]; }
+  inline Tvec4(const Tvec3<T>& v)
+  {
+    base::data_[0] = v[0];
+    base::data_[1] = v[1];
+    base::data_[2] = v[2];
+    base::data_[3] = 0;
+  }
 
-	inline const T& x() const { return base::data_[0]; }
-	inline const T& y() const { return base::data_[1]; }
-	inline const T& z() const { return base::data_[2]; }
-	inline const T& w() const { return base::data_[3]; }
+  inline void operator=(const T& t)
+  {
+    base::data_[0] = t;
+    base::data_[1] = t;
+    base::data_[2] = t;
+    base::data_[3] = t;
+  }
+
+  inline operator Tvec3<T>() { return Tvec3<T>(base::data_[0], base::data_[1], base::data_[2]); }
+
+  inline T& x() { return base::data_[0]; }
+  inline T& y() { return base::data_[1]; }
+  inline T& z() { return base::data_[2]; }
+  inline T& w() { return base::data_[3]; }
+
+  inline const T& x() const { return base::data_[0]; }
+  inline const T& y() const { return base::data_[1]; }
+  inline const T& z() const { return base::data_[2]; }
+  inline const T& w() const { return base::data_[3]; }
+
+  inline void set(const T& x, const T& y, const T& z, const T& w)
+  {
+    base::data_[0] = x;
+    base::data_[1] = y;
+    base::data_[2] = z;
+    base::data_[3] = w;
+  }
 };
 
 // These types don't exist in GLSL and don't have full implementations

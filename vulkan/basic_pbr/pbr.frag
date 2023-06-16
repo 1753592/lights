@@ -19,12 +19,16 @@ layout(binding = 1) uniform Lights{
 	vec3 light_color[4];
 } lights;
 
-layout(binding = 2) uniform MaterialObject{
+struct Material{
 	float metallic;
 	float roughness;
 	float ao;
 	vec3	albedo;
-} mbos[49];
+};
+
+layout(set = 1, binding = 2) uniform Materials{
+	Material material[49];
+};
 
 const float pi = 3.14159265359;
 
@@ -69,10 +73,10 @@ float smith_Geometry(vec3 n, vec3 v, vec3 l, float roughness)
 void main(void)
 {
 	int idx = instance_idx;
-	vec3 mate_albedo = mbos[idx].albedo;
-	float mate_roughness = mbos[idx].roughness;
-	float mate_metallic = mbos[idx].metallic ;
-	float mate_ao = mbos[idx].ao;
+	vec3 mate_albedo = material[idx].albedo;
+	float mate_roughness = material[idx].roughness;
+	float mate_metallic = material[idx].metallic;
+	float mate_ao = material[idx].ao; 
 
 	vec3 cam = ubo.cam.xyz;
 	vec3 n = normalize(vp_norm);
