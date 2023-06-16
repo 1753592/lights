@@ -33,5 +33,9 @@ function(compile_shader target)
     #add_dependencies(${target} shader_spv)
 endfunction()
 
+add_definitions(-D USE_ZERO_NEAR)
+
 add_subdirectory(baselib)
 add_subdirectory(basic_pbr)
+add_subdirectory(TBDR)
+add_subdirectory(CBFR)

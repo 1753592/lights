@@ -1,6 +1,20 @@
 cmake_minimum_required(VERSION 3.8.0)
 
-set(app_name baselib)
+set(prj_name baselib)
+
+set(imgui/hdr
+	imgui/imgui_impl_sdl2.h
+	imgui/imgui_impl_vulkan.h
+)
+
+set(imgui_src
+	imgui/imgui.cpp
+	imgui/imgui_draw.cpp
+	imgui/imgui_tables.cpp
+	imgui/imgui_widgets.cpp
+	imgui/imgui_impl_sdl2.cpp
+	imgui/imgui_impl_vulkan.cpp
+)
 
 set(hdr
 	VulkanInstance.h
@@ -12,7 +26,11 @@ set(hdr
 	VulkanTools.h
 	VulkanInitializers.hpp
 
+	VulkanImGUI.h
+
 	Manipulator.h
+
+	${imgui_hdr}
 )
 
 set(src
@@ -24,17 +42,23 @@ set(src
 	VulkanDebug.cpp
 	VulkanTools.cpp
 
+	VulkanImGUI.cpp
+
 	Manipulator.cpp
+
+	${imgui_src}
 )
+
+source_group("imgui" FILES ${imgui_src} ${imgui_hdr})
 
 find_package(Vulkan)
 
-add_library(${app_name} ${src} ${hdr})
+add_library(${prj_name} ${src} ${hdr})
 
-target_include_directories(${app_name} PUBLIC ${Vulkan_INCLUDE_DIR})
+target_include_directories(${prj_name} PUBLIC ${Vulkan_INCLUDE_DIR})
 
-target_link_libraries(${app_name} PUBLIC ${Vulkan_LIBRARY})
-target_link_libraries(${app_name} PUBLIC SDL2::SDL2 SDL2::SDL2main)
+target_link_libraries(${prj_name} PUBLIC ${Vulkan_LIBRARY})
+target_link_libraries(${prj_name} PUBLIC SDL2::SDL2 SDL2::SDL2main)
 
-set_target_properties(${app_name} PROPERTIES FOLDER "v")
+set_target_properties(${prj_name} PROPERTIES FOLDER "v")
 

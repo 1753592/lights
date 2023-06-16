@@ -17,6 +17,8 @@
 
 #include "SimpleShape.h"
 
+#include "VulkanImGUI.h"
+
 #define WM_PAINT 1
 
 constexpr float fov = 60;
@@ -141,6 +143,8 @@ public:
     apply_resource();
 
     update_ubo();
+
+    _imgui = std::make_shared<VulkanImGUI>(inst.create_device(), surface);
   }
 
   void apply_resource()
@@ -800,6 +804,8 @@ private:
   uint32_t _index_count = 0;
 
   Manipulator _manip;
+
+  std::shared_ptr<VulkanImGUI> _imgui = 0;
 };
 
 

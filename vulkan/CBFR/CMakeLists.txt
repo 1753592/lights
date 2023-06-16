@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.8.0)
 
 
 
-set(prj_name basic_pbr)
+set(prj_name cbfr)
 
 set(hdr
 )

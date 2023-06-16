@@ -36,8 +36,10 @@ public:
   VkShaderModule create_shader(const std::string &file);
 
   VkPipelineCache get_create_pipecache();
-    
-  uint32_t getQueueFamilyIndex(VkQueueFlags queueFlags) const;
+
+  VkDescriptorPool get_create_descriptor_pool();
+
+  uint32_t queue_family_index(VkQueueFlags queueFlags) const;
 
   std::optional<uint32_t> memory_type_index(uint32_t typeBits, VkMemoryPropertyFlags properties) const;
 
@@ -56,7 +58,7 @@ public:
 
   std::vector<VkFence> createFences(uint32_t n);
 
-  VkQueue getGraphicQueue(uint32_t idx);
+  VkQueue graphic_queue(uint32_t idx = 0);
 
   bool extensionSupported(std::string extension);
   VkFormat getSupportedDepthFormat(bool checkSamplingSupport);
@@ -92,4 +94,5 @@ private:
   } queueFamilyIndices;
 
   VkPipelineCache _pipe_cache = VK_NULL_HANDLE;
+  VkDescriptorPool _descriptor_pool = VK_NULL_HANDLE;
 };

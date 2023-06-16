@@ -102,7 +102,7 @@ VkResult VulkanDevice::realize(VkPhysicalDeviceFeatures enabledFeatures, std::ve
 
   // Graphics queue
   if (requestedQueueTypes & VK_QUEUE_GRAPHICS_BIT) {
-    queueFamilyIndices.graphics = getQueueFamilyIndex(VK_QUEUE_GRAPHICS_BIT);
+    queueFamilyIndices.graphics = queue_family_index(VK_QUEUE_GRAPHICS_BIT);
     VkDeviceQueueCreateInfo queueInfo{};
     queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
     queueInfo.queueFamilyIndex = queueFamilyIndices.graphics;
@@ -115,7 +115,7 @@ VkResult VulkanDevice::realize(VkPhysicalDeviceFeatures enabledFeatures, std::ve
 
   // Dedicated compute queue
   if (requestedQueueTypes & VK_QUEUE_COMPUTE_BIT) {
-    queueFamilyIndices.compute = getQueueFamilyIndex(VK_QUEUE_COMPUTE_BIT);
+    queueFamilyIndices.compute = queue_family_index(VK_QUEUE_COMPUTE_BIT);
     if (queueFamilyIndices.compute != queueFamilyIndices.graphics) {
       // If compute family index differs, we need an additional queue create info for the compute queue
       VkDeviceQueueCreateInfo queueInfo{};
@@ -132,7 +132,7 @@ VkResult VulkanDevice::realize(VkPhysicalDeviceFeatures enabledFeatures, std::ve
 
   // Dedicated transfer queue
   if (requestedQueueTypes & VK_QUEUE_TRANSFER_BIT) {
-    queueFamilyIndices.transfer = getQueueFamilyIndex(VK_QUEUE_TRANSFER_BIT);
+    queueFamilyIndices.transfer = queue_family_index(VK_QUEUE_TRANSFER_BIT);
     if ((queueFamilyIndices.transfer != queueFamilyIndices.graphics) && (queueFamilyIndices.transfer != queueFamilyIndices.compute)) {
       // If transfer family index differs, we need an additional queue create info for the transfer queue
       VkDeviceQueueCreateInfo queueInfo{};
@@ -247,29 +247,30 @@ VkPipelineCache VulkanDevice::get_create_pipecache()
   return _pipe_cache;
 }
 
-/**
- * Get the index of a memory type that has all the requested property bits set
- *
- * @param typeBits Bit mask with bits set for each memory type supported by the resource to request for (from VkMemoryRequirements)
- * @param properties Bit mask of properties for the memory type to request
- * @param (Optional) memTypeFound Pointer to a bool that is set to true if a matching memory type has been found
- *
- * @return Index of the requested memory type
- *
- * @throw Throws an exception if memTypeFound is null and no memory type could be found that supports the requested properties
- */
-
-std::optional<uint32_t> VulkanDevice::memory_type_index(uint32_t typeBits, VkMemoryPropertyFlags properties) const
+VkDescriptorPool VulkanDevice::get_create_descriptor_pool()
 {
-  for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++) {
-    if ((typeBits & 1)) {
-      if ((memoryProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-        return i;
-      }
-    }
-    typeBits >>= 1;
+  if (!_descriptor_pool) {
+    VkDescriptorPoolSize pool_sizes[] = {{VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
+                                         {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
+                                         {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
+                                         {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
+                                         {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
+                                         {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
+                                         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
+                                         {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
+                                         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
+                                         {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
+                                         {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000}};
+    uint32_t sz = sizeof(pool_sizes) / sizeof(VkDescriptorPoolSize);
+    VkDescriptorPoolCreateInfo pool_info = {};
+    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    pool_info.maxSets = 1000 * sz;
+    pool_info.poolSizeCount = sz;
+    pool_info.pPoolSizes = pool_sizes;
+    VK_CHECK_RESULT(vkCreateDescriptorPool(_logical_device, &pool_info, nullptr, &_descriptor_pool));
   }
-  return std::nullopt;
+  return _descriptor_pool;
 }
 
 /**
@@ -282,7 +283,7 @@ std::optional<uint32_t> VulkanDevice::memory_type_index(uint32_t typeBits, VkMem
  *
  * @throw Throws an exception if no queue family index could be found that supports the requested flags
  */
-uint32_t VulkanDevice::getQueueFamilyIndex(VkQueueFlags queueFlags) const
+uint32_t VulkanDevice::queue_family_index(VkQueueFlags queueFlags) const
 {
   // Dedicated queue for compute
   // Try to find a queue family index that supports compute but not graphics
@@ -313,6 +314,31 @@ uint32_t VulkanDevice::getQueueFamilyIndex(VkQueueFlags queueFlags) const
   }
 
   throw std::runtime_error("Could not find a matching queue family index");
+}
+
+/**
+ * Get the index of a memory type that has all the requested property bits set
+ *
+ * @param typeBits Bit mask with bits set for each memory type supported by the resource to request for (from VkMemoryRequirements)
+ * @param properties Bit mask of properties for the memory type to request
+ * @param (Optional) memTypeFound Pointer to a bool that is set to true if a matching memory type has been found
+ *
+ * @return Index of the requested memory type
+ *
+ * @throw Throws an exception if memTypeFound is null and no memory type could be found that supports the requested properties
+ */
+
+std::optional<uint32_t> VulkanDevice::memory_type_index(uint32_t typeBits, VkMemoryPropertyFlags properties) const
+{
+  for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++) {
+    if ((typeBits & 1)) {
+      if ((memoryProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+        return i;
+      }
+    }
+    typeBits >>= 1;
+  }
+  return std::nullopt;
 }
 
 /**
@@ -520,7 +546,7 @@ std::vector<VkFence> VulkanDevice::createFences(uint32_t n)
   return fences;
 }
 
-VkQueue VulkanDevice::getGraphicQueue(uint32_t idx)
+VkQueue VulkanDevice::graphic_queue(uint32_t idx)
 {
   VkQueue queue = VK_NULL_HANDLE;
   vkGetDeviceQueue(_logical_device, queueFamilyIndices.graphics, idx, &queue);
