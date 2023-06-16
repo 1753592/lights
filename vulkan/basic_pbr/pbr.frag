@@ -27,7 +27,7 @@ struct Material{
 };
 
 layout(set = 1, binding = 2) uniform Materials{
-	Material material[49];
+	Material materials[49];
 };
 
 const float pi = 3.14159265359;
@@ -73,10 +73,10 @@ float smith_Geometry(vec3 n, vec3 v, vec3 l, float roughness)
 void main(void)
 {
 	int idx = instance_idx;
-	vec3 mate_albedo = material[idx].albedo;
-	float mate_roughness = material[idx].roughness;
-	float mate_metallic = material[idx].metallic;
-	float mate_ao = material[idx].ao; 
+	vec3 mate_albedo = materials[idx].albedo;
+	float mate_roughness = materials[idx].roughness;
+	float mate_metallic = materials[idx].metallic;
+	float mate_ao = materials[idx].ao; 
 
 	vec3 cam = ubo.cam.xyz;
 	vec3 n = normalize(vp_norm);
