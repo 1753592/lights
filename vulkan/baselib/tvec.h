@@ -27,8 +27,8 @@ namespace tg
 #define M_SQRT1_2  0.707106781186547524401  // 1/sqrt(2)
 #endif
 
-#define FEPS 1e-6
-#define DEPS 1e-12
+constexpr float feps = 1e-6;
+constexpr double deps = 1e-12;
 
 template <typename T>
 inline T degrees(T angleInRadians)
@@ -204,7 +204,7 @@ template<int len>
 inline bool operator==(const vecN<float, len> &v1, const vecN<float, len> &v2)
 {
 	for (int i = 0; i < len; i++) {
-		if (fabs(v1[i] - v2[i]) > FEPS)
+		if (fabs(v1[i] - v2[i]) > feps)
 			return false;
 	}
 	return true;
@@ -214,7 +214,7 @@ template<int len>
 inline bool operator==(const vecN<double, len> &v1, const vecN<double, len> &v2)
 {
 	for (int i = 0; i < len; i++) {
-		if (fabs(v1[i] - v2[i]) > DEPS)
+		if (fabs(v1[i] - v2[i]) > deps)
 			return false;
 	}
 	return true;

@@ -1,8 +1,8 @@
 #version 450
 
-layout(location = 0) in vec3 vp_pos;
-layout(location = 1) in vec3 vp_norm;
-layout(location = 2) in flat int instance_idx;
+layout(location = 3) in vec3 vp_pos;
+layout(location = 4) in vec3 vp_norm;
+layout(location = 5) in flat int instance_idx;
 //layout(location = 2) in vec2 fragUV;
 
 layout(location = 0) out vec4 frag_color;
@@ -23,7 +23,7 @@ struct Material{
 	float metallic;
 	float roughness;
 	float ao;
-	vec3	albedo;
+	vec3  albedo;
 };
 
 layout(set = 1, binding = 2) uniform Materials{
@@ -93,6 +93,7 @@ void main(void)
 		vec3 radiance = lights.light_color[i] * attenuation;
 
 		float nv = distribution_GGX(n, h, mate_roughness);
+
 		float gv = smith_Geometry(n, v, l, mate_roughness);
 		vec3 fv = fresnel_schlick(clamp(dot(h, v), 0.0, 1.0), f0);
 
@@ -111,9 +112,8 @@ void main(void)
 	vec3 ambient = vec3(0.03) * mate_albedo * mate_ao;
 	vec3 color = ambient + lo;
 
-	//color = color / (color + vec3(1.0));
-	//color = pow(color, vec3(1.0 / 2.2));
+	color = color / (color + vec3(1.0));
+	color = pow(color, vec3(1.0 / 2.2));
 
 	frag_color = vec4(color, 1.0);
-	//frag_color = vec4(lights.light_color[0], 1.0);
 }

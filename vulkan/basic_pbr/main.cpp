@@ -497,8 +497,8 @@ public:
     {
       decltype(material_ubo) mate_bufs[49];
       for (int i = 0; i < 49; i++) {
-        mate_bufs[i].metallic = (i / 7) / 7.f;
-        mate_bufs[i].roughness = std::max((i % 7) / 7.f, 0.05f);
+        mate_bufs[i].metallic = ((i / 7) + 1) / 7.f;
+        mate_bufs[i].roughness = ((i % 7) + 1) / 7.f;
         mate_bufs[i].ao = 1;
         mate_bufs[i].albedo.set(1, 0, 0);
       }
@@ -524,7 +524,7 @@ public:
     VkPipelineRasterizationStateCreateInfo rasterizationState = {};
     rasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizationState.polygonMode = VK_POLYGON_MODE_FILL;
-    rasterizationState.cullMode = VK_CULL_MODE_NONE;
+    rasterizationState.cullMode = VK_CULL_MODE_BACK_BIT;
     rasterizationState.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizationState.depthClampEnable = VK_FALSE;
     rasterizationState.rasterizerDiscardEnable = VK_FALSE;
@@ -597,13 +597,13 @@ public:
     VkPipelineShaderStageCreateInfo shaderStages[2] = {};
     shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-    shaderStages[0].module = _device->create_shader("pbr.vert.spv");
+    shaderStages[0].module = _device->create_shader(SHADER_DIR"/pbr.vert.spv");
     shaderStages[0].pName = "main";
     assert(shaderStages[0].module != VK_NULL_HANDLE);
 
     shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    shaderStages[1].module = _device->create_shader("pbr.frag.spv");
+    shaderStages[1].module = _device->create_shader(SHADER_DIR"/pbr.frag.spv");
     shaderStages[1].pName = "main";
     assert(shaderStages[1].module != VK_NULL_HANDLE);
 
@@ -644,7 +644,7 @@ public:
     sp.build();
     auto &verts = sp.get_vertex();
     auto &norms = sp.get_norms();
-    auto &uv = sp.get_uvs();
+    //auto &uv = sp.get_uvs();
     auto &index = sp.get_index();
     _vert_count = verts.size();
     _index_count = index.size();
@@ -677,7 +677,7 @@ public:
     offset += verts.size() * sizeof(vec3);
     memcpy((uint8_t *)data + offset, norms.data(), norms.size() * sizeof(vec3));
     offset += norms.size() * sizeof(vec3);
-    memcpy((uint8_t *)data + offset, uv.data(), uv.size() * sizeof(vec2));
+    //memcpy((uint8_t *)data + offset, uv.data(), uv.size() * sizeof(vec2));
     vkUnmapMemory(*_device, vertices.mem);
     VK_CHECK_RESULT(vkBindBufferMemory(*_device, vertices.buffer, vertices.mem, 0));
 

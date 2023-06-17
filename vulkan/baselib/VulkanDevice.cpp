@@ -225,7 +225,7 @@ std::string read_file(const std::string &file)
 
 VkShaderModule VulkanDevice::create_shader(const std::string &file)
 {
-  auto shader_source = read_file("C:\\Users\\t\\dev\\lights\\vulkan\\basic_pbr\\" + file);
+  auto shader_source = read_file(file);
   assert(!shader_source.empty());
   VkShaderModuleCreateInfo create_info{};
   create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;

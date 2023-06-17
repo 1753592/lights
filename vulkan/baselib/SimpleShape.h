@@ -29,30 +29,46 @@ public:
     _norms.reserve(_verts.size());
     _uvs.reserve(_verts.size());
     for (uint32_t y = 0; y <= y_segs; y++) {
+      float ySegment = (float)y / (float)y_segs;
+      float yrad = ySegment * M_PI - M_PI_2;
       for (uint32_t x = 0; x < x_segs; x++) {
         float xSegment = (float)x / (float)x_segs;
-        float ySegment = (float)y / (float)y_segs;
-        float xPos = _rad * std::cos(xSegment * 2.0f * M_PI) * std::sin(ySegment * M_PI);
-        float yPos = _rad * std::cos(ySegment * M_PI);
-        float zPos = _rad * std::sin(xSegment * 2.0f * M_PI) * std::sin(ySegment * M_PI);
+        float xrad = xSegment * M_PI * 2;
+        float htmp = std::cos(yrad);
+        float xPos = std::cos(xrad) * htmp;
+        float yPos = std::sin(xrad) * htmp;
+        float zPos = std::sin(yrad);
 
-        _verts.push_back(vec3(xPos, yPos, zPos) + _pos);
+        _verts.push_back(vec3(xPos, yPos, zPos) * _rad + _pos);
         _norms.push_back(vec3(xPos, yPos, zPos));
         _uvs.push_back(vec2(xSegment, ySegment));
       }
     }
 
-    _indices.resize((x_segs + 1) * (y_segs << 1));
-    uint32_t count1 = 0, count2 = 0;
-    for (unsigned int y = 0; y < y_segs; ++y) {
-      count1 = y * x_segs;
-      count2 = (y * (x_segs + 1)) << 1;
-      for (unsigned int x = 0; x < x_segs; ++x) {
-        _indices[count2 + (x << 1)] = count1 + x + x_segs;
-        _indices[count2 + (x << 1) + 1] = count1 + x;
+    _indices.reserve((x_segs << 1) * (y_segs + 1));
+
+    bool oddCol = false;
+    for (int i = 0; i < x_segs; i++) {
+      int idx1, idx2 = 0;
+      if (oddCol) {
+        idx1 = y_segs * x_segs  + (i + 1) % x_segs;
+        idx2 = y_segs * x_segs + i;
+      } else {
+        idx1 = i;
+        idx2 = (i + 1) % x_segs;
       }
-      _indices[count2 + (x_segs << 1)] = count1 + x_segs;
-      _indices[count2 + (x_segs << 1) + 1] = count1;
+      for (int j = 0; j <= y_segs; j++) {
+        _indices.push_back(idx1);
+        _indices.push_back(idx2);
+        if (oddCol) {
+          idx1 -= x_segs;
+          idx2 -= x_segs;
+        } else {
+          idx1 += x_segs;
+          idx2 += x_segs;
+        }
+      }
+      oddCol = !oddCol;
     }
   }
 

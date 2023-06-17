@@ -63,12 +63,12 @@ struct random<unsigned int>{
 
 template<typename T>
 struct EPSTraits {
-	static constexpr T eps = FEPS;
+	static constexpr T eps = feps;
 };
 
 template<>
 struct EPSTraits<double> {
-	static constexpr double eps = DEPS;
+	static constexpr double eps = deps;
 };
 
 inline mat4 frustum(float left, float right, float bottom, float top, float n, float f)
@@ -102,7 +102,7 @@ inline Tmat4<T> perspective(T fovy, T aspect, T n, T f)
 {
   T q = 1.0f / tan(radians(0.5f * fovy));
   T A = q / aspect;
-#ifdef NEAR_EQUAL_ZERO
+#ifdef USE_ZERO_NEAR 
   T B = f / (n - f);
   T C = n * f / (n - f);
 #else
@@ -124,7 +124,7 @@ inline mat4 ortho(float left, float right, float bottom, float top, float n, flo
 {
   return mat4(vec4(2.0f / (right - left), 0.0f, 0.0f, 0.0f), 
 							vec4(0.0f, 2.0f / (top - bottom), 0.0f, 0.0f),
-#ifdef NEAR_EQUAL_ZERO
+#ifdef USE_ZERO_NEAR 
               vec4(0.0f, 0.0f, 1.0f / (n - f), 0.0f), 
 							vec4((left + right) / (left - right), (bottom + top) / (bottom - top), f / (n - f), 1.0f)
 #else
