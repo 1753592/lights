@@ -14,8 +14,11 @@
 #include "VulkanBuffer.h"
 #include "VulkanTools.h"
 #include "VulkanInitializers.hpp"
+#include "VulkanImGUI.h"
 
 #include "SimpleShape.h"
+
+#include "imgui/imgui.h"
 
 #define WM_PAINT 1
 
@@ -31,24 +34,9 @@ struct {
   tg::vec4 cam;
 } matrix_ubo;
 
-struct{
-  struct alignas(16) aligned_vec3 : vec3 {};
-  aligned_vec3 light_pos[4] = {vec3(10, -10, 10), vec3(-10, -10, 10), vec3(-10, -10, -10), vec3(10, -10, -10)};
-  aligned_vec3 light_color[4] = {vec3(300), vec3(300), vec3(300), vec3(300)};
-} lights_ubo;
-
-struct alignas(16){
-  struct alignas(16) aligned_vec3 : vec3 {};
-
-	float metallic;
-	float roughness;
-	float ao;
-	aligned_vec3 albedo;
-} material_ubo;
-
-class Test {
+class View {
 public:
-  Test(const std::shared_ptr<VulkanDevice> &dev) : _device(dev)
+  View(const std::shared_ptr<VulkanDevice> &dev) : _device(dev)
   {
     _manip.set_home(vec3(0, -30, 0), vec3(0), vec3(0, 0, 1));
 
@@ -57,9 +45,11 @@ public:
 
     create_sphere();
     create_pipe_layout();
+
+    _imgui = std::make_shared<VulkanImGUI>(dev);
   }
 
-  ~Test()
+  ~View()
   {
     vkDeviceWaitIdle(*_device);
 
@@ -115,18 +105,15 @@ public:
       vkDestroyPipeline(*_device, _pipeline, nullptr);
       _pipeline = VK_NULL_HANDLE;
     }
+
+    _imgui.reset();
   }
 
-  void set_window(SDL_Window *win)
+  void set_surface(VkSurfaceKHR surface, int w, int h)
   {
-    SDL_GetWindowSize(win, &_w, &_h);
-
-    VkSurfaceKHR surface;
-    if (!SDL_Vulkan_CreateSurface(win, inst, &surface))
-      throw std::runtime_error("could not create vk surface.");
-
+    _w = w; _h = h;
     _swapchain->set_surface(surface);
-    _swapchain->realize(_w, _h, true);
+    _swapchain->realize(w, h, true);
 
     create_sync_object();
 
@@ -155,6 +142,11 @@ public:
       for (auto fence : _fences)
         vkDestroyFence(*_device, fence, nullptr);
       _fences = _device->createFences(_cmd_bufs.size());
+    }
+
+    if (_imgui) {
+      _imgui->resize(_w, _h);
+      _imgui->create_pipeline(_render_pass, _swapchain->color_format(), _swapchain->depth_format());
     }
   }
 
@@ -189,6 +181,17 @@ public:
     ev.type = SDL_USEREVENT;
     ev.user.code = WM_PAINT;
     SDL_PushEvent(&ev);
+
+    if (_imgui) {
+      ImGui::NewFrame();
+      ImGui::Begin("test");
+      ImGui::End();
+      ImGui::EndFrame();
+      ImGui::Render();
+
+      if (_imgui->update())
+        build_command_buffers(_frame_bufs, _render_pass);
+    }
   }
 
   void draw()
@@ -284,6 +287,8 @@ public:
 
   void build_command_buffers(std::vector<VkFramebuffer> &framebuffers, VkRenderPass renderPass)
   {
+    vkDeviceWaitIdle(*_device);
+
     assert(framebuffers.size() == _cmd_bufs.size());
 
     VkCommandBufferBeginInfo buf_info = {};
@@ -336,7 +341,7 @@ public:
       }
 
       VkDescriptorSet dessets[2] = {_matrix_set, _material_set};
-      vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipe_layout, 0, 2, dessets, 0, nullptr);
+      vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipe_layout, 0, 1, dessets, 0, nullptr);
 
       {
         VkDeviceSize offset[2] = {0, _vert_count * sizeof(vec3)};
@@ -347,6 +352,9 @@ public:
         vkCmdBindIndexBuffer(cmd_buf, _index_buf, 0, VK_INDEX_TYPE_UINT16);
         vkCmdDrawIndexed(cmd_buf, _index_count, 49, 0, 0, 0);
       }
+
+      if (_imgui)
+        _imgui->draw(cmd_buf);
 
       vkCmdEndRenderPass(cmd_buf);
 
@@ -430,11 +438,10 @@ public:
 
     VK_CHECK_RESULT(vkAllocateDescriptorSets(*_device, &allocInfo, &_matrix_set));
     
-    int sz = ((sizeof(matrix_ubo) + 63) >> 8) << 8;
-    int light_sz = sizeof(lights_ubo);
+    int sz = sizeof(matrix_ubo);
     VkDescriptorBufferInfo descriptor = {};
     _ubo_buf = _device->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sz + light_sz);
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sz);
     descriptor.buffer = *_ubo_buf;
     descriptor.offset = 0;
     descriptor.range = sizeof(matrix_ubo);
@@ -449,65 +456,8 @@ public:
 
     vkUpdateDescriptorSets(*_device, 1, &writeDescriptorSet, 0, nullptr);
 
-    {
-      descriptor.offset = sz;
-      descriptor.range = sizeof(lights_ubo);
-      writeDescriptorSet.dstSet = _matrix_set;
-      writeDescriptorSet.dstBinding = 1;
-      vkUpdateDescriptorSets(*_device, 1, &writeDescriptorSet, 0, nullptr);
-    }
-
-    {
-      VkDescriptorSetAllocateInfo allocInfo = {};
-      allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-      allocInfo.descriptorPool = desPool;
-      allocInfo.descriptorSetCount = 1;
-      allocInfo.pSetLayouts = &material_lay;
-
-      VK_CHECK_RESULT(vkAllocateDescriptorSets(*_device, &allocInfo, &_material_set));
-
-      int sz = sizeof(material_ubo) * 49;
-      _material_buf = _device->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sz);
-      VkDescriptorBufferInfo descriptor = {};
-      descriptor.buffer = *_material_buf;
-      descriptor.offset = 0;
-      descriptor.range = sz;
-
-      VkWriteDescriptorSet writeDescriptorSet = {};
-      writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-      writeDescriptorSet.dstSet = _material_set;
-      writeDescriptorSet.descriptorCount = 1;
-      writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-      writeDescriptorSet.pBufferInfo = &descriptor;
-      writeDescriptorSet.dstBinding = 2;
-
-      vkUpdateDescriptorSets(*_device, 1, &writeDescriptorSet, 0, nullptr);
-    }
-
     vkDestroyDescriptorSetLayout(*_device, matrix_lay, nullptr);
     vkDestroyDescriptorSetLayout(*_device, material_lay, nullptr);
-
-
-    uint8_t *data = 0;
-    VK_CHECK_RESULT(vkMapMemory(*_device, _ubo_buf->memory(), sz, sizeof(lights_ubo), 0, (void **)&data));
-    memcpy(data, &lights_ubo, sizeof(lights_ubo));
-    vkUnmapMemory(*_device, _ubo_buf->memory());
-
-    {
-      decltype(material_ubo) mate_bufs[49];
-      for (int i = 0; i < 49; i++) {
-        mate_bufs[i].metallic = ((i / 7) + 1) / 7.f;
-        mate_bufs[i].roughness = ((i % 7) + 1) / 7.f;
-        mate_bufs[i].ao = 1;
-        mate_bufs[i].albedo.set(1, 0, 0);
-      }
-
-      uint8_t *data = 0;
-      VK_CHECK_RESULT(vkMapMemory(*_device, _material_buf->memory(), 0, _material_buf->size(), 0, (void **)&data));
-      memcpy(data, &mate_bufs, _material_buf->size());
-      vkUnmapMemory(*_device, _material_buf->memory());
-    }
   }
 
   void create_pipeline()
@@ -800,13 +750,16 @@ private:
   uint32_t _index_count = 0;
 
   Manipulator _manip;
+
+  std::shared_ptr<VulkanImGUI> _imgui = 0;
 };
 
 
 int main(int argc, char** argv)
 {
   SDL_Window* win = 0;
-  std::shared_ptr<Test> test;
+  VkSurfaceKHR surface = 0;
+  std::shared_ptr<View> view = 0;
   try {
     inst.initialize();
 
@@ -816,16 +769,22 @@ int main(int argc, char** argv)
     if (win == nullptr)
       throw std::runtime_error("could not create sdl window.");
 
+    int w = 0, h = 0;
+    SDL_GetWindowSize(win, &w, &h);
+
+    if (!SDL_Vulkan_CreateSurface(win, inst, &surface))
+      throw std::runtime_error("could not create vk surface.");
+
     inst.enable_debug();
     auto dev = inst.create_device();
 
-    test = std::make_shared<Test>(dev);
-    test->set_window(win);
+    view = std::make_shared<View>(dev);
+    view->set_surface(surface, w, h);
 
   } catch (std::runtime_error& e) {
     printf("%s", e.what());
     return -1;
   }
-  test->loop();
+  view->loop();
   return 0;
 }

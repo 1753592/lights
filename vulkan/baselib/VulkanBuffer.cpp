@@ -1,6 +1,6 @@
 #include "VulkanBuffer.h"
 #include "VulkanDevice.h"
-
+#include "VulkanTools.h"
 
 VulkanBuffer::VulkanBuffer(const std::shared_ptr<VulkanDevice>& dev) : _device(dev)
 {
@@ -8,14 +8,19 @@ VulkanBuffer::VulkanBuffer(const std::shared_ptr<VulkanDevice>& dev) : _device(d
 
 VulkanBuffer::~VulkanBuffer()
 {
-  if(_buffer) {
-    vkDestroyBuffer(*_device, _buffer, nullptr);
-    _buffer = VK_NULL_HANDLE;
-  }
-  if(_memory) {
-    vkFreeMemory(*_device, _memory, nullptr);
-    _memory = VK_NULL_HANDLE;
-  }
+  destroy();
+}
+
+uint8_t* VulkanBuffer::map()
+{
+  uint8_t* entry = 0;
+  VK_CHECK_RESULT(vkMapMemory(*_device, _memory, 0, _size, 0, (void **)&entry));
+  return entry;
+}
+
+void VulkanBuffer::unmap()
+{
+  vkUnmapMemory(*_device, _memory);
 }
 
 /**
@@ -30,6 +35,8 @@ VulkanBuffer::~VulkanBuffer()
  */
 VkResult VulkanBuffer::flush(VkDeviceSize size, VkDeviceSize offset)
 {
+  if (size == VK_WHOLE_SIZE)
+    size = _size;
   VkMappedMemoryRange mappedRange = {};
   mappedRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
   mappedRange.memory = _memory;

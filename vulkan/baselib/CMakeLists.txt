@@ -3,8 +3,6 @@ cmake_minimum_required(VERSION 3.8.0)
 set(prj_name baselib)
 
 set(imgui/hdr
-	imgui/imgui_impl_sdl2.h
-	imgui/imgui_impl_vulkan.h
 )
 
 set(imgui_src
@@ -12,8 +10,6 @@ set(imgui_src
 	imgui/imgui_draw.cpp
 	imgui/imgui_tables.cpp
 	imgui/imgui_widgets.cpp
-	imgui/imgui_impl_sdl2.cpp
-	imgui/imgui_impl_vulkan.cpp
 )
 
 set(hdr

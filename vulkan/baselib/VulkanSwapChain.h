@@ -19,21 +19,23 @@ public:
 
   void set_default_depth_format(VkFormat dep_format = VK_FORMAT_D24_UNORM_S8_UINT);
 
+  VkFormat color_format() { return _colorFormat; }
+
+  VkFormat depth_format() { return _depthFormat; }
+
   void realize(uint32_t width, uint32_t height, bool vsync, bool fullscreen = false);
 
   uint32_t image_count() { return _images.size(); }
 
-  struct DepthUnit {
+  struct DepthImage {
     VkImage image;
     VkImageView view;
     VkDeviceMemory mem;
   };
 
-  DepthUnit create_depth(uint32_t width, uint32_t height);
+  DepthImage create_depth_image(uint32_t width, uint32_t height);
 
-  VkRenderPass create_render_pass();
-
-  std::vector<VkFramebuffer> create_frame_buffer(VkRenderPass vkPass, const DepthUnit &);
+  std::vector<VkFramebuffer> create_frame_buffer(VkRenderPass vkPass, const DepthImage &);
 
   std::tuple<VkResult, uint32_t> acquire_image(VkSemaphore present_sema);
 

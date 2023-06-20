@@ -7,6 +7,7 @@
 using tg::vec3;
 using tg::vec2;
 
+template<uint32_t x_segs = 64, uint32_t ysegs = 32>
 class Sphere {
   vec3 _pos;
   float _rad;
@@ -77,3 +78,5 @@ public:
   const std::vector<vec2>& get_uvs() { return _uvs; }
   const std::vector<uint16_t>& get_index() { return _indices; }
 };
+
+typedef Sphere<4, 2> Octahedron;

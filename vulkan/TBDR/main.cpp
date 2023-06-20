@@ -31,7 +31,7 @@ struct {
   tg::mat4 view;
   tg::mat4 model;
   tg::vec4 cam;
-} matirx_ubo;
+} matrix_ubo;
 
 struct{
   struct alignas(16) aligned_vec3 : vec3 {};
@@ -150,7 +150,7 @@ public:
   void apply_resource()
   {
     int count = _swapchain->image_count();
-    _depth = _swapchain->create_depth(_w, _h);
+    _depth = _swapchain->create_depth_image(_w, _h);
     _frame_bufs = _swapchain->create_frame_buffer(_render_pass, _depth);
 
     build_command_buffers(_frame_bufs, _render_pass);
@@ -434,14 +434,14 @@ public:
 
     VK_CHECK_RESULT(vkAllocateDescriptorSets(*_device, &allocInfo, &_matrix_set));
     
-    int sz = ((sizeof(matirx_ubo) + 63) >> 8) << 8;
+    int sz = ((sizeof(matrix_ubo) + 63) >> 8) << 8;
     int light_sz = sizeof(lights_ubo);
     VkDescriptorBufferInfo descriptor = {};
     _ubo_buf = _device->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sz + light_sz);
     descriptor.buffer = *_ubo_buf;
     descriptor.offset = 0;
-    descriptor.range = sizeof(matirx_ubo);
+    descriptor.range = sizeof(matrix_ubo);
 
     VkWriteDescriptorSet writeDescriptorSet = {};
     writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -623,7 +623,7 @@ public:
     pipelineCreateInfo.pDepthStencilState = &depthStencilState;
     pipelineCreateInfo.pDynamicState = &dynamicState;
 
-    VK_CHECK_RESULT(vkCreateGraphicsPipelines(*_device, _device->get_create_pipecache(), 1, &pipelineCreateInfo, nullptr, &_pipeline));
+    VK_CHECK_RESULT(vkCreateGraphicsPipelines(*_device, _device->get_or_create_pipecache(), 1, &pipelineCreateInfo, nullptr, &_pipeline));
 
     vkDestroyShaderModule(*_device, shaderStages[0].module, nullptr);
     vkDestroyShaderModule(*_device, shaderStages[1].module, nullptr);
@@ -631,14 +631,14 @@ public:
 
   void update_ubo()
   {
-    matirx_ubo.cam = _manip.eye();
-    matirx_ubo.view = _manip.view_matrix();
-    matirx_ubo.model = tg::mat4::identity();
-    matirx_ubo.prj = tg::perspective<float>(fov, float(_w) / _h, 0.1, 1000);
-    // tg::near_clip(matirx_ubo.prj, tg::vec4(0, 0, -1, 0.5));
+    matrix_ubo.cam = _manip.eye();
+    matrix_ubo.view = _manip.view_matrix();
+    matrix_ubo.model = tg::mat4::identity();
+    matrix_ubo.prj = tg::perspective<float>(fov, float(_w) / _h, 0.1, 1000);
+    // tg::near_clip(matrix_ubo.prj, tg::vec4(0, 0, -1, 0.5));
     uint8_t *data = 0;
-    VK_CHECK_RESULT(vkMapMemory(*_device, _ubo_buf->memory(), 0, sizeof(matirx_ubo), 0, (void **)&data));
-    memcpy(data, &matirx_ubo, sizeof(matirx_ubo));
+    VK_CHECK_RESULT(vkMapMemory(*_device, _ubo_buf->memory(), 0, sizeof(matrix_ubo), 0, (void **)&data));
+    memcpy(data, &matrix_ubo, sizeof(matrix_ubo));
     vkUnmapMemory(*_device, _ubo_buf->memory());
   }
 
@@ -772,7 +772,7 @@ private:
   uint32_t _frame = 0;
 
   VkRenderPass _render_pass = VK_NULL_HANDLE;
-  VulkanSwapChain::DepthUnit _depth;
+  VulkanSwapChain::DepthImage _depth;
 
   VkSemaphore _presentSemaphore;
   VkSemaphore _renderSemaphore;

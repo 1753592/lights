@@ -33,11 +33,18 @@ public:
   VkResult realize(VkPhysicalDeviceFeatures enabledFeatures, std::vector<const char *> enabledExtensions, void *pNextChain,
                                bool useSwapChain = true, VkQueueFlags requestedQueueTypes = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
 
+  VkRenderPass create_render_pass(VkFormat color, VkFormat depth);
+  
+  std::tuple<VkImage, VkDeviceMemory> create_image(int w, int h,VkFormat format = VK_FORMAT_R8G8B8A8_UNORM);
+  VkImageView create_image_view(VkImage img, VkFormat format = VK_FORMAT_R8G8B8A8_UNORM);
+
   VkShaderModule create_shader(const std::string &file);
 
-  VkPipelineCache get_create_pipecache();
+  VkShaderModule create_shader(const uint32_t *source, int n);
 
-  VkDescriptorPool get_create_descriptor_pool();
+  VkPipelineCache get_or_create_pipecache();
+
+  VkDescriptorPool get_or_create_descriptor_pool();
 
   uint32_t queue_family_index(VkQueueFlags queueFlags) const;
 

@@ -17,6 +17,8 @@
 #include "VulkanTools.h"
 #include "VulkanBuffer.h"
 #include "VulkanInitializers.hpp"
+
+#include <array>
 #include <unordered_set>
 #include <iostream>
 #include <stdexcept>
@@ -206,6 +208,140 @@ VkResult VulkanDevice::realize(VkPhysicalDeviceFeatures enabledFeatures, std::ve
   return result;
 }
 
+VkRenderPass VulkanDevice::create_render_pass(VkFormat color, VkFormat depth)
+{
+  std::array<VkAttachmentDescription, 2> attachments = {};
+  attachments[0].format = color;
+  attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
+  attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+  attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+  attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  attachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+  bool hasdepth = false;
+  if (depth != VK_FORMAT_UNDEFINED) {
+    hasdepth = true;
+    attachments[1].format = depth;
+    attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
+    attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+  }
+
+  VkAttachmentReference colorReference = {};
+  colorReference.attachment = 0;
+  colorReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+  VkAttachmentReference depthReference = {};
+  depthReference.attachment = 1;
+  depthReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+  VkSubpassDescription subpassDescription = {};
+  subpassDescription.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+  subpassDescription.colorAttachmentCount = 1;
+  subpassDescription.pColorAttachments = &colorReference;
+  if (hasdepth)
+    subpassDescription.pDepthStencilAttachment = &depthReference;
+  subpassDescription.inputAttachmentCount = 0;
+  subpassDescription.pInputAttachments = nullptr;
+  subpassDescription.preserveAttachmentCount = 0;
+  subpassDescription.pPreserveAttachments = nullptr;
+  subpassDescription.pResolveAttachments = nullptr;
+
+  std::array<VkSubpassDependency, 2> dependencies;
+
+  dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+  dependencies[0].dstSubpass = 0;
+  dependencies[0].srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+  dependencies[0].dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+  dependencies[0].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+  dependencies[0].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+  dependencies[0].dependencyFlags = 0;
+
+  dependencies[1].srcSubpass = VK_SUBPASS_EXTERNAL;
+  dependencies[1].dstSubpass = 0;
+  dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+  dependencies[1].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+  dependencies[1].srcAccessMask = 0;
+  dependencies[1].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
+  dependencies[1].dependencyFlags = 0;
+
+  VkRenderPassCreateInfo renderPassInfo = {};
+  renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+  if (hasdepth)
+    renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+  else
+    renderPassInfo.attachmentCount = 1;
+  renderPassInfo.pAttachments = attachments.data();
+  renderPassInfo.subpassCount = 1;
+  renderPassInfo.pSubpasses = &subpassDescription;
+  renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
+  renderPassInfo.pDependencies = dependencies.data();
+
+  VkRenderPass renderPass = VK_NULL_HANDLE;
+  VK_CHECK_RESULT(vkCreateRenderPass(_logical_device, &renderPassInfo, nullptr, &renderPass));
+
+  return renderPass;
+}
+
+std::tuple<VkImage, VkDeviceMemory> 
+VulkanDevice::create_image(int w, int h, VkFormat format)
+{
+  VkImageCreateInfo imageInfo = vks::initializers::imageCreateInfo();
+  imageInfo.imageType = VK_IMAGE_TYPE_2D;
+  imageInfo.format = format;
+  imageInfo.extent.width = w;
+  imageInfo.extent.height = h;
+  imageInfo.extent.depth = 1;
+  imageInfo.mipLevels = 1;
+  imageInfo.arrayLayers = 1;
+  imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+  imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+  imageInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+  imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+  imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+  VkImage img = VK_NULL_HANDLE;
+  VK_CHECK_RESULT(vkCreateImage(_logical_device, &imageInfo, nullptr, &img));
+  VkMemoryRequirements memReqs;
+  vkGetImageMemoryRequirements(_logical_device, img, &memReqs);
+
+  VkDeviceMemory mem;
+  VkMemoryAllocateInfo memAllocInfo = vks::initializers::memoryAllocateInfo();
+  memAllocInfo.allocationSize = memReqs.size;
+  memAllocInfo.memoryTypeIndex = *memory_type_index(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+  VK_CHECK_RESULT(vkAllocateMemory(_logical_device, &memAllocInfo, nullptr, &mem));
+  VK_CHECK_RESULT(vkBindImageMemory(_logical_device, img, mem, 0));
+
+  return std::make_tuple(img, mem);
+}
+
+VkImageView VulkanDevice::create_image_view(VkImage img, VkFormat format)
+{
+  VkImageViewCreateInfo colorAttachmentView = {};
+  colorAttachmentView.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+  colorAttachmentView.pNext = NULL;
+  colorAttachmentView.format = format;
+  colorAttachmentView.components = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A};
+  colorAttachmentView.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  colorAttachmentView.subresourceRange.baseMipLevel = 0;
+  colorAttachmentView.subresourceRange.levelCount = 1;
+  colorAttachmentView.subresourceRange.baseArrayLayer = 0;
+  colorAttachmentView.subresourceRange.layerCount = 1;
+  colorAttachmentView.viewType = VK_IMAGE_VIEW_TYPE_2D;
+  colorAttachmentView.flags = 0;
+  colorAttachmentView.image = img;
+
+  VkImageView view = VK_NULL_HANDLE;
+  VK_CHECK_RESULT(vkCreateImageView(_logical_device, &colorAttachmentView, nullptr, &view));
+  return view;
+}
+
 namespace {
 std::string read_file(const std::string &file)
 {
@@ -227,17 +363,22 @@ VkShaderModule VulkanDevice::create_shader(const std::string &file)
 {
   auto shader_source = read_file(file);
   assert(!shader_source.empty());
+  return create_shader((uint32_t *)shader_source.c_str(), shader_source.size());
+}
+
+VkShaderModule VulkanDevice::create_shader(const uint32_t *shader_source, int n)
+{
   VkShaderModuleCreateInfo create_info{};
   create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-  create_info.codeSize = shader_source.size();
-  create_info.pCode = (uint32_t *)shader_source.data();
+  create_info.codeSize = n;
+  create_info.pCode = shader_source;
 
   VkShaderModule shader_module;
   VK_CHECK_RESULT(vkCreateShaderModule(_logical_device, &create_info, nullptr, &shader_module));
   return shader_module;
 }
 
-VkPipelineCache VulkanDevice::get_create_pipecache()
+VkPipelineCache VulkanDevice::get_or_create_pipecache()
 {
   if (!_pipe_cache) {
     VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {};
@@ -247,7 +388,7 @@ VkPipelineCache VulkanDevice::get_create_pipecache()
   return _pipe_cache;
 }
 
-VkDescriptorPool VulkanDevice::get_create_descriptor_pool()
+VkDescriptorPool VulkanDevice::get_or_create_descriptor_pool()
 {
   if (!_descriptor_pool) {
     VkDescriptorPoolSize pool_sizes[] = {{VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
@@ -398,7 +539,7 @@ std::shared_ptr<VulkanBuffer> VulkanDevice::create_buffer(VkBufferUsageFlags usa
   }
 
   VK_CHECK_RESULT(vkBindBufferMemory(_logical_device, buffer->_buffer, memory, 0));
-  buffer->_size = size;
+  buffer->_size = memReqs.size;
 
   return buffer;
 }

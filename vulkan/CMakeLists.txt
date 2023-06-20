@@ -39,3 +39,5 @@ add_subdirectory(baselib)
 add_subdirectory(basic_pbr)
 add_subdirectory(TBDR)
 add_subdirectory(CBFR)
+
+add_subdirectory(shadow)
