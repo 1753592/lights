@@ -34,10 +34,6 @@ VulkanView::~VulkanView()
   vkDestroySemaphore(*_device, _presentSemaphore, nullptr);
   vkDestroySemaphore(*_device, _renderSemaphore, nullptr);
 
-  auto surface = _swapchain->surface();
-  if (surface) {
-    vkDestroySurfaceKHR(VulkanInstance::instance(), surface, nullptr);
-  }
   _swapchain.reset();
 
   _device->destroy_command_buffers(_cmd_bufs);
@@ -45,6 +41,11 @@ VulkanView::~VulkanView()
   vkDestroyRenderPass(*_device, _render_pass, nullptr);
 
   clear_frame();
+
+  //auto surface = _swapchain->surface();
+  //if (surface) {
+  //  vkDestroySurfaceKHR(VulkanInstance::instance(), surface, nullptr);
+  //}
 }
 
 void VulkanView::set_surface(VkSurfaceKHR surface, int w, int h)
@@ -84,6 +85,16 @@ void VulkanView::frame(bool continus)
           if (event.user.code == WM_PAINT)
             render();
           break;
+        case SDL_MOUSEBUTTONDOWN:
+          if (_imgui) _imgui->mouse_down(event.button);
+          //mouse_down(event.button);
+          update();
+          break;
+        case SDL_MOUSEBUTTONUP:
+          if (_imgui) _imgui->mouse_up(event.button);
+          //mouse_up(event.button);
+          update();
+          break;
         case SDL_MOUSEMOTION:
           if (event.motion.state & SDL_BUTTON_LMASK) {
             _manip.rotate(event.motion.xrel, event.motion.yrel);
@@ -92,7 +103,8 @@ void VulkanView::frame(bool continus)
           } else if (event.motion.state & SDL_BUTTON_RMASK) {
             _manip.translate(event.motion.xrel, -event.motion.yrel);
             right_drag(event.motion.x, event.motion.y, event.motion.xrel, event.motion.yrel);
-          }
+          }            
+          if (_imgui) _imgui->mouse_move(event.motion);
           update();
           break;
         case SDL_MOUSEWHEEL: {
@@ -104,6 +116,7 @@ void VulkanView::frame(bool continus)
         case SDL_KEYUP: {
           if (event.key.keysym.scancode == SDL_SCANCODE_SPACE)
             _manip.home();
+          key_up(event.key.keysym.scancode);
           update();
         } break;
         default:
@@ -120,15 +133,15 @@ uint32_t VulkanView::frame_count()
 
 void VulkanView::update()
 {
-  SDL_Event ev;
-  ev.type = SDL_USEREVENT;
-  ev.user.code = WM_PAINT;
-  SDL_PushEvent(&ev);
-
   update_scene();
 
   if (_imgui->update())
     build_command_buffers(_frame_bufs, _render_pass);
+
+  SDL_Event ev;
+  ev.type = SDL_USEREVENT;
+  ev.user.code = WM_PAINT;
+  SDL_PushEvent(&ev);
 }
 
 void VulkanView::initialize()

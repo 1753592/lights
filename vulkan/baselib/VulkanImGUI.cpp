@@ -55,17 +55,25 @@ VulkanImGUI::VulkanImGUI(std::shared_ptr<VulkanDevice> dev) : _device(dev)
 
   _device->flush_command_buffer(cmd, _device->transfer_queue(0));
   buf->destroy();
-
 }
 
 VulkanImGUI::~VulkanImGUI()
 {
   if (_pipeline)
     vkDestroyPipeline(*_device, _pipeline, nullptr);
+  if (_pipe_layout)
+    vkDestroyPipelineLayout(*_device, _pipe_layout, nullptr);
   if (_descriptor_pool)
     vkDestroyDescriptorPool(*_device, _descriptor_pool, nullptr);
   if (_sampler)
     vkDestroySampler(*_device, _sampler, nullptr);
+
+  if (_font_view)
+    vkDestroyImageView(*_device, _font_view, nullptr);
+  if (_font_img)
+    vkDestroyImage(*_device, _font_img, nullptr);
+  if (_font_memory)
+    vkFreeMemory(*_device, _font_memory, nullptr);
 }
 
 void VulkanImGUI::resize(int w, int h)
@@ -259,7 +267,7 @@ void VulkanImGUI::draw(const VkCommandBuffer cmdbuf)
   if (!imdata || imdata->CmdListsCount == 0)
     return;
 
-  auto io = ImGui::GetIO();
+  auto &io = ImGui::GetIO();
 
   vkCmdBindPipeline(cmdbuf, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);
   vkCmdBindDescriptorSets(cmdbuf, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipe_layout, 0, 1, &_descriptor_set, 0, nullptr);
@@ -286,12 +294,38 @@ void VulkanImGUI::draw(const VkCommandBuffer cmdbuf)
       scissorRect.offset.y = std::max<uint32_t>((int32_t)(pcmd->ClipRect.y), 0);
       scissorRect.extent.width = (uint32_t)(pcmd->ClipRect.z - pcmd->ClipRect.x);
       scissorRect.extent.height = (uint32_t)(pcmd->ClipRect.w - pcmd->ClipRect.y);
-      //vkCmdSetScissor(cmdbuf, 0, 1, &scissorRect);
+      vkCmdSetScissor(cmdbuf, 0, 1, &scissorRect);
       vkCmdDrawIndexed(cmdbuf, pcmd->ElemCount, 1, indexOffset, vertexOffset, 0);
       indexOffset += pcmd->ElemCount;
     }
     vertexOffset += cmd_list->VtxBuffer.Size;
   }
+}
+
+constexpr uint8_t button_map[] = {0, 2, 1};
+
+bool VulkanImGUI::mouse_down(SDL_MouseButtonEvent& ev)
+{
+  auto &io = ImGui::GetIO();
+  io.AddMousePosEvent(ev.x, ev.y);
+  io.AddMouseButtonEvent(button_map[ev.button - 1], true);
+  return false;
+}
+
+bool VulkanImGUI::mouse_up(SDL_MouseButtonEvent &ev)
+{
+  auto& io = ImGui::GetIO();
+  io.AddMousePosEvent(ev.x, ev.y);
+  io.AddMouseButtonEvent(button_map[ev.button - 1], false);
+  return false;
+}
+
+bool VulkanImGUI::mouse_move(SDL_MouseMotionEvent& ev)
+{
+  auto& io = ImGui::GetIO();
+  io.AddMousePosEvent(ev.x, ev.y);
+
+  return false;
 }
 
 void VulkanImGUI::create_canvas()

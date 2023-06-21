@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
+#include <SDL2/SDL_events.h>
 
 #include <memory>
 
@@ -19,6 +20,12 @@ public:
   bool update();
 
   void draw(const VkCommandBuffer cmdbuf);
+
+  bool mouse_down(SDL_MouseButtonEvent &ev);
+
+  bool mouse_up(SDL_MouseButtonEvent &ev);
+
+  bool mouse_move(SDL_MouseMotionEvent &ev);
 
 private:
   void create_canvas();

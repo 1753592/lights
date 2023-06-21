@@ -83,7 +83,7 @@ public:
   void update_scene()
   {
     ImGui::NewFrame();
-    ImGui::SetNextWindowSize(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_Once);
     ImGui::Begin("test");
     ImGui::Text("wtf");
     ImGui::End();
@@ -324,10 +324,14 @@ public:
     vkDestroyShaderModule(*device(), shaderStages[1].module, nullptr);
   }
 
-  void wheel(float delta) { update_ubo(); }
-  void left_clicked(int x, int y) {}
-  void left_drag(int x, int y) {}
-  void right_drag(int x, int y) {}
+  void wheel(int delta) { update_ubo(); }
+  void left_drag(int x, int y, int, int) { update_ubo(); }
+  void right_drag(int x, int y, int, int) { update_ubo(); }
+  void key_up(int key)
+  {
+    if (key == SDL_SCANCODE_SPACE)
+      update_ubo();
+  }
 
   void update_ubo()
   {

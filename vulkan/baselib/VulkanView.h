@@ -40,9 +40,9 @@ public:
   virtual void build_command_buffer(VkCommandBuffer cmd_buf) = 0;
 
   virtual void wheel(int delta){};
-  virtual void left_clicked(int x, int y) {};
   virtual void left_drag(int x, int y, int xdel, int ydel){};
   virtual void right_drag(int x, int y, int xdel, int ydel){};
+  virtual void key_up(int){};
 
 protected:
 

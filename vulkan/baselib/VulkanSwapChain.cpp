@@ -37,6 +37,8 @@ VulkanSwapChain::~VulkanSwapChain()
     vkDestroySwapchainKHR(*_device, _swapChain, nullptr);
   _swapChain = VK_NULL_HANDLE;
 
+  if (_surface)
+    vkDestroySurfaceKHR(VulkanInstance::instance(), _surface, nullptr);
   _surface = VK_NULL_HANDLE;
 }
 
