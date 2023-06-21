@@ -22,6 +22,7 @@ using tg::mat4;
 
 VulkanView::VulkanView(const std::shared_ptr<VulkanDevice>& dev) : _device(dev)
 {
+  initialize();
 }
 
 VulkanView::~VulkanView()
@@ -55,7 +56,7 @@ void VulkanView::set_surface(VkSurfaceKHR surface, int w, int h)
 
   _render_pass = _device->create_render_pass(_swapchain->color_format(), _swapchain->depth_format());
 
-  check_frame();
+  resize_impl(w, h);
 }
 
 void VulkanView::frame(bool continus)
@@ -112,6 +113,11 @@ void VulkanView::frame(bool continus)
   }
 }
 
+uint32_t VulkanView::frame_count()
+{
+  return _swapchain->image_count();
+}
+
 void VulkanView::update()
 {
   SDL_Event ev;
@@ -129,11 +135,11 @@ void VulkanView::initialize()
 {
     _manip.set_home(vec3(0, -30, 0), vec3(0), vec3(0, 0, 1));
 
-    _swapchain = std::make_shared<VulkanSwapChain>(*_device);
+    _swapchain = std::make_shared<VulkanSwapChain>(_device);
 
     create_sync_objs();
 
-    _imgui = std::make_shared<VulkanImGUI>(*_device);
+    _imgui = std::make_shared<VulkanImGUI>(_device);
 
 }
 

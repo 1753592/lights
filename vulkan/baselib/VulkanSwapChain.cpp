@@ -238,9 +238,9 @@ void VulkanSwapChain::realize(uint32_t width, uint32_t height, bool vsync, bool 
   }
 }
 
-VulkanSwapChain::DepthImage VulkanSwapChain::create_depth_image(uint32_t width, uint32_t height)
+ImageUnit VulkanSwapChain::create_depth_image(uint32_t width, uint32_t height)
 {
-  DepthImage unit = {};
+  ImageUnit unit = {};
 
   // Create an optimal image used as the depth stencil attachment
   VkImageCreateInfo image = {};
@@ -292,7 +292,7 @@ VulkanSwapChain::DepthImage VulkanSwapChain::create_depth_image(uint32_t width, 
   return unit;
 }
 
-std::vector<VkFramebuffer> VulkanSwapChain::create_frame_buffer(VkRenderPass vkPass, const DepthImage& depthUnit) 
+std::vector<VkFramebuffer> VulkanSwapChain::create_frame_buffer(VkRenderPass vkPass, const ImageUnit& depthUnit) 
 {
   assert(_buffers.size() == _images.size());
 

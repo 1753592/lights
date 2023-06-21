@@ -7,6 +7,7 @@ class VulkanDevice;
 #include <vector>
 
 #include "vulkan/vulkan.h"
+#include "VulkanDef.h"
 #include "Manipulator.h"
 
 class VulkanSwapChain;
@@ -26,7 +27,7 @@ public:
 
   VkRenderPass render_pass() { return _render_pass; }
 
-  uint32_t frame_count() { return _swapchain->image_count(); }
+  uint32_t frame_count();
 
   Manipulator &manipulator() { return _manip; }
 
@@ -75,7 +76,7 @@ private:
   uint32_t _frame = 0;
 
   VkRenderPass _render_pass = VK_NULL_HANDLE;
-  VulkanSwapChain::DepthImage _depth;
+  ImageUnit _depth;
 
   VkSemaphore _presentSemaphore;
   VkSemaphore _renderSemaphore;

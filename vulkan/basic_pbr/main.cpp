@@ -768,7 +768,7 @@ private:
   uint32_t _frame = 0;
 
   VkRenderPass _render_pass = VK_NULL_HANDLE;
-  VulkanSwapChain::DepthImage _depth;
+  VulkanSwapChain::ImageUnit _depth;
 
   VkSemaphore _presentSemaphore;
   VkSemaphore _renderSemaphore;

@@ -4,6 +4,7 @@
 #include <memory>
 #include <vector>
 #include "vulkan/vulkan.h"
+#include "VulkanDef.h"
 
 class VulkanInstance;
 class VulkanDevice;
@@ -27,15 +28,9 @@ public:
 
   uint32_t image_count() { return _images.size(); }
 
-  struct DepthImage {
-    VkImage image;
-    VkImageView view;
-    VkDeviceMemory mem;
-  };
+  ImageUnit create_depth_image(uint32_t width, uint32_t height);
 
-  DepthImage create_depth_image(uint32_t width, uint32_t height);
-
-  std::vector<VkFramebuffer> create_frame_buffer(VkRenderPass vkPass, const DepthImage &);
+  std::vector<VkFramebuffer> create_frame_buffer(VkRenderPass vkPass, const ImageUnit &);
 
   std::tuple<VkResult, uint32_t> acquire_image(VkSemaphore present_sema);
 

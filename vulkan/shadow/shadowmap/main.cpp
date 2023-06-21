@@ -21,7 +21,6 @@
 
 constexpr float fov = 60;
 
-
 VulkanInstance &inst = VulkanInstance::instance();
 
 struct {
@@ -33,8 +32,9 @@ struct {
 
 class View : public VulkanView {
 public:
-  View(const std::shared_ptr<VulkanDevice> &dev) : VulkanView(dev) { 
-    create_sphere(); 
+  View(const std::shared_ptr<VulkanDevice> &dev) : VulkanView(dev)
+  {
+    create_sphere();
     create_pipe_layout();
   }
 
@@ -78,18 +78,7 @@ public:
     }
   }
 
-  void prepare()
-  {
-    create_pipeline();
-
-    apply_resource();
-
-    update_ubo();
-  }
-
-  void apply_resource()
-  {
-  }
+  void resize(int w, int h) { update_ubo(); }
 
   void update_scene()
   {
@@ -102,8 +91,10 @@ public:
     ImGui::Render();
   }
 
-  void build_command_buffer(VkCommandBuffer cmd_buf)
+  void build_command_buffer(VkCommandBuffer cmd_buf) override
   {
+    if (!_pipeline)
+      return;
     {
       vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);
     }
@@ -327,13 +318,13 @@ public:
     pipelineCreateInfo.pDepthStencilState = &depthStencilState;
     pipelineCreateInfo.pDynamicState = &dynamicState;
 
-    VK_CHECK_RESULT(vkCreateGraphicsPipelines(*device(), _device->get_or_create_pipecache(), 1, &pipelineCreateInfo, nullptr, &_pipeline));
+    VK_CHECK_RESULT(vkCreateGraphicsPipelines(*device(), device()->get_or_create_pipecache(), 1, &pipelineCreateInfo, nullptr, &_pipeline));
 
     vkDestroyShaderModule(*device(), shaderStages[0].module, nullptr);
     vkDestroyShaderModule(*device(), shaderStages[1].module, nullptr);
   }
 
-  void wheel(float delta) {}
+  void wheel(float delta) { update_ubo(); }
   void left_clicked(int x, int y) {}
   void left_drag(int x, int y) {}
   void right_drag(int x, int y) {}
@@ -461,7 +452,7 @@ public:
       VkFence fence;
       VK_CHECK_RESULT(vkCreateFence(*device(), &fenceCreateInfo, nullptr, &fence));
 
-      VK_CHECK_RESULT(vkQueueSubmit(_queue, 1, &submitInfo, fence));
+      VK_CHECK_RESULT(vkQueueSubmit(device()->transfer_queue(), 1, &submitInfo, fence));
       VK_CHECK_RESULT(vkWaitForFences(*device(), 1, &fence, VK_TRUE, DEFAULT_FENCE_TIMEOUT));
       vkDestroyFence(*device(), fence, nullptr);
       vkFreeCommandBuffers(*device(), device()->command_pool(), 1, &cmdBuffer);
@@ -474,7 +465,6 @@ public:
   }
 
 private:
-
   VkBuffer _vert_buf;
   VkDeviceMemory _vert_mem;
   VkBuffer _index_buf;
@@ -519,8 +509,7 @@ int main(int argc, char **argv)
 
     view = std::make_shared<View>(dev);
     view->set_surface(surface, w, h);
-    view->prepare();
-
+    view->create_pipeline();
   } catch (std::runtime_error &e) {
     printf("%s", e.what());
     return -1;
