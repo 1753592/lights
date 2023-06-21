@@ -73,8 +73,8 @@ std::string physicalDeviceTypeString(VkPhysicalDeviceType type);
 
 // Selected a suitable supported depth format starting with 32 bit down to 16 bit
 // Returns false if none of the depth formats in the list is supported by the device
-VkBool32 getSupportedDepthFormat(VkPhysicalDevice physicalDevice, VkFormat* depthFormat);
-// Same as getSupportedDepthFormat but will only select formats that also have stencil
+VkBool32 supported_depth_format(VkPhysicalDevice physicalDevice, VkFormat* depthFormat);
+// Same as supported_depth_format but will only select formats that also have stencil
 VkBool32 getSupportedDepthStencilFormat(VkPhysicalDevice physicalDevice, VkFormat* depthStencilFormat);
 
 // Returns tru a given format support LINEAR filtering

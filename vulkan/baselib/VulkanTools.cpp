@@ -7,6 +7,7 @@
  */
 
 #include "VulkanTools.h"
+#include "VulkanInitializers.hpp"
 
 #if !(defined(VK_USE_PLATFORM_IOS_MVK) || defined(VK_USE_PLATFORM_MACOS_MVK))
 // iOS & macOS: VulkanExampleBase::getAssetPath() implemented externally to allow access to Objective-C components
@@ -93,7 +94,7 @@ std::string physicalDeviceTypeString(VkPhysicalDeviceType type)
   }
 }
 
-VkBool32 getSupportedDepthFormat(VkPhysicalDevice physicalDevice, VkFormat* depthFormat)
+VkBool32 supported_depth_format(VkPhysicalDevice physicalDevice, VkFormat* depthFormat)
 {
   // Since all depth formats may be optional, we need to find a suitable depth format to use
   // Start with the highest precision packed format
@@ -166,8 +167,7 @@ void setImageLayout(VkCommandBuffer cmdbuffer, VkImage image, VkImageLayout oldI
                     VkImageSubresourceRange subresourceRange, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask)
 {
   // Create an image barrier object
-  VkImageMemoryBarrier imageMemoryBarrier;
-  //= vks::initializers::imageMemoryBarrier();
+  VkImageMemoryBarrier imageMemoryBarrier = vks::initializers::imageMemoryBarrier();
   imageMemoryBarrier.oldLayout = oldImageLayout;
   imageMemoryBarrier.newLayout = newImageLayout;
   imageMemoryBarrier.image = image;

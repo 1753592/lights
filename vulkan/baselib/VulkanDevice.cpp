@@ -44,8 +44,8 @@ VulkanDevice::VulkanDevice(VkPhysicalDevice _physical_device)
   uint32_t queueFamilyCount;
   vkGetPhysicalDeviceQueueFamilyProperties(_physical_device, &queueFamilyCount, nullptr);
   assert(queueFamilyCount > 0);
-  _queueFamilyProperties.resize(queueFamilyCount);
-  vkGetPhysicalDeviceQueueFamilyProperties(_physical_device, &queueFamilyCount, _queueFamilyProperties.data());
+  _queue_family_properties.resize(queueFamilyCount);
+  vkGetPhysicalDeviceQueueFamilyProperties(_physical_device, &queueFamilyCount, _queue_family_properties.data());
 
   // Get list of supported extensions
   uint32_t extCount = 0;
@@ -104,49 +104,49 @@ VkResult VulkanDevice::realize(VkPhysicalDeviceFeatures enabledFeatures, std::ve
 
   // Graphics queue
   if (requestedQueueTypes & VK_QUEUE_GRAPHICS_BIT) {
-    queueFamilyIndices.graphics = queue_family_index(VK_QUEUE_GRAPHICS_BIT);
+    _queue_family.graphics = queue_family_index(VK_QUEUE_GRAPHICS_BIT);
     VkDeviceQueueCreateInfo queueInfo{};
     queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queueInfo.queueFamilyIndex = queueFamilyIndices.graphics;
+    queueInfo.queueFamilyIndex = _queue_family.graphics;
     queueInfo.queueCount = 1;
     queueInfo.pQueuePriorities = &defaultQueuePriority;
     queueCreateInfos.push_back(queueInfo);
   } else {
-    queueFamilyIndices.graphics = 0;
+    _queue_family.graphics = 0;
   }
 
   // Dedicated compute queue
   if (requestedQueueTypes & VK_QUEUE_COMPUTE_BIT) {
-    queueFamilyIndices.compute = queue_family_index(VK_QUEUE_COMPUTE_BIT);
-    if (queueFamilyIndices.compute != queueFamilyIndices.graphics) {
+    _queue_family.compute = queue_family_index(VK_QUEUE_COMPUTE_BIT);
+    if (_queue_family.compute != _queue_family.graphics) {
       // If compute family index differs, we need an additional queue create info for the compute queue
       VkDeviceQueueCreateInfo queueInfo{};
       queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-      queueInfo.queueFamilyIndex = queueFamilyIndices.compute;
+      queueInfo.queueFamilyIndex = _queue_family.compute;
       queueInfo.queueCount = 1;
       queueInfo.pQueuePriorities = &defaultQueuePriority;
       queueCreateInfos.push_back(queueInfo);
     }
   } else {
     // Else we use the same queue
-    queueFamilyIndices.compute = queueFamilyIndices.graphics;
+    _queue_family.compute = _queue_family.graphics;
   }
 
   // Dedicated transfer queue
   if (requestedQueueTypes & VK_QUEUE_TRANSFER_BIT) {
-    queueFamilyIndices.transfer = queue_family_index(VK_QUEUE_TRANSFER_BIT);
-    if ((queueFamilyIndices.transfer != queueFamilyIndices.graphics) && (queueFamilyIndices.transfer != queueFamilyIndices.compute)) {
+    _queue_family.transfer = queue_family_index(VK_QUEUE_TRANSFER_BIT);
+    if ((_queue_family.transfer != _queue_family.graphics) && (_queue_family.transfer != _queue_family.compute)) {
       // If transfer family index differs, we need an additional queue create info for the transfer queue
       VkDeviceQueueCreateInfo queueInfo{};
       queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-      queueInfo.queueFamilyIndex = queueFamilyIndices.transfer;
+      queueInfo.queueFamilyIndex = _queue_family.transfer;
       queueInfo.queueCount = 1;
       queueInfo.pQueuePriorities = &defaultQueuePriority;
       queueCreateInfos.push_back(queueInfo);
     }
   } else {
     // Else we use the same queue
-    queueFamilyIndices.transfer = queueFamilyIndices.graphics;
+    _queue_family.transfer = _queue_family.graphics;
   }
 
   // Create the logical device representation
@@ -159,7 +159,6 @@ VkResult VulkanDevice::realize(VkPhysicalDeviceFeatures enabledFeatures, std::ve
   VkDeviceCreateInfo deviceCreateInfo = {};
   deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
   deviceCreateInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
-  ;
   deviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
   deviceCreateInfo.pEnabledFeatures = &enabledFeatures;
 
@@ -175,14 +174,14 @@ VkResult VulkanDevice::realize(VkPhysicalDeviceFeatures enabledFeatures, std::ve
 
 #if (defined(VK_USE_PLATFORM_IOS_MVK) || defined(VK_USE_PLATFORM_MACOS_MVK)) && defined(VK_KHR_portability_subset)
   // SRS - When running on iOS/macOS with MoltenVK and VK_KHR_portability_subset is defined and supported by the device, enable the extension
-  if (extensionSupported(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME)) {
+  if (extension_supported(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME)) {
     deviceExtensions.push_back(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME);
   }
 #endif
 
   if (deviceExtensions.size() > 0) {
     for (const char *enabledExtension : deviceExtensions) {
-      if (!extensionSupported(enabledExtension)) {
+      if (!extension_supported(enabledExtension)) {
         std::cerr << "Enabled device extension \"" << enabledExtension << "\" is not present at device level\n";
       }
     }
@@ -199,7 +198,7 @@ VkResult VulkanDevice::realize(VkPhysicalDeviceFeatures enabledFeatures, std::ve
   }
 
   // Create a default command pool for graphics command buffers
-  _command_pool = createCommandPool(queueFamilyIndices.graphics);
+  _command_pool = create_command_pool(_queue_family.graphics);
 
   vkGetPhysicalDeviceProperties(_physical_device, &properties);
   vkGetPhysicalDeviceFeatures(_physical_device, &features);
@@ -429,8 +428,8 @@ uint32_t VulkanDevice::queue_family_index(VkQueueFlags queueFlags) const
   // Dedicated queue for compute
   // Try to find a queue family index that supports compute but not graphics
   if ((queueFlags & VK_QUEUE_COMPUTE_BIT) == queueFlags) {
-    for (uint32_t i = 0; i < static_cast<uint32_t>(_queueFamilyProperties.size()); i++) {
-      if ((_queueFamilyProperties[i].queueFlags & VK_QUEUE_COMPUTE_BIT) && ((_queueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) == 0)) {
+    for (uint32_t i = 0; i < static_cast<uint32_t>(_queue_family_properties.size()); i++) {
+      if ((_queue_family_properties[i].queueFlags & VK_QUEUE_COMPUTE_BIT) && ((_queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) == 0)) {
         return i;
       }
     }
@@ -439,17 +438,17 @@ uint32_t VulkanDevice::queue_family_index(VkQueueFlags queueFlags) const
   // Dedicated queue for transfer
   // Try to find a queue family index that supports transfer but not graphics and compute
   if ((queueFlags & VK_QUEUE_TRANSFER_BIT) == queueFlags) {
-    for (uint32_t i = 0; i < static_cast<uint32_t>(_queueFamilyProperties.size()); i++) {
-      if ((_queueFamilyProperties[i].queueFlags & VK_QUEUE_TRANSFER_BIT) && ((_queueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) == 0) &&
-          ((_queueFamilyProperties[i].queueFlags & VK_QUEUE_COMPUTE_BIT) == 0)) {
+    for (uint32_t i = 0; i < static_cast<uint32_t>(_queue_family_properties.size()); i++) {
+      if ((_queue_family_properties[i].queueFlags & VK_QUEUE_TRANSFER_BIT) && ((_queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) == 0) &&
+          ((_queue_family_properties[i].queueFlags & VK_QUEUE_COMPUTE_BIT) == 0)) {
         return i;
       }
     }
   }
 
   // For other queue types or if no separate compute queue is present, return the first one to support the requested flags
-  for (uint32_t i = 0; i < static_cast<uint32_t>(_queueFamilyProperties.size()); i++) {
-    if ((_queueFamilyProperties[i].queueFlags & queueFlags) == queueFlags) {
+  for (uint32_t i = 0; i < static_cast<uint32_t>(_queue_family_properties.size()); i++) {
+    if ((_queue_family_properties[i].queueFlags & queueFlags) == queueFlags) {
       return i;
     }
   }
@@ -558,7 +557,7 @@ void VulkanDevice::copy_buffer(VulkanBuffer *src, VulkanBuffer *dst, VkQueue que
 {
   assert(dst->_size <= src->_size);
   assert(src->_buffer && dst->_buffer);
-  VkCommandBuffer copyCmd = createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+  VkCommandBuffer copyCmd = create_command_buffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
   VkBufferCopy bufferCopy{};
   if (copyRegion == nullptr) {
     bufferCopy.size = src->_size;
@@ -568,7 +567,7 @@ void VulkanDevice::copy_buffer(VulkanBuffer *src, VulkanBuffer *dst, VkQueue que
 
   vkCmdCopyBuffer(copyCmd, src->_buffer, dst->_buffer, 1, &bufferCopy);
 
-  flushCommandBuffer(copyCmd, queue);
+  flush_command_buffer(copyCmd, queue);
 }
 
 /**
@@ -581,7 +580,7 @@ void VulkanDevice::copy_buffer(VulkanBuffer *src, VulkanBuffer *dst, VkQueue que
  *
  * @return A handle to the created command buffer
  */
-VkCommandPool VulkanDevice::createCommandPool(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags createFlags)
+VkCommandPool VulkanDevice::create_command_pool(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags createFlags)
 {
   VkCommandPoolCreateInfo cmdPoolInfo = {};
   cmdPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -601,7 +600,7 @@ VkCommandPool VulkanDevice::createCommandPool(uint32_t queueFamilyIndex, VkComma
  *
  * @return A handle to the allocated command buffer
  */
-VkCommandBuffer VulkanDevice::createCommandBuffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin)
+VkCommandBuffer VulkanDevice::create_command_buffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin)
 {
   VkCommandBuffer cmdBuffer;
   VkCommandBufferAllocateInfo cmdBufAllocateInfo = vks::initializers::commandBufferAllocateInfo(pool, level, 1);
@@ -614,9 +613,9 @@ VkCommandBuffer VulkanDevice::createCommandBuffer(VkCommandBufferLevel level, Vk
   return cmdBuffer;
 }
 
-VkCommandBuffer VulkanDevice::createCommandBuffer(VkCommandBufferLevel level, bool begin)
+VkCommandBuffer VulkanDevice::create_command_buffer(VkCommandBufferLevel level, bool begin)
 {
-  return createCommandBuffer(level, _command_pool, begin);
+  return create_command_buffer(level, _command_pool, begin);
 }
 
 /**
@@ -630,7 +629,7 @@ VkCommandBuffer VulkanDevice::createCommandBuffer(VkCommandBufferLevel level, bo
  * @note The queue that the command buffer is submitted to must be from the same family index as the pool it was allocated from
  * @note Uses a fence to ensure command buffer has finished executing
  */
-void VulkanDevice::flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue, VkCommandPool pool, bool free)
+void VulkanDevice::flush_command_buffer(VkCommandBuffer commandBuffer, VkQueue queue, VkCommandPool pool, bool free)
 {
   if (commandBuffer == VK_NULL_HANDLE) {
     return;
@@ -655,12 +654,12 @@ void VulkanDevice::flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue que
   }
 }
 
-void VulkanDevice::flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue, bool free)
+void VulkanDevice::flush_command_buffer(VkCommandBuffer commandBuffer, VkQueue queue, bool free)
 {
-  return flushCommandBuffer(commandBuffer, queue, _command_pool, free);
+  return flush_command_buffer(commandBuffer, queue, _command_pool, free);
 }
 
-std::vector<VkCommandBuffer> VulkanDevice::createCommandBuffers(uint32_t n)
+std::vector<VkCommandBuffer> VulkanDevice::create_command_buffers(uint32_t n)
 {
   std::vector<VkCommandBuffer> cmd_bufs(n);
   VkCommandBufferAllocateInfo cmdBufAllocateInfo =
@@ -670,13 +669,13 @@ std::vector<VkCommandBuffer> VulkanDevice::createCommandBuffers(uint32_t n)
   return cmd_bufs;
 }
 
-void VulkanDevice::destroyCommandBuffers(std::vector<VkCommandBuffer> &cmdbufs)
+void VulkanDevice::destroy_command_buffers(std::vector<VkCommandBuffer> &cmdbufs)
 {
   vkFreeCommandBuffers(_logical_device, _command_pool, static_cast<uint32_t>(cmdbufs.size()), cmdbufs.data());
   cmdbufs.clear();
 }
 
-std::vector<VkFence> VulkanDevice::createFences(uint32_t n)
+std::vector<VkFence> VulkanDevice::create_fences(uint32_t n)
 {
   std::vector<VkFence> fences;
   VkFenceCreateInfo fenceCreateInfo = vks::initializers::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
@@ -690,7 +689,14 @@ std::vector<VkFence> VulkanDevice::createFences(uint32_t n)
 VkQueue VulkanDevice::graphic_queue(uint32_t idx)
 {
   VkQueue queue = VK_NULL_HANDLE;
-  vkGetDeviceQueue(_logical_device, queueFamilyIndices.graphics, idx, &queue);
+  vkGetDeviceQueue(_logical_device, _queue_family.graphics, idx, &queue);
+  return queue;
+}
+
+VkQueue VulkanDevice::transfer_queue(uint32_t idx)
+{
+  VkQueue queue = VK_NULL_HANDLE;
+  vkGetDeviceQueue(_logical_device, _queue_family.transfer, idx, &queue);
   return queue;
 }
 
@@ -701,7 +707,7 @@ VkQueue VulkanDevice::graphic_queue(uint32_t idx)
  *
  * @return True if the extension is supported (present in the list read at device creation time)
  */
-bool VulkanDevice::extensionSupported(std::string extension)
+bool VulkanDevice::extension_supported(std::string extension)
 {
   return (std::find(supportedExtensions.begin(), supportedExtensions.end(), extension) != supportedExtensions.end());
 }
@@ -715,7 +721,7 @@ bool VulkanDevice::extensionSupported(std::string extension)
  *
  * @throw Throws an exception if no depth format fits the requirements
  */
-VkFormat VulkanDevice::getSupportedDepthFormat(bool checkSamplingSupport)
+VkFormat VulkanDevice::supported_depth_format(bool checkSamplingSupport)
 {
   // All depth formats may be optional, so we need to find a suitable depth format to use
   std::vector<VkFormat> depthFormats = {VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D32_SFLOAT, VK_FORMAT_D24_UNORM_S8_UINT, VK_FORMAT_D16_UNORM_S8_UINT,

@@ -54,25 +54,26 @@ public:
     VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, void *data = nullptr);
   void copy_buffer(VulkanBuffer *src, VulkanBuffer *dst, VkQueue queue, VkBufferCopy *copyRegion = nullptr);
 
-  VkCommandPool createCommandPool(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags createFlags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
-  VkCommandBuffer createCommandBuffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin = false);
-  VkCommandBuffer createCommandBuffer(VkCommandBufferLevel level, bool begin = false);
-  void flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue, VkCommandPool pool, bool free = true);
-  void flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue, bool free = true);
+  VkCommandPool create_command_pool(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags createFlags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+  VkCommandBuffer create_command_buffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin = true);
+  VkCommandBuffer create_command_buffer(VkCommandBufferLevel level, bool begin = true);
+  void flush_command_buffer(VkCommandBuffer commandBuffer, VkQueue queue, VkCommandPool pool, bool free = true);
+  void flush_command_buffer(VkCommandBuffer commandBuffer, VkQueue queue, bool free = true);
 
-  std::vector<VkCommandBuffer> createCommandBuffers(uint32_t n);
-  void destroyCommandBuffers(std::vector<VkCommandBuffer> &cmdbufs);
+  std::vector<VkCommandBuffer> create_command_buffers(uint32_t n);
+  void destroy_command_buffers(std::vector<VkCommandBuffer> &cmdbufs);
 
-  std::vector<VkFence> createFences(uint32_t n);
+  std::vector<VkFence> create_fences(uint32_t n);
 
   VkQueue graphic_queue(uint32_t idx = 0);
+  VkQueue transfer_queue(uint32_t idx = 0);
 
-  bool extensionSupported(std::string extension);
-  VkFormat getSupportedDepthFormat(bool checkSamplingSupport);
+  bool extension_supported(std::string extension);
+  VkFormat supported_depth_format(bool checkSamplingSupport);
 
 public:
 
-  const std::vector<VkQueueFamilyProperties> &queueFamilyProperties() { return _queueFamilyProperties; }
+  const std::vector<VkQueueFamilyProperties> &queue_family_properties() { return _queue_family_properties; }
 
 private:
   /** @brief Physical device representation */
@@ -88,7 +89,7 @@ private:
   /** @brief Memory types and heaps of the physical device */
   VkPhysicalDeviceMemoryProperties memoryProperties;
   /** @brief Queue family properties of the physical device */
-  std::vector<VkQueueFamilyProperties> _queueFamilyProperties;
+  std::vector<VkQueueFamilyProperties> _queue_family_properties;
   /** @brief List of extensions supported by the device */
   std::vector<std::string> supportedExtensions;
   /** @brief Default command pool for the graphics queue family index */
@@ -98,7 +99,7 @@ private:
     uint32_t graphics;
     uint32_t compute;
     uint32_t transfer;
-  } queueFamilyIndices;
+  } _queue_family;
 
   VkPipelineCache _pipe_cache = VK_NULL_HANDLE;
   VkDescriptorPool _descriptor_pool = VK_NULL_HANDLE;

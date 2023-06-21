@@ -22,7 +22,7 @@ VulkanImGUI::VulkanImGUI(std::shared_ptr<VulkanDevice> dev) : _device(dev)
 {
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
-  auto &io = ImGui::GetIO();
+  auto& io = ImGui::GetIO();
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;   // Enable Gamepad Controls
   ImGui::StyleColorsLight();
@@ -32,8 +32,30 @@ VulkanImGUI::VulkanImGUI(std::shared_ptr<VulkanDevice> dev) : _device(dev)
   int texWidth, texHeight;
   io.Fonts->GetTexDataAsRGBA32(&data, &texWidth, &texHeight);
 
-  std::tie(_font_tex, _font_memory) = _device->create_image(texWidth, texHeight);
-  _font_view = _device->create_image_view(_font_tex);
+  std::tie(_font_img, _font_memory) = _device->create_image(texWidth, texHeight);
+  _font_view = _device->create_image_view(_font_img);
+
+  uint32_t sz = texWidth * texHeight * 4;
+  auto buf = _device->create_buffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sz, data);
+  auto cmd = _device->create_command_buffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+  vks::tools::setImageLayout(cmd, _font_img, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                             VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+
+  VkBufferImageCopy copy_region = {};
+  copy_region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  copy_region.imageSubresource.layerCount = 1;
+  copy_region.imageExtent.width = texWidth;
+  copy_region.imageExtent.height = texHeight;
+  copy_region.imageExtent.depth = 1;
+
+  vkCmdCopyBufferToImage(cmd, *buf, _font_img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
+
+  vks::tools::setImageLayout(cmd, _font_img, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                             VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+
+  _device->flush_command_buffer(cmd, _device->transfer_queue(0));
+  buf->destroy();
+
 }
 
 VulkanImGUI::~VulkanImGUI()
@@ -201,18 +223,21 @@ bool VulkanImGUI::update()
 
   if (vertex_buf_size == 0 || index_buf_size == 0) { return false; }
 
+  auto vbuf = _vert_buf, ibuf = _index_buf;
   if (_vert_buf == 0 || _vert_buf->size() < vertex_buf_size) {
-    _vert_buf = _device->create_buffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, vertex_buf_size, 0);
+    _vert_buf_bak = _device->create_buffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, vertex_buf_size, 0);
+    vbuf = _vert_buf_bak;
     updateCmdBuffers = true;
   }
 
   if (_index_buf == 0 || _index_buf->size() < index_buf_size) {
-    _index_buf = _device->create_buffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, index_buf_size, 0);
+    _index_buf_bak = _device->create_buffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, index_buf_size, 0);
+    ibuf = _index_buf_bak;
     updateCmdBuffers = true;
   }
 
-  uint8_t* vtxDst = _vert_buf->map();
-  uint8_t* idxDst = _index_buf->map();
+  uint8_t* vtxDst = vbuf->map();
+  uint8_t* idxDst = ibuf->map();
   for (int n = 0; n < imDrawData->CmdListsCount; n++) {
     const ImDrawList* cmd_list = imDrawData->CmdLists[n];
     memcpy(vtxDst, cmd_list->VtxBuffer.Data, cmd_list->VtxBuffer.Size * sizeof(ImDrawVert));
@@ -220,10 +245,10 @@ bool VulkanImGUI::update()
     vtxDst += cmd_list->VtxBuffer.Size;
     idxDst += cmd_list->IdxBuffer.Size;
   }
-  _vert_buf->flush();
-  _index_buf->flush();
-  _vert_buf->unmap();
-  _index_buf->unmap();
+  vbuf->flush();
+  ibuf->flush();
+  vbuf->unmap();
+  ibuf->unmap();
 
   return updateCmdBuffers;
 }
@@ -239,10 +264,13 @@ void VulkanImGUI::draw(const VkCommandBuffer cmdbuf)
   vkCmdBindPipeline(cmdbuf, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);
   vkCmdBindDescriptorSets(cmdbuf, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipe_layout, 0, 1, &_descriptor_set, 0, nullptr);
 
-  const_block.scale = tg::vec2(2.0 / io.DisplaySize.x, 2.0 / io.DisplaySize.y);
-  const_block.translate = tg::vec2(-1.f);
+  const_block.scale = tg::vec2(2.0 / io.DisplaySize.x, -2.0 / io.DisplaySize.y);
+  const_block.translate = tg::vec2(-1.f, 1.f);
 
   vkCmdPushConstants(cmdbuf, _pipe_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstBlock), &const_block);
+
+  if(_vert_buf_bak) _vert_buf = std::move(_vert_buf_bak);
+  if(_index_buf_bak) _index_buf = std::move(_index_buf_bak);
 
   VkDeviceSize offsets[1] = {};
   vkCmdBindVertexBuffers(cmdbuf, 0, 1, *_vert_buf, offsets);
@@ -258,7 +286,7 @@ void VulkanImGUI::draw(const VkCommandBuffer cmdbuf)
       scissorRect.offset.y = std::max<uint32_t>((int32_t)(pcmd->ClipRect.y), 0);
       scissorRect.extent.width = (uint32_t)(pcmd->ClipRect.z - pcmd->ClipRect.x);
       scissorRect.extent.height = (uint32_t)(pcmd->ClipRect.w - pcmd->ClipRect.y);
-      vkCmdSetScissor(cmdbuf, 0, 1, &scissorRect);
+      //vkCmdSetScissor(cmdbuf, 0, 1, &scissorRect);
       vkCmdDrawIndexed(cmdbuf, pcmd->ElemCount, 1, indexOffset, vertexOffset, 0);
       indexOffset += pcmd->ElemCount;
     }

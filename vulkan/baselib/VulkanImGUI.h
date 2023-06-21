@@ -34,10 +34,10 @@ private:
   VkPipelineLayout _pipe_layout = VK_NULL_HANDLE;
   VkPipeline _pipeline = VK_NULL_HANDLE;
 
-  std::shared_ptr<VulkanBuffer> _vert_buf;
-  std::shared_ptr<VulkanBuffer> _index_buf;
+  std::shared_ptr<VulkanBuffer> _vert_buf, _vert_buf_bak;
+  std::shared_ptr<VulkanBuffer> _index_buf, _index_buf_bak;
 
-  VkImage _font_tex;
+  VkImage _font_img;
   VkDeviceMemory _font_memory;
   VkImageView _font_view;
 };

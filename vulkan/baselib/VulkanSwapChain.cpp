@@ -44,7 +44,7 @@ void VulkanSwapChain::set_surface(VkSurfaceKHR surface)
 {
   _surface = surface;
 
-  auto &props = _device->queueFamilyProperties();
+  auto &props = _device->queue_family_properties();
   std::vector<VkBool32> supportsPresent(props.size());
   for (int i = 0; i < props.size(); i++)
     vkGetPhysicalDeviceSurfaceSupportKHR(_device->physical_device(), i, surface, &supportsPresent[i]);

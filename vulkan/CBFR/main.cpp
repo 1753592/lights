@@ -67,7 +67,7 @@ public:
     for (auto fence : _fences)
       vkDestroyFence(*_device, fence, nullptr);
 
-    _device->destroyCommandBuffers(_cmd_bufs);
+    _device->destroy_command_buffers(_cmd_bufs);
 
     vkDestroyRenderPass(*_device, _render_pass, nullptr);
 
@@ -134,7 +134,7 @@ public:
 
     _render_pass = _swapchain->create_render_pass();
 
-    _cmd_bufs = _device->createCommandBuffers(count);
+    _cmd_bufs = _device->create_command_buffers(count);
 
     create_pipeline();
 
@@ -154,7 +154,7 @@ public:
     if (_fences.size() != _cmd_bufs.size()) {
       for (auto fence : _fences)
         vkDestroyFence(*_device, fence, nullptr);
-      _fences = _device->createFences(_cmd_bufs.size());
+      _fences = _device->create_fences(_cmd_bufs.size());
     }
   }
 

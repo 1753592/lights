@@ -53,7 +53,6 @@ public:
     _manip.set_home(vec3(0, -30, 0), vec3(0), vec3(0, 0, 1));
 
     _swapchain = std::make_shared<VulkanSwapChain>(dev);
-    _queue = dev->graphic_queue(0);
 
     create_sphere();
     create_pipe_layout();
@@ -67,7 +66,7 @@ public:
     for (auto fence : _fences)
       vkDestroyFence(*_device, fence, nullptr);
 
-    _device->destroyCommandBuffers(_cmd_bufs);
+    _device->destroy_command_buffers(_cmd_bufs);
 
     vkDestroyRenderPass(*_device, _render_pass, nullptr);
 
@@ -134,7 +133,7 @@ public:
 
     _render_pass = _device->create_render_pass(_swapchain->color_format(), _swapchain->depth_format());
 
-    _cmd_bufs = _device->createCommandBuffers(count);
+    _cmd_bufs = _device->create_command_buffers(count);
 
     create_pipeline();
 
@@ -154,7 +153,7 @@ public:
     if (_fences.size() != _cmd_bufs.size()) {
       for (auto fence : _fences)
         vkDestroyFence(*_device, fence, nullptr);
-      _fences = _device->createFences(_cmd_bufs.size());
+      _fences = _device->create_fences(_cmd_bufs.size());
     }
   }
 
@@ -215,11 +214,12 @@ public:
     submitInfo.pSignalSemaphores = &_renderSemaphore;  // Semaphore(s) to be signaled when command buffers have completed
 
     // Submit to the graphics queue passing a wait fence
-    VK_CHECK_RESULT(vkQueueSubmit(_queue, 1, &submitInfo, _fences[index]));
+    auto queue = _device->graphic_queue(0);
+    VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, _fences[index]));
 
     {
       _frame = index;
-      auto present = _swapchain->queue_present(_queue, _frame, _renderSemaphore);
+      auto present = _swapchain->queue_present(queue, _frame, _renderSemaphore);
       if (!((present == VK_SUCCESS) || (present == VK_SUBOPTIMAL_KHR))) {
         VK_CHECK_RESULT(present);
       }
@@ -748,7 +748,7 @@ public:
       VkFence fence;
       VK_CHECK_RESULT(vkCreateFence(*_device, &fenceCreateInfo, nullptr, &fence));
 
-      VK_CHECK_RESULT(vkQueueSubmit(_queue, 1, &submitInfo, fence));
+      VK_CHECK_RESULT(vkQueueSubmit(_device->graphic_queue(0), 1, &submitInfo, fence));
       VK_CHECK_RESULT(vkWaitForFences(*_device, 1, &fence, VK_TRUE, DEFAULT_FENCE_TIMEOUT));
       vkDestroyFence(*_device, fence, nullptr);
       vkFreeCommandBuffers(*_device, _device->command_pool(), 1, &cmdBuffer);
@@ -772,8 +772,6 @@ private:
 
   VkSemaphore _presentSemaphore;
   VkSemaphore _renderSemaphore;
-
-  VkQueue _queue;
 
   std::vector<VkCommandBuffer> _cmd_bufs;
   std::vector<VkFramebuffer> _frame_bufs;
