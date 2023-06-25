@@ -50,12 +50,12 @@ VulkanView::~VulkanView()
 
 void VulkanView::set_surface(VkSurfaceKHR surface, int w, int h)
 {
-  _w = w;
-  _h = h;
   _swapchain->set_surface(surface);
   _swapchain->realize(w, h, true);
 
   _render_pass = _device->create_render_pass(_swapchain->color_format(), _swapchain->depth_format());
+
+  if (_imgui) _imgui->create_pipeline(_swapchain->color_format());
 
   resize_impl(w, h);
 }
@@ -75,9 +75,7 @@ void VulkanView::frame(bool continus)
             vkDeviceWaitIdle(*_device);
             _w = event.window.data1;
             _h = event.window.data2;
-            _swapchain->realize(_w, _h, true);
-            clear_frame();
-            check_frame();
+            resize_impl(_w, _h);
             update();
           }
           break;
@@ -104,7 +102,9 @@ void VulkanView::frame(bool continus)
             _manip.translate(event.motion.xrel, -event.motion.yrel);
             right_drag(event.motion.x, event.motion.y, event.motion.xrel, event.motion.yrel);
           }            
-          if (_imgui) _imgui->mouse_move(event.motion);
+          if (_imgui) {
+            _imgui->mouse_move(event.motion);
+          }
           update();
           break;
         case SDL_MOUSEWHEEL: {
@@ -135,13 +135,14 @@ void VulkanView::update()
 {
   update_scene();
 
-  if (_imgui->update())
-    build_command_buffers(_frame_bufs, _render_pass);
-
   SDL_Event ev;
   ev.type = SDL_USEREVENT;
   ev.user.code = WM_PAINT;
   SDL_PushEvent(&ev);
+}
+
+void VulkanView::rebuild_command() {
+  build_command_buffers();
 }
 
 void VulkanView::initialize()
@@ -152,7 +153,7 @@ void VulkanView::initialize()
 
     create_sync_objs();
 
-    _imgui = std::make_shared<VulkanImGUI>(_device);
+    _imgui = std::make_shared<VulkanImGUI>(this);
 
 }
 
@@ -164,15 +165,17 @@ void VulkanView::check_frame()
   }
 
   _depth = _swapchain->create_depth_image(_w, _h);
-  _frame_bufs = _swapchain->create_frame_buffer(_render_pass, _depth);
+  _frame_bufs = _swapchain->create_frame_buffer(_render_pass, _depth.view);
 
-  build_command_buffers(_frame_bufs, _render_pass);
+  build_command_buffers();
 
   if (_fences.size() != _cmd_bufs.size()) {
     for (auto fence : _fences)
       vkDestroyFence(*_device, fence, nullptr);
     _fences = _device->create_fences(_cmd_bufs.size());
   }
+
+  if (_imgui) _imgui->check_frame(count, _swapchain->color_format());
 }
 
 void VulkanView::clear_frame()
@@ -200,8 +203,10 @@ void VulkanView::create_sync_objs()
   VK_CHECK_RESULT(vkCreateSemaphore(*_device, &semaphoreCreateInfo, nullptr, &_renderSemaphore));
 }
 
-void VulkanView::build_command_buffers(std::vector<VkFramebuffer>& framebuffers, VkRenderPass renderPass)
+void VulkanView::build_command_buffers()
 {
+  auto& framebuffers = _frame_bufs;
+  auto& renderPass = _render_pass;
   vkDeviceWaitIdle(*_device);
 
   assert(framebuffers.size() == _cmd_bufs.size());
@@ -253,8 +258,6 @@ void VulkanView::build_command_buffers(std::vector<VkFramebuffer>& framebuffers,
 
     build_command_buffer(cmd_buf);
 
-    if (_imgui) _imgui->draw(cmd_buf);
-
     vkCmdEndRenderPass(cmd_buf);
 
     VK_CHECK_RESULT(vkEndCommandBuffer(cmd_buf));
@@ -263,15 +266,19 @@ void VulkanView::build_command_buffers(std::vector<VkFramebuffer>& framebuffers,
 
 void VulkanView::resize_impl(int w, int h)
 {
-  _w = w; _h = h;
-  if (_imgui) {
+  if (_imgui)
     _imgui->resize(w, h);
-    _imgui->create_pipeline(_render_pass, _swapchain->color_format(), _swapchain->depth_format());
+
+  if (w != _w && h != _h) {
+    _w = w; _h = h;
+
+    _swapchain->realize(w, h, true);
+
+    clear_frame();
+    check_frame();
+
+    resize(w, h);
   }
-
-  check_frame();
-
-  resize(w, h);
 }
 
 void VulkanView::render()

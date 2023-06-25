@@ -30,7 +30,7 @@ public:
 
   ImageUnit create_depth_image(uint32_t width, uint32_t height);
 
-  std::vector<VkFramebuffer> create_frame_buffer(VkRenderPass vkPass, const ImageUnit &);
+  std::vector<VkFramebuffer> create_frame_buffer(VkRenderPass vkPass, const VkImageView &);
 
   std::tuple<VkResult, uint32_t> acquire_image(VkSemaphore present_sema);
 

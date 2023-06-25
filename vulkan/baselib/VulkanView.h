@@ -25,6 +25,8 @@ public:
 
   VulkanDevice *device() { return _device.get(); }
 
+  VulkanSwapChain *swapchain() { return _swapchain.get(); }
+
   VkRenderPass render_pass() { return _render_pass; }
 
   uint32_t frame_count();
@@ -48,6 +50,8 @@ protected:
 
   void update();
 
+  void rebuild_command();
+
 private:
   void initialize();
 
@@ -57,7 +61,7 @@ private:
 
   void create_sync_objs();
 
-  void build_command_buffers(std::vector<VkFramebuffer> &framebuffers, VkRenderPass renderPass);
+  void build_command_buffers();
 
   void resize_impl(int w, int h);
 
@@ -76,10 +80,10 @@ private:
   uint32_t _frame = 0;
 
   VkRenderPass _render_pass = VK_NULL_HANDLE;
-  ImageUnit _depth;
+  ImageUnit _depth = {VK_NULL_HANDLE};
 
-  VkSemaphore _presentSemaphore;
-  VkSemaphore _renderSemaphore;
+  VkSemaphore _presentSemaphore = VK_NULL_HANDLE;
+  VkSemaphore _renderSemaphore = VK_NULL_HANDLE;
   std::vector<VkFence> _fences;
 
   Manipulator _manip;

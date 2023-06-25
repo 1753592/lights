@@ -294,20 +294,23 @@ ImageUnit VulkanSwapChain::create_depth_image(uint32_t width, uint32_t height)
   return unit;
 }
 
-std::vector<VkFramebuffer> VulkanSwapChain::create_frame_buffer(VkRenderPass vkPass, const ImageUnit& depthUnit) 
+std::vector<VkFramebuffer> VulkanSwapChain::create_frame_buffer(VkRenderPass vkPass, const VkImageView& depth) 
 {
   assert(_buffers.size() == _images.size());
 
   VkImageView attachments[2];
 
   // Depth/Stencil attachment is the same for all frame buffers
-  attachments[1] = depthUnit.view;
+  attachments[1] = depth;
 
   VkFramebufferCreateInfo frameBufferCreateInfo = {};
   frameBufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
   frameBufferCreateInfo.pNext = NULL;
   frameBufferCreateInfo.renderPass = vkPass;
-  frameBufferCreateInfo.attachmentCount = 2;
+  if (depth == VK_NULL_HANDLE)
+    frameBufferCreateInfo.attachmentCount = 1;
+  else
+    frameBufferCreateInfo.attachmentCount = 2;
   frameBufferCreateInfo.pAttachments = attachments;
   frameBufferCreateInfo.width = _width;
   frameBufferCreateInfo.height = _height;

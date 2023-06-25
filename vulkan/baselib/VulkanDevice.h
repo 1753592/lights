@@ -33,7 +33,7 @@ public:
   VkResult realize(VkPhysicalDeviceFeatures enabledFeatures, std::vector<const char *> enabledExtensions, void *pNextChain,
                                bool useSwapChain = true, VkQueueFlags requestedQueueTypes = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
 
-  VkRenderPass create_render_pass(VkFormat color, VkFormat depth);
+  VkRenderPass create_render_pass(VkFormat color, VkFormat depth = VK_FORMAT_UNDEFINED);
   
   std::tuple<VkImage, VkDeviceMemory> create_image(int w, int h,VkFormat format = VK_FORMAT_R8G8B8A8_UNORM);
   VkImageView create_image_view(VkImage img, VkFormat format = VK_FORMAT_R8G8B8A8_UNORM);

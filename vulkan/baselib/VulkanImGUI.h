@@ -4,18 +4,21 @@
 #include <SDL2/SDL_events.h>
 
 #include <memory>
+#include <vector>
 
-class VulkanDevice;
+class VulkanView;
 class VulkanBuffer;
 
 class VulkanImGUI{
 public:
-  VulkanImGUI(std::shared_ptr<VulkanDevice> dev);
+  VulkanImGUI(VulkanView* view);
   ~VulkanImGUI();
 
   void resize(int w, int h);
 
-  void create_pipeline(VkRenderPass render_pass, VkFormat clrformat, VkFormat depformat);
+  void create_pipeline(VkFormat clrformat);
+
+  void check_frame(int n, VkFormat clrformat);
 
   bool update();
 
@@ -32,7 +35,11 @@ private:
 
 private:
   bool _initialized = false;
-  std::shared_ptr<VulkanDevice> _device;
+  VulkanView *_view = 0;
+
+  VkRenderPass _render_pass = VK_NULL_HANDLE;
+
+  std::vector<VkFramebuffer> _frame_bufs;
 
   VkSampler _sampler = VK_NULL_HANDLE;
   VkDescriptorPool _descriptor_pool = VK_NULL_HANDLE;

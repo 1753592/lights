@@ -322,6 +322,8 @@ public:
 
     vkDestroyShaderModule(*device(), shaderStages[0].module, nullptr);
     vkDestroyShaderModule(*device(), shaderStages[1].module, nullptr);
+
+    rebuild_command();
   }
 
   void wheel(int delta) { update_ubo(); }
