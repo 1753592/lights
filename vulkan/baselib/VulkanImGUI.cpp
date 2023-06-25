@@ -72,6 +72,9 @@ VulkanImGUI::~VulkanImGUI()
   if (_sampler)
     vkDestroySampler(*device, _sampler, nullptr);
 
+  for (auto& frame : _frame_bufs)
+    vkDestroyFramebuffer(*device, frame, nullptr);
+
   if (_render_pass)
     vkDestroyRenderPass(*device, _render_pass, nullptr);
 
@@ -235,7 +238,12 @@ void VulkanImGUI::check_frame(int count, VkFormat clrformat)
   for (auto& framebuf : _frame_bufs)
     vkDestroyFramebuffer(*device, framebuf, nullptr);
 
-  _frame_bufs = _view->swapchain()->create_frame_buffer(_render_pass, VK_NULL_HANDLE);
+  if (count != _frame_bufs.size())
+    _frame_bufs = _view->swapchain()->create_frame_buffer(_render_pass, VK_NULL_HANDLE);
+  if (count != _cmd_bufs.size())
+    _cmd_bufs = _view->device()->create_command_buffers(count);
+
+  build_command_buffers();
 }
 
 bool VulkanImGUI::update()
@@ -356,3 +364,63 @@ bool VulkanImGUI::mouse_move(SDL_MouseMotionEvent& ev)
 }
 
 void VulkanImGUI::create_canvas() {}
+
+void VulkanImGUI::build_command_buffers()
+{
+  auto& framebuffers = _frame_bufs;
+  auto& renderPass = _render_pass;
+  auto device = _view->device();
+  vkDeviceWaitIdle(*device);
+
+  assert(framebuffers.size() == _cmd_bufs.size());
+
+  VkCommandBufferBeginInfo buf_info = {};
+  buf_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  buf_info.pNext = nullptr;
+
+  VkClearValue clearValue = {{0.0, 0.0, 0.2, 1.0}};
+
+  VkRenderPassBeginInfo renderPassBeginInfo = {};
+  renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+  renderPassBeginInfo.pNext = nullptr;
+  renderPassBeginInfo.renderPass = renderPass;
+  renderPassBeginInfo.renderArea.offset.x = 0;
+  renderPassBeginInfo.renderArea.offset.y = 0;
+  renderPassBeginInfo.renderArea.extent.width = _view->width();
+  renderPassBeginInfo.renderArea.extent.height = _view->height();
+  renderPassBeginInfo.clearValueCount = 1;
+  renderPassBeginInfo.pClearValues = &clearValue;
+
+  for (int i = 0; i < _cmd_bufs.size(); i++) {
+    renderPassBeginInfo.framebuffer = framebuffers[i];
+    auto& cmd_buf = _cmd_bufs[i];
+    VK_CHECK_RESULT(vkBeginCommandBuffer(cmd_buf, &buf_info));
+
+    vkCmdBeginRenderPass(cmd_buf, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    {
+      VkViewport viewport = {};
+      viewport.y = _view->height();
+      viewport.width = _view->width();
+      viewport.height = -_view->height();
+      viewport.minDepth = 0;
+      viewport.maxDepth = 1;
+      vkCmdSetViewport(cmd_buf, 0, 1, &viewport);
+    }
+
+    {
+      VkRect2D scissor = {};
+      scissor.extent.width = _view->width();
+      scissor.extent.height = _view->height();
+      scissor.offset.x = 0;
+      scissor.offset.y = 0;
+      vkCmdSetScissor(cmd_buf, 0, 1, &scissor);
+    }
+
+    draw(cmd_buf);
+
+    vkCmdEndRenderPass(cmd_buf);
+
+    VK_CHECK_RESULT(vkEndCommandBuffer(cmd_buf));
+  }
+}

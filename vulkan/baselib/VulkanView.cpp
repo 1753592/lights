@@ -298,8 +298,15 @@ void VulkanView::render()
   submitInfo.pWaitDstStageMask = &waitStageMask;   // Pointer to the list of pipeline stages that the semaphore waits will occur at
   submitInfo.waitSemaphoreCount = 1;               // One wait semaphore
   submitInfo.signalSemaphoreCount = 1;             // One signal semaphore
-  submitInfo.pCommandBuffers = &_cmd_bufs[index];  // Command buffers(s) to execute in this batch (submission)
-  submitInfo.commandBufferCount = 1;               // One command buffer
+
+  int cmdcount = 1;
+  VkCommandBuffer cmdbufs[2] = {_cmd_bufs[index], 0};
+  if (_imgui) {
+    cmdcount = 2;
+    cmdbufs[1] = _imgui->_cmd_bufs[index];
+  }
+  submitInfo.pCommandBuffers = cmdbufs;             // Command buffers(s) to execute in this batch (submission)
+  submitInfo.commandBufferCount = cmdcount;         // One command buffer
 
   submitInfo.pWaitSemaphores = &_presentSemaphore;   // Semaphore(s) to wait upon before the submitted command buffer starts executing
   submitInfo.pSignalSemaphores = &_renderSemaphore;  // Semaphore(s) to be signaled when command buffers have completed

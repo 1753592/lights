@@ -10,6 +10,7 @@ class VulkanView;
 class VulkanBuffer;
 
 class VulkanImGUI{
+  friend class VulkanView;
 public:
   VulkanImGUI(VulkanView* view);
   ~VulkanImGUI();
@@ -33,6 +34,8 @@ public:
 private:
   void create_canvas();
 
+  void build_command_buffers();
+
 private:
   bool _initialized = false;
   VulkanView *_view = 0;
@@ -40,6 +43,7 @@ private:
   VkRenderPass _render_pass = VK_NULL_HANDLE;
 
   std::vector<VkFramebuffer> _frame_bufs;
+  std::vector<VkCommandBuffer> _cmd_bufs;
 
   VkSampler _sampler = VK_NULL_HANDLE;
   VkDescriptorPool _descriptor_pool = VK_NULL_HANDLE;
