@@ -113,7 +113,7 @@ public:
       bufs[1] = _vert_buf;
       vkCmdBindVertexBuffers(cmd_buf, 0, 2, bufs, offset);
       vkCmdBindIndexBuffer(cmd_buf, _index_buf, 0, VK_INDEX_TYPE_UINT16);
-      vkCmdDrawIndexed(cmd_buf, _index_count, 49, 0, 0, 0);
+      vkCmdDrawIndexed(cmd_buf, _index_count, 1, 0, 0, 0);
     }
   }
 

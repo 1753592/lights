@@ -15,7 +15,7 @@ class VulkanImGUI;
 
 class VulkanView {
 public:
-  VulkanView(const std::shared_ptr<VulkanDevice> &dev, bool hasoverlay = true);
+  VulkanView(const std::shared_ptr<VulkanDevice> &dev, bool overlay = true);
 
   virtual ~VulkanView();
 
