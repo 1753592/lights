@@ -84,11 +84,15 @@ public:
   {
     ImGui::NewFrame();
     ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_Once);
-    ImGui::Begin("test");
+
+    bool overlay = ImGui::Begin("test");
     ImGui::Text("wtf");
     ImGui::End();
     ImGui::EndFrame();
     ImGui::Render();
+
+    //if (overlay)
+    //  update_overlay();
   }
 
   void build_command_buffer(VkCommandBuffer cmd_buf) override

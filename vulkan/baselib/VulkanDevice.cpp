@@ -741,3 +741,20 @@ VkFormat VulkanDevice::supported_depth_format(bool checkSamplingSupport)
   }
   throw std::runtime_error("Could not find a matching depth format");
 }
+
+void VulkanDevice::destroy_image(ImageUnit &img)
+{
+  if (img.view) {
+    vkDestroyImageView(_logical_device, img.view, nullptr);
+    img.view = VK_NULL_HANDLE;
+  }
+  if (img.image) {
+    vkDestroyImage(_logical_device, img.image, nullptr);
+    img.image = VK_NULL_HANDLE;
+  }
+  if (img.mem) {
+    vkFreeMemory(_logical_device, img.mem, nullptr);
+    img.mem = VK_NULL_HANDLE;
+  }
+}
+

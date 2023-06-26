@@ -24,7 +24,7 @@
 constexpr float fov = 60;
 
 
-VulkanInstance inst;
+VulkanInstance &inst = VulkanInstance::instance();
 
 struct {
   tg::mat4 prj;
@@ -134,7 +134,7 @@ public:
 
     int count = _swapchain->image_count();
 
-    _render_pass = _swapchain->create_render_pass();
+    _render_pass = _device->create_render_pass(_swapchain->color_format(), _swapchain->depth_format());
 
     _cmd_bufs = _device->create_command_buffers(count);
 
@@ -151,7 +151,7 @@ public:
   {
     int count = _swapchain->image_count();
     _depth = _swapchain->create_depth_image(_w, _h);
-    _frame_bufs = _swapchain->create_frame_buffer(_render_pass, _depth);
+    _frame_bufs = _swapchain->create_frame_buffer(_render_pass, _swapchain->depth_format());
 
     build_command_buffers(_frame_bufs, _render_pass);
 
@@ -772,7 +772,7 @@ private:
   uint32_t _frame = 0;
 
   VkRenderPass _render_pass = VK_NULL_HANDLE;
-  VulkanSwapChain::ImageUnit _depth;
+  ImageUnit _depth;
 
   VkSemaphore _presentSemaphore;
   VkSemaphore _renderSemaphore;
@@ -814,8 +814,6 @@ int main(int argc, char** argv)
   SDL_Window* win = 0;
   std::shared_ptr<Test> test;
   try {
-    inst.initialize();
-
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
       throw std::runtime_error("sdl init error.");
     win = SDL_CreateWindow("demo", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);

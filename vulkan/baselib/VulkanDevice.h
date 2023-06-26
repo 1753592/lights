@@ -11,6 +11,7 @@
 #pragma once
 
 #include "vulkan/vulkan.h"
+#include "VulkanDef.h"
 
 #include <vector>
 #include <string>
@@ -71,6 +72,7 @@ public:
   bool extension_supported(std::string extension);
   VkFormat supported_depth_format(bool checkSamplingSupport);
 
+  void destroy_image(ImageUnit &img);
 public:
 
   const std::vector<VkQueueFamilyProperties> &queue_family_properties() { return _queue_family_properties; }

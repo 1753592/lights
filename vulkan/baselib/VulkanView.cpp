@@ -20,9 +20,12 @@ using tg::vec2;
 using tg::vec3;
 using tg::mat4;
 
-VulkanView::VulkanView(const std::shared_ptr<VulkanDevice>& dev) : _device(dev)
+VulkanView::VulkanView(const std::shared_ptr<VulkanDevice>& dev, bool overlay) : _device(dev)
 {
   initialize();
+
+  if(overlay)
+    _imgui = std::make_shared<VulkanImGUI>(this);
 }
 
 VulkanView::~VulkanView()
@@ -60,6 +63,12 @@ void VulkanView::set_surface(VkSurfaceKHR surface, int w, int h)
   resize_impl(w, h);
 }
 
+void VulkanView::update_overlay()
+{
+  if (_imgui)
+    _imgui->dirty();
+}
+
 void VulkanView::frame(bool continus)
 {
   bool running = true;
@@ -73,9 +82,9 @@ void VulkanView::frame(bool continus)
         case SDL_WINDOWEVENT:
           if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
             vkDeviceWaitIdle(*_device);
-            _w = event.window.data1;
-            _h = event.window.data2;
-            resize_impl(_w, _h);
+            int w = event.window.data1;
+            int h = event.window.data2;
+            resize_impl(w, h);
             update();
           }
           break;
@@ -139,6 +148,11 @@ void VulkanView::update()
   ev.type = SDL_USEREVENT;
   ev.user.code = WM_PAINT;
   SDL_PushEvent(&ev);
+
+  if (_imgui && _imgui->update()) {
+    VK_CHECK_RESULT(vkWaitForFences(*_device, 1, &_fences[_frame], VK_TRUE, UINT64_MAX));
+    _imgui->build_command_buffers();
+  }
 }
 
 void VulkanView::rebuild_command() {
@@ -152,9 +166,6 @@ void VulkanView::initialize()
     _swapchain = std::make_shared<VulkanSwapChain>(_device);
 
     create_sync_objs();
-
-    _imgui = std::make_shared<VulkanImGUI>(this);
-
 }
 
 void VulkanView::check_frame()
@@ -174,8 +185,6 @@ void VulkanView::check_frame()
       vkDestroyFence(*_device, fence, nullptr);
     _fences = _device->create_fences(_cmd_bufs.size());
   }
-
-  if (_imgui) _imgui->check_frame(count, _swapchain->color_format());
 }
 
 void VulkanView::clear_frame()
@@ -266,9 +275,6 @@ void VulkanView::build_command_buffers()
 
 void VulkanView::resize_impl(int w, int h)
 {
-  if (_imgui)
-    _imgui->resize(w, h);
-
   if (w != _w && h != _h) {
     _w = w; _h = h;
 
@@ -279,6 +285,9 @@ void VulkanView::resize_impl(int w, int h)
 
     resize(w, h);
   }
+
+  if (_imgui)
+    _imgui->resize(w, h);
 }
 
 void VulkanView::render()

@@ -15,11 +15,13 @@ class VulkanImGUI;
 
 class VulkanView {
 public:
-  VulkanView(const std::shared_ptr<VulkanDevice> &dev);
+  VulkanView(const std::shared_ptr<VulkanDevice> &dev, bool hasoverlay = true);
 
   virtual ~VulkanView();
 
   void set_surface(VkSurfaceKHR surface, int w, int h);
+
+  void update_overlay();
 
   void frame(bool continus = true);
 
@@ -33,8 +35,8 @@ public:
 
   Manipulator &manipulator() { return _manip; }
 
-  uint32_t width() { return _w; }
-  uint32_t height() { return _h; }
+  int width() { return _w; }
+  int height() { return _h; }
 
   virtual void resize(int w, int h) = 0;
 

@@ -32,12 +32,17 @@ public:
   bool mouse_move(SDL_MouseMotionEvent &ev);
 
 private:
+  void dirty();
+
   void create_canvas();
+
+  void create_renderpass(VkFormat color);
 
   void build_command_buffers();
 
 private:
   bool _initialized = false;
+  bool _force_update = false;
   VulkanView *_view = 0;
 
   VkRenderPass _render_pass = VK_NULL_HANDLE;

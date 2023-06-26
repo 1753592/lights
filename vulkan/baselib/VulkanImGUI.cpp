@@ -90,6 +90,8 @@ void VulkanImGUI::resize(int w, int h)
 {
   auto& io = ImGui::GetIO();
   io.DisplaySize = ImVec2(w, h);
+
+  check_frame(_view->swapchain()->image_count(), _view->swapchain()->color_format());
 }
 
 void VulkanImGUI::create_pipeline(VkFormat clrformat)
@@ -97,7 +99,7 @@ void VulkanImGUI::create_pipeline(VkFormat clrformat)
   auto device = _view->device();
 
   if (!_render_pass)
-    _render_pass = device->create_render_pass(clrformat);
+    create_renderpass(clrformat);
 
   VkSamplerCreateInfo samplerInfo = vks::initializers::samplerCreateInfo();
   samplerInfo.magFilter = VK_FILTER_LINEAR;
@@ -238,8 +240,7 @@ void VulkanImGUI::check_frame(int count, VkFormat clrformat)
   for (auto& framebuf : _frame_bufs)
     vkDestroyFramebuffer(*device, framebuf, nullptr);
 
-  if (count != _frame_bufs.size())
-    _frame_bufs = _view->swapchain()->create_frame_buffer(_render_pass, VK_NULL_HANDLE);
+  _frame_bufs = _view->swapchain()->create_frame_buffer(_render_pass, VK_NULL_HANDLE);
   if (count != _cmd_bufs.size())
     _cmd_bufs = _view->device()->create_command_buffers(count);
 
@@ -277,7 +278,6 @@ bool VulkanImGUI::update()
     updateCmdBuffers = true;
   }
 
-  updateCmdBuffers = true;
   uint8_t* vtxDst = vbuf->map();
   uint8_t* idxDst = ibuf->map();
   for (int n = 0; n < imDrawData->CmdListsCount; n++) {
@@ -292,7 +292,7 @@ bool VulkanImGUI::update()
   vbuf->unmap();
   ibuf->unmap();
 
-  return updateCmdBuffers;
+  return updateCmdBuffers || _force_update;
 }
 
 void VulkanImGUI::draw(const VkCommandBuffer cmdbuf)
@@ -301,6 +301,7 @@ void VulkanImGUI::draw(const VkCommandBuffer cmdbuf)
   if (!imdata || imdata->CmdListsCount == 0)
     return;
 
+  _force_update = false;
   auto& io = ImGui::GetIO();
 
   vkCmdBindPipeline(cmdbuf, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);
@@ -360,25 +361,84 @@ bool VulkanImGUI::mouse_move(SDL_MouseMotionEvent& ev)
 {
   auto& io = ImGui::GetIO();
   io.AddMousePosEvent(ev.x, ev.y);
+
+  if (ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow))
+    dirty();
+
   return false;
 }
 
-void VulkanImGUI::create_canvas() {}
+void VulkanImGUI::dirty()
+{
+  _force_update = true;
+}
+
+void VulkanImGUI::create_canvas()
+{
+}
+
+void VulkanImGUI::create_renderpass(VkFormat color)
+{
+  VkAttachmentDescription attachment = {};
+  attachment.format = color;
+  attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+  attachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+  attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+  attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+  attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+  VkAttachmentReference colorReference = {};
+  colorReference.attachment = 0;
+  colorReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+  VkSubpassDescription subpassDescription = {};
+  subpassDescription.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+  subpassDescription.colorAttachmentCount = 1;
+  subpassDescription.pColorAttachments = &colorReference;
+  subpassDescription.inputAttachmentCount = 0;
+  subpassDescription.pInputAttachments = nullptr;
+  subpassDescription.preserveAttachmentCount = 0;
+  subpassDescription.pPreserveAttachments = nullptr;
+  subpassDescription.pResolveAttachments = nullptr;
+
+  VkSubpassDependency dependency;
+
+  dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+  dependency.dstSubpass = 0;
+  dependency.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+  dependency.dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+  dependency.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+  dependency.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+  dependency.dependencyFlags = 0;
+
+  VkRenderPassCreateInfo renderPassInfo = {};
+  renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+  renderPassInfo.attachmentCount = 1;
+  renderPassInfo.pAttachments = &attachment;
+  renderPassInfo.subpassCount = 1;
+  renderPassInfo.pSubpasses = &subpassDescription;
+  renderPassInfo.dependencyCount = 1; 
+  renderPassInfo.pDependencies = &dependency;
+
+  VkRenderPass renderPass = VK_NULL_HANDLE;
+  VK_CHECK_RESULT(vkCreateRenderPass(*_view->device(), &renderPassInfo, nullptr, &renderPass));
+
+  _render_pass = renderPass;
+}
 
 void VulkanImGUI::build_command_buffers()
 {
   auto& framebuffers = _frame_bufs;
   auto& renderPass = _render_pass;
   auto device = _view->device();
-  vkDeviceWaitIdle(*device);
 
   assert(framebuffers.size() == _cmd_bufs.size());
 
   VkCommandBufferBeginInfo buf_info = {};
   buf_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
   buf_info.pNext = nullptr;
-
-  VkClearValue clearValue = {{0.0, 0.0, 0.2, 1.0}};
 
   VkRenderPassBeginInfo renderPassBeginInfo = {};
   renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -388,8 +448,8 @@ void VulkanImGUI::build_command_buffers()
   renderPassBeginInfo.renderArea.offset.y = 0;
   renderPassBeginInfo.renderArea.extent.width = _view->width();
   renderPassBeginInfo.renderArea.extent.height = _view->height();
-  renderPassBeginInfo.clearValueCount = 1;
-  renderPassBeginInfo.pClearValues = &clearValue;
+  renderPassBeginInfo.clearValueCount = 0;
+  renderPassBeginInfo.pClearValues = nullptr;
 
   for (int i = 0; i < _cmd_bufs.size(); i++) {
     renderPassBeginInfo.framebuffer = framebuffers[i];

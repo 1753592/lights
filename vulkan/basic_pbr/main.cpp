@@ -22,7 +22,7 @@
 constexpr float fov = 60;
 
 
-VulkanInstance inst;
+VulkanInstance &inst = VulkanInstance::instance();
 
 struct {
   tg::mat4 prj;
@@ -76,10 +76,6 @@ public:
     auto surface = _swapchain->surface();
     _swapchain.reset();
 
-    if (surface) {
-      vkDestroySurfaceKHR(inst, surface, nullptr);
-    }
-
     if (_vert_buf) {
       vkDestroyBuffer(*_device, _vert_buf, nullptr);
       _vert_buf = VK_NULL_HANDLE;
@@ -114,6 +110,8 @@ public:
       vkDestroyPipeline(*_device, _pipeline, nullptr);
       _pipeline = VK_NULL_HANDLE;
     }
+
+    _device->destroy_image(_depth);
   }
 
   void set_window(SDL_Window *win)
@@ -146,7 +144,8 @@ public:
   {
     int count = _swapchain->image_count();
     _depth = _swapchain->create_depth_image(_w, _h);
-    _frame_bufs = _swapchain->create_frame_buffer(_render_pass, _depth);
+
+    _frame_bufs = _swapchain->create_frame_buffer(_render_pass, _depth.view);
 
     build_command_buffers(_frame_bufs, _render_pass);
 
@@ -768,7 +767,7 @@ private:
   uint32_t _frame = 0;
 
   VkRenderPass _render_pass = VK_NULL_HANDLE;
-  VulkanSwapChain::ImageUnit _depth;
+  ImageUnit _depth = {VK_NULL_HANDLE};
 
   VkSemaphore _presentSemaphore;
   VkSemaphore _renderSemaphore;
@@ -806,8 +805,6 @@ int main(int argc, char** argv)
   SDL_Window* win = 0;
   std::shared_ptr<Test> test;
   try {
-    inst.initialize();
-
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
       throw std::runtime_error("sdl init error.");
     win = SDL_CreateWindow("demo", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
