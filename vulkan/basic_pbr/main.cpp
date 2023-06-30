@@ -1,6 +1,7 @@
 #include <exception>
 #include <stdexcept>
 
+#include "config.h"
 #include "Manipulator.h"
 
 #include "SDL2/SDL.h"

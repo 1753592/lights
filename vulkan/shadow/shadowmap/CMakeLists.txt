@@ -44,5 +44,3 @@ target_link_libraries(${prj_name} baselib)
 set_target_properties(${prj_name} PROPERTIES FOLDER "v/shadow")
 
 compile_shader(${prj_name} ENV opengl FORMAT bin SOURCES ${shaders})
-
-target_compile_definitions(${prj_name} PRIVATE SHADER_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

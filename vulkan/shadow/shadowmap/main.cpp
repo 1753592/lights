@@ -1,6 +1,8 @@
 #include <exception>
 #include <stdexcept>
 
+#include "config.h"
+
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_vulkan.h"
 
@@ -14,10 +16,12 @@
 #include "VulkanInitializers.hpp"
 
 #include "SimpleShape.h"
+#include "GLTFLoader.h"
 
 #include "imgui/imgui.h"
 
 #define WM_PAINT 1
+#define SHADER_DIR ROOT_DIR##"/vulkan/shadow/shadowmap"
 
 constexpr float fov = 60;
 
@@ -213,6 +217,104 @@ public:
     vkDestroyDescriptorSetLayout(*device(), material_lay, nullptr);
   }
 
+  VkRenderPass create_render_pass() 
+  {
+    VkRenderPass render_pass;
+    auto depformat = swapchain()->depth_format();
+
+    VkAttachmentDescription attachments[3] = {};
+    attachments[0].format = depformat;
+    attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
+    attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    attachments[0].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+
+    attachments[1].format = swapchain()->color_format();
+    attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
+    attachments[1].loadOp= VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    attachments[1].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    attachments[2].format = depformat;
+    attachments[2].samples = VK_SAMPLE_COUNT_1_BIT;
+    attachments[2].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachments[2].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachments[2].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachments[2].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachments[2].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    attachments[2].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference depthReference = {};
+    depthReference.attachment = 0;
+    depthReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference mainColorReference, mainDepthReference;
+    mainColorReference.attachment = 1;
+    mainColorReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    mainDepthReference.attachment = 2;
+    mainDepthReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass[2] = {0};
+    subpass[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass[0].colorAttachmentCount = 0;
+    subpass[0].pDepthStencilAttachment = &depthReference;
+
+    subpass[1].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass[1].colorAttachmentCount = 1;
+    subpass[1].pColorAttachments = &mainColorReference; 
+    subpass[1].pDepthStencilAttachment = &mainDepthReference;
+    subpass[1].inputAttachmentCount = 0;
+    subpass[1].pInputAttachments = nullptr;
+
+    VkSubpassDependency dependencies[3] = {0};
+    dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependencies[0].dstSubpass = 0;
+    dependencies[0].srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    dependencies[0].dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    dependencies[0].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+    dependencies[0].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+    dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+    dependencies[1].srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependencies[1].dstSubpass = 1;
+    dependencies[1].srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    dependencies[1].dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    dependencies[1].srcAccessMask = 0;
+    dependencies[1].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+    dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+
+  dependencies[2].srcSubpass = 0;
+  dependencies[2].dstSubpass = 1;
+  dependencies[2].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+  dependencies[2].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+  dependencies[2].srcAccessMask = 0;
+  dependencies[2].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
+  dependencies[2].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+
+
+    VkRenderPassCreateInfo renderPassCreateInfo = vks::initializers::renderPassCreateInfo();
+    renderPassCreateInfo.attachmentCount = 3;
+    renderPassCreateInfo.pAttachments = attachments;
+    renderPassCreateInfo.subpassCount = 2;
+    renderPassCreateInfo.pSubpasses = subpass;
+    renderPassCreateInfo.dependencyCount = 3;
+    renderPassCreateInfo.pDependencies = dependencies;
+
+    VkRenderPass vkpass = VK_NULL_HANDLE;
+    VK_CHECK_RESULT(vkCreateRenderPass(*device(), &renderPassCreateInfo, nullptr, &vkpass));
+
+    set_render_pass(vkpass);
+    return vkpass;
+  }
+
   void create_pipeline()
   {
     VkGraphicsPipelineCreateInfo pipelineCreateInfo = {};
@@ -222,7 +324,7 @@ public:
 
     VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = {};
     inputAssemblyState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssemblyState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+    inputAssemblyState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
     VkPipelineRasterizationStateCreateInfo rasterizationState = {};
     rasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
@@ -354,12 +456,12 @@ public:
 
   void create_sphere()
   {
-    Sphere sp(vec3(0), 1);
-    sp.build();
-    auto &verts = sp.get_vertex();
-    auto &norms = sp.get_norms();
+    Box box(vec3(0), vec3(10, 10, 1));
+    box.build();
+    auto &verts = box.get_vertex();
+    auto &norms = box.get_norms();
     // auto &uv = sp.get_uvs();
-    auto &index = sp.get_index();
+    auto &index = box.get_index();
     _vert_count = verts.size();
     _index_count = index.size();
 
@@ -498,6 +600,10 @@ private:
 
 int main(int argc, char **argv)
 {
+  GLTFLoader loader;
+  loader.load_file(DATA_DIR "/vulkanscenemodels.gltf", 0);
+  //loader.load_file("D:\\01_work\\hcmodel\\garbage\\grabage.gltf");
+
   SDL_Window *win = 0;
   VkSurfaceKHR surface = 0;
   std::shared_ptr<View> view = 0;
@@ -519,6 +625,7 @@ int main(int argc, char **argv)
 
     view = std::make_shared<View>(dev);
     view->set_surface(surface, w, h);
+    view->create_render_pass();
     view->create_pipeline();
   } catch (std::runtime_error &e) {
     printf("%s", e.what());

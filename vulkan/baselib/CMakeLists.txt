@@ -22,9 +22,14 @@ set(hdr
 	VulkanTools.h
 	VulkanInitializers.hpp
 
+	MeshInstance.h
+	MeshPrimitive.h
+
 	VulkanImGUI.h
 
 	Manipulator.h
+
+	GLTFLoader.h
 
 	${imgui_hdr}
 )
@@ -38,9 +43,14 @@ set(src
 	VulkanDebug.cpp
 	VulkanTools.cpp
 
+	MeshInstance.cpp
+	MeshPrimitive.cpp
+
 	VulkanImGUI.cpp
 
 	Manipulator.cpp
+
+	GLTFLoader.cpp
 
 	${imgui_src}
 )

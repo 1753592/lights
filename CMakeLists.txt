@@ -8,6 +8,10 @@ SET_PROPERTY(GLOBAL PROPERTY USE_FOLDERS ON)
 option(BUILD_OPENGL "" ON)
 option(BUILD_VULKAN "" ON)
 
+configure_file(config config.h)
+
+include_directories(${CMAKE_BINARY_DIR})
+
 if(BUILD_OPENGL)
   add_subdirectory(osg)
 endif()

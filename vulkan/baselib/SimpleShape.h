@@ -7,17 +7,26 @@
 using tg::vec3;
 using tg::vec2;
 
+class Shape{
+public:
+  const std::vector<vec3>& get_vertex() { return _verts; }
+  const std::vector<vec3>& get_norms() { return _norms; }
+  const std::vector<vec2>& get_uvs() { return _uvs; }
+  const std::vector<uint16_t>& get_index() { return _indices; }
+
+protected:
+  std::vector<vec3> _verts, _norms;
+  std::vector<vec2> _uvs;
+  std::vector<uint16_t> _indices;
+};
+
 template<uint32_t x_segs = 64, uint32_t ysegs = 32>
-class Sphere {
+class Sphere : public Shape{
   vec3 _pos;
   float _rad;
 
   constexpr static uint32_t x_segs = 64;
   constexpr static uint32_t y_segs = 32;
-
-  std::vector<vec3> _verts, _norms;
-  std::vector<vec2> _uvs;
-  std::vector<uint16_t> _indices;
 
 public:
   Sphere(const tg::vec3 &pos, float rad) : _pos(pos), _rad(rad) {}
@@ -72,11 +81,50 @@ public:
       oddCol = !oddCol;
     }
   }
-
-  const std::vector<vec3>& get_vertex() { return _verts; }
-  const std::vector<vec3>& get_norms() { return _norms; }
-  const std::vector<vec2>& get_uvs() { return _uvs; }
-  const std::vector<uint16_t>& get_index() { return _indices; }
 };
 
 typedef Sphere<4, 2> Octahedron;
+
+
+class Box : public Shape{
+  vec3 _pos;
+  vec3 _size;
+
+public:
+  Box(const vec3 &pos, const vec3 &sz) 
+    : _pos(pos), _size(sz)
+  { }
+
+
+  void build() 
+  {
+    _verts.reserve(24); _norms.reserve(24);
+    float xlen = _size.x() / 2.0, ylen = _size.y() / 2.0, zlen = _size.z() / 2.0;
+    _verts.push_back({xlen, ylen, zlen}); _verts.push_back({xlen, -ylen, zlen});
+    _verts.push_back({xlen, -ylen, -zlen}); _verts.push_back({xlen, ylen, -zlen});
+    _verts.push_back({-xlen, -ylen, zlen}); _verts.push_back({-xlen, ylen, zlen});
+    _verts.push_back({-xlen, ylen, -zlen}); _verts.push_back({-xlen, -ylen, -zlen});
+
+    _verts.push_back({-xlen, ylen, zlen}); _verts.push_back({xlen, ylen, zlen});
+    _verts.push_back({xlen, ylen, -zlen}); _verts.push_back({-xlen, ylen, -zlen});
+    _verts.push_back({xlen, -ylen, zlen}); _verts.push_back({-xlen, -ylen, zlen});
+    _verts.push_back({-xlen, -ylen, -zlen}); _verts.push_back({xlen, -ylen, -zlen});
+
+    _verts.push_back({xlen, ylen, zlen}); _verts.push_back({-xlen, ylen, zlen});
+    _verts.push_back({-xlen, -ylen, zlen}); _verts.push_back({xlen, -ylen, zlen});
+    _verts.push_back({xlen, ylen, -zlen}); _verts.push_back({xlen, -ylen, -zlen});
+    _verts.push_back({-xlen, -ylen, -zlen}); _verts.push_back({-xlen, ylen, -zlen});
+
+    vec3 norm[] = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
+    for (int i = 0; i < 24; i++)
+      _norms.push_back(norm[i / 4]);
+
+    _indices.reserve(36);
+    int count = 0;
+    for(int i = 0; i < 6; i++) {
+      _indices.push_back(count + 0); _indices.push_back(count + 1); _indices.push_back(count + 2);
+      _indices.push_back(count + 0); _indices.push_back(count + 2); _indices.push_back(count + 3);
+      count += 4;
+    }
+  }
+};

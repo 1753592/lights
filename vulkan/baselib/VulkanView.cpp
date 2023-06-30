@@ -30,6 +30,8 @@ VulkanView::VulkanView(const std::shared_ptr<VulkanDevice>& dev, bool overlay) :
 
 VulkanView::~VulkanView()
 {
+  vkDeviceWaitIdle(*_device);
+
   _imgui.reset();
   for (auto fence : _fences)
     vkDestroyFence(*_device, fence, nullptr);
@@ -133,6 +135,13 @@ void VulkanView::frame(bool continus)
       }
     }
   }
+}
+
+void VulkanView::set_render_pass(VkRenderPass render_pass)
+{
+  if(_render_pass)
+    _device->destroy_render_pass(render_pass);
+  _render_pass = render_pass;
 }
 
 uint32_t VulkanView::frame_count()

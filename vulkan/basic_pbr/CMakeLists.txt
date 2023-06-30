@@ -45,4 +45,4 @@ set_target_properties(${prj_name} PROPERTIES FOLDER "v")
 
 compile_shader(${prj_name} ENV opengl FORMAT bin SOURCES ${shaders})
 
-target_compile_definitions(${prj_name} PRIVATE SHADER_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+#target_compile_definitions(${prj_name} PRIVATE SHADER_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

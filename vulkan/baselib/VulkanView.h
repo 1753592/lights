@@ -31,6 +31,8 @@ public:
 
   VkRenderPass render_pass() { return _render_pass; }
 
+  void set_render_pass(VkRenderPass render_pass);
+
   uint32_t frame_count();
 
   Manipulator &manipulator() { return _manip; }
@@ -38,9 +40,8 @@ public:
   int width() { return _w; }
   int height() { return _h; }
 
-  virtual void resize(int w, int h) = 0;
-
   virtual void update_scene(){};
+  virtual void resize(int w, int h) = 0;
   virtual void build_command_buffer(VkCommandBuffer cmd_buf) = 0;
 
   virtual void wheel(int delta){};

@@ -288,6 +288,11 @@ VkRenderPass VulkanDevice::create_render_pass(VkFormat color, VkFormat depth)
   return renderPass;
 }
 
+void VulkanDevice::destroy_render_pass(VkRenderPass rdpass)
+{
+  vkDestroyRenderPass(_logical_device, rdpass, nullptr);
+}
+
 std::tuple<VkImage, VkDeviceMemory> 
 VulkanDevice::create_image(int w, int h, VkFormat format)
 {
