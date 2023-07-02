@@ -19,6 +19,7 @@
 #include "SimpleShape.h"
 
 #define WM_PAINT 1
+#define SHADER_DIR ROOT_DIR##"/vulkan/basic_pbr"
 
 constexpr float fov = 60;
 

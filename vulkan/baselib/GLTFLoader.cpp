@@ -5,6 +5,9 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "tiny_gltf.h"
 #include "MeshInstance.h"
+#include "MeshPrimitive.h"
+
+#include <set>
 
 struct MaterialUnit{
   float ao;
@@ -21,7 +24,7 @@ struct Material{
   bool operator < (const Material &other) { return bind < other.bind; }
 };
 
-GLTFLoader::GLTFLoader()
+GLTFLoader::GLTFLoader(std::shared_ptr<VulkanDevice> &dev) : _dev(dev)
 {
   _m = std::make_shared<tinygltf::Model>();
 }
@@ -30,17 +33,13 @@ GLTFLoader::~GLTFLoader()
 {
 }
 
-bool GLTFLoader::load_file(const std::string& file, VulkanDevice *dev)
+bool GLTFLoader::load_file(const std::string& file)
 {
   tinygltf::TinyGLTF gltf;
   std::string err, warn;
   if (!gltf.LoadASCIIFromFile(_m.get(), &err, &warn, file))
     return false;
   //_m->scenes;
-
-  for(auto &buf : _m->buffers) {
-    buf.data; 
-  }
 
   std::vector<Material> materials;
   materials.resize(_m->materials.size());
@@ -64,32 +63,24 @@ bool GLTFLoader::load_file(const std::string& file, VulkanDevice *dev)
     if (tinygltf::IsDataURI(img.uri) || img.image.size() > 0) {}
   }
 
-  auto meshInst = std::make_shared<MeshInstance>(dev);
-
-  for(auto buf : _m->buffers) {
-    meshInst->add_buf(buf.data.data(), buf.data.size());
-  }
+  auto meshInst = std::make_shared<MeshInstance>(_dev);
 
   for(auto &mesh : _m->meshes) {
     for(auto &pri: mesh.primitives){
-      create_primitive(&pri);
+      auto mesh_pri = create_primitive(&pri);
+      meshInst->add_primitive(mesh_pri);
     }
   }
-  _m->nodes;
-  _m->accessors;
-  _m->materials;
-  _m->bufferViews;
-
   return true;
 }
 
-void GLTFLoader::create_primitive(const tinygltf::Primitive *pri)
+std::shared_ptr<MeshPrimitive>
+GLTFLoader::create_primitive(const tinygltf::Primitive *pri)
 {
-  std::vector<uint32_t> buf_idxs;
-  std::vector<VkVertexInputBindingDescription> input_des;
-  std::vector<VkVertexInputAttributeDescription> attr_des;
-  input_des.reserve(pri->attributes.size());
-  attr_des.reserve(pri->attributes.size());
+  auto mesh_pri = std::make_shared<MeshPrimitive>();
+  mesh_pri->_input_attr.reserve(pri->attributes.size());
+  mesh_pri->_input_bind.reserve(pri->attributes.size());
+
   for (auto &attr : pri->attributes) {
     VkVertexInputBindingDescription vkinput;
     VkVertexInputAttributeDescription vkattr;
@@ -115,19 +106,32 @@ void GLTFLoader::create_primitive(const tinygltf::Primitive *pri)
     vkinput.stride = acc.ByteStride(_m->bufferViews[acc.bufferView]);
     vkinput.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-    input_des.emplace_back(vkinput);
-    attr_des.emplace_back(vkattr);
+    mesh_pri->_input_attr.emplace_back(vkattr);
+    mesh_pri->_input_bind.emplace_back(vkinput);
     buf_idxs.push_back(_m->bufferViews[acc.bufferView].buffer);
   }
-  if (pri->mode == TINYGLTF_MODE_LINE_LOOP) {}
+  if (pri->mode == TINYGLTF_MODE_LINE_LOOP)
+    mesh_pri->_mode = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+  else if (pri->mode == TINYGLTF_MODE_TRIANGLES)
+    mesh_pri->_mode = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+  else
+    return nullptr;
 
   if (pri->indices >= 0) {
     auto &idx_acc = _m->accessors[pri->indices];
     auto ty = idx_acc.componentType;
-    if (ty < TINYGLTF_COMPONENT_TYPE_SHORT || ty > TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)
-      return;
+    if (ty == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
+      mesh_pri->_indices_type = VK_INDEX_TYPE_UINT16;
+    else if (ty == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)
+      mesh_pri->_indices_type = VK_INDEX_TYPE_UINT32;
+    else
+      return nullptr;
 
+    auto &buf = _m->bufferViews[idx_acc.bufferView];
+    mesh_pri->set_index_buf(buf.);
   }
+
+  return mesh_pri; 
 }
 
 VkFormat GLTFLoader::attr_format(const tinygltf::Accessor *acc)

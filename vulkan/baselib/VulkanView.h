@@ -70,7 +70,7 @@ private:
 
   void render();
 
-private:
+protected:
   std::shared_ptr<VulkanDevice> _device;
   std::shared_ptr<VulkanSwapChain> _swapchain;
 
