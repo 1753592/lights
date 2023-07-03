@@ -6,6 +6,7 @@
 #include "tiny_gltf.h"
 #include "MeshInstance.h"
 #include "MeshPrimitive.h"
+#include "tmath.h"
 
 #include <set>
 
@@ -33,12 +34,12 @@ GLTFLoader::~GLTFLoader()
 {
 }
 
-bool GLTFLoader::load_file(const std::string& file)
+std::shared_ptr<MeshInstance> GLTFLoader::load_file(const std::string& file)
 {
   tinygltf::TinyGLTF gltf;
   std::string err, warn;
   if (!gltf.LoadASCIIFromFile(_m.get(), &err, &warn, file))
-    return false;
+    return nullptr;
   //_m->scenes;
 
   std::vector<Material> materials;
@@ -64,6 +65,7 @@ bool GLTFLoader::load_file(const std::string& file)
   }
 
   auto meshInst = std::make_shared<MeshInstance>(_dev);
+  meshInst->set_m(tg::rotate<float>(M_PI_2, tg::vec3(1, 0, 0)));
 
   for(auto &mesh : _m->meshes) {
     for(auto &pri: mesh.primitives){
@@ -71,13 +73,13 @@ bool GLTFLoader::load_file(const std::string& file)
       meshInst->add_primitive(mesh_pri);
     }
   }
-  return true;
+  return meshInst;
 }
 
 std::shared_ptr<MeshPrimitive>
 GLTFLoader::create_primitive(const tinygltf::Primitive *pri)
 {
-  auto mesh_pri = std::make_shared<MeshPrimitive>();
+  auto mesh_pri = std::make_shared<MeshPrimitive>(_dev);
   mesh_pri->_input_attr.reserve(pri->attributes.size());
   mesh_pri->_input_bind.reserve(pri->attributes.size());
 
@@ -85,9 +87,7 @@ GLTFLoader::create_primitive(const tinygltf::Primitive *pri)
     VkVertexInputBindingDescription vkinput;
     VkVertexInputAttributeDescription vkattr;
     auto &acc = _m->accessors[attr.second];
-    int bufidx = _m->bufferViews[acc.bufferView].buffer;
-    vkattr.format = attr_format(&acc);
-    vkattr.offset = acc.byteOffset;
+    auto &bufview = _m->bufferViews[acc.bufferView];
     if (attr.first.compare("POSITION") == 0) {
       vkattr.location = 0;
       vkattr.binding = 0;
@@ -102,13 +102,18 @@ GLTFLoader::create_primitive(const tinygltf::Primitive *pri)
       vkattr.binding = 3;
     } else
       continue;
+
+    vkattr.format = attr_format(&acc);
+    vkattr.offset = 0;
     vkinput.binding = vkattr.binding;
     vkinput.stride = acc.ByteStride(_m->bufferViews[acc.bufferView]);
     vkinput.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
     mesh_pri->_input_attr.emplace_back(vkattr);
     mesh_pri->_input_bind.emplace_back(vkinput);
-    buf_idxs.push_back(_m->bufferViews[acc.bufferView].buffer);
+
+    auto &buf = _m->buffers[bufview.buffer];
+    mesh_pri->add_vertex_buf(buf.data.data() + bufview.byteOffset, bufview.byteLength);
   }
   if (pri->mode == TINYGLTF_MODE_LINE_LOOP)
     mesh_pri->_mode = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
@@ -121,14 +126,16 @@ GLTFLoader::create_primitive(const tinygltf::Primitive *pri)
     auto &idx_acc = _m->accessors[pri->indices];
     auto ty = idx_acc.componentType;
     if (ty == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
-      mesh_pri->_indices_type = VK_INDEX_TYPE_UINT16;
+      mesh_pri->_index_type = VK_INDEX_TYPE_UINT16;
     else if (ty == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)
-      mesh_pri->_indices_type = VK_INDEX_TYPE_UINT32;
+      mesh_pri->_index_type = VK_INDEX_TYPE_UINT32;
     else
       return nullptr;
 
-    auto &buf = _m->bufferViews[idx_acc.bufferView];
-    mesh_pri->set_index_buf(buf.);
+    auto &bufview = _m->bufferViews[idx_acc.bufferView];
+    auto &buf = _m->buffers[bufview.buffer];
+    mesh_pri->set_index_buf(buf.data.data() + bufview.byteOffset, bufview.byteLength);
+    mesh_pri->_index_count = idx_acc.count;
   }
 
   return mesh_pri; 

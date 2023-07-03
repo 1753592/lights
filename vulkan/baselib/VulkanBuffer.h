@@ -13,6 +13,7 @@ public:
   operator VkBuffer*() { return &_buffer; }
   VkDeviceMemory memory() { return _memory; }
   VkDeviceSize size() { return _size; }
+  VkDeviceSize memsize() { return _memsize; }
 
   uint8_t* map();
   void unmap();
@@ -27,7 +28,7 @@ private:
 
   VkBuffer _buffer = VK_NULL_HANDLE;
   VkDeviceMemory _memory = VK_NULL_HANDLE;
-  VkDeviceSize _size = 0;
+  VkDeviceSize _size = 0, _memsize = 0;
   VkDeviceSize _alignment = 0;
   VkBufferUsageFlags _usageFlags;
   VkMemoryPropertyFlags _memoryPropertyFlags;

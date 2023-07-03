@@ -506,6 +506,7 @@ std::shared_ptr<VulkanBuffer> VulkanDevice::create_buffer(VkBufferUsageFlags usa
   VkBufferCreateInfo bufferCreateInfo = vks::initializers::bufferCreateInfo(usageFlags, size);
   bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
   VK_CHECK_RESULT(vkCreateBuffer(_logical_device, &bufferCreateInfo, nullptr, &buffer->_buffer));
+  buffer->_size = size;
 
   VkMemoryRequirements memReqs;
   VkMemoryAllocateInfo memAlloc = vks::initializers::memoryAllocateInfo();
@@ -543,7 +544,7 @@ std::shared_ptr<VulkanBuffer> VulkanDevice::create_buffer(VkBufferUsageFlags usa
   }
 
   VK_CHECK_RESULT(vkBindBufferMemory(_logical_device, buffer->_buffer, memory, 0));
-  buffer->_size = memReqs.size;
+  buffer->_memsize = memReqs.size;
 
   return buffer;
 }

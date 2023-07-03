@@ -4,6 +4,9 @@
 #include <vector>
 #include <memory>
 
+#include "tvec.h"
+#include "SceneData.h"
+
 class VulkanDevice;
 class MeshPrimitive;
 class VulkanBuffer;
@@ -13,9 +16,19 @@ public:
   MeshInstance(std::shared_ptr<VulkanDevice> &dev);
   ~MeshInstance();
 
+  void set_m(const tg::mat4 &);
+
+  void set_vp(const tg::mat4 &, const tg::mat4 &, const tg::vec3 &);
+
+  void create_pipeline(VkRenderPass renderpass, std::vector<VkPipelineShaderStageCreateInfo> &shaders);
+
   void add_primitive(std::shared_ptr<MeshPrimitive> &pri);
 
+  void build_command_buffer(VkCommandBuffer cmd_buf);
+
 private:
+
+  void create_pipe_layout();
 
 private:
 
@@ -23,5 +36,15 @@ private:
 
   VkPipelineLayout _pipe_layout = VK_NULL_HANDLE;
 
+  VkDescriptorPool _descriptor_pool = VK_NULL_HANDLE;
+
+  VkDescriptorSetLayout _descriptor_layout = VK_NULL_HANDLE;
+
+  VkDescriptorSet _matrix_set = VK_NULL_HANDLE;
+
+  std::shared_ptr<VulkanBuffer> _ubo_buf;
+
   std::vector<std::shared_ptr<MeshPrimitive>> _pris;
+
+  MVP _mvp;
 };
