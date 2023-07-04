@@ -4,7 +4,9 @@
 #include "VulkanDevice.h"
 #include "VulkanBuffer.h"
 #include "MeshPrimitive.h"
+#include "VulkanInitializers.hpp"
 
+#include "SceneData.h"
 #include "tvec.h"
 
 
@@ -45,11 +47,6 @@ MeshInstance::~MeshInstance()
     vkDestroyDescriptorPool(*_device, _descriptor_pool, nullptr);
 }
 
-void MeshInstance::set_m(const tg::mat4 &m)
-{
-  _mvp.model = m;
-}
-
 void MeshInstance::set_vp(const tg::mat4 &prj, const tg::mat4 &view, const tg::vec3 &eye)
 {
   uint8_t *data = 0;
@@ -81,7 +78,7 @@ void MeshInstance::build_command_buffer(VkCommandBuffer cmd_buf)
 
     //vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipe_layout, 0, 1, set, 0, nullptr);
 
-    pri->build_command_buffer(cmd_buf);
+    pri->build_command_buffer(cmd_buf, _pipe_layout);
   }
 }
 
@@ -120,6 +117,10 @@ void MeshInstance::create_pipe_layout()
   pPipelineLayoutCreateInfo.pNext = nullptr;
   pPipelineLayoutCreateInfo.setLayoutCount = 1;
   pPipelineLayoutCreateInfo.pSetLayouts = &descriptor_layout;
+
+  auto pushConstant = vks::initializers::pushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(PrimitiveData), 0);
+  pPipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+  pPipelineLayoutCreateInfo.pPushConstantRanges = &pushConstant;
 
   VkPipelineLayout pipe_layout;
   VK_CHECK_RESULT(vkCreatePipelineLayout(*_device, &pPipelineLayoutCreateInfo, nullptr, &pipe_layout));

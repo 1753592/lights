@@ -74,6 +74,14 @@ public:
     }
   }
 
+  template<typename U>
+  inline void reset(U *ptr)
+  {
+    for(int n = 0; n < len; n++) {
+      data_[n] = ptr[n];
+    }
+  }
+
   // Assignment operator
   inline vecN<T, len>& operator=(const vecN& that)
   {
@@ -342,8 +350,10 @@ public:
   }
 
   template <typename U>
-  inline Tvec3(const Tvec3<U>& that) : base(that)
-  { }
+  inline Tvec3(const Tvec3<U>& that) : base(that) { }
+
+  template<typename U>
+  inline Tvec3(const U* ptr) { reset(ptr); }
 
   template<typename U, int n>
   inline self_type operator=(vecN<U, n> vec)
@@ -387,9 +397,10 @@ public:
   }
 
   template <typename U>
-  inline Tvec4(const Tvec4<U>& that) : base(that)
-  {
-  }
+  inline Tvec4(const Tvec4<U>& that) : base(that) {}
+
+  template <typename U>
+  inline Tvec4(const U* ptr) { reset(ptr); }
 
   template <typename U, int n>
   inline self_type operator=(vecN<U, n> vec)
@@ -654,7 +665,7 @@ public:
 
   inline Tquaternion(T s, const Tvec3<T>& v) : s_(s), v_(v) {}
 
-  inline Tquaternion(const Tvec4<T>& v) : s_(v[0]), v_(v[1], v[2], v[3]) {}
+  inline Tquaternion(const Tvec4<T>& v) : s_(v[3]), v_(v[0], v[1], v[2]) {}
 
   inline Tquaternion(T w, T x, T y, T z) : s_(w), v_(x, y, z) {}
 
@@ -950,9 +961,17 @@ public:
   static inline int width(void) { return w; }
   static inline int height(void) { return h; }
 
-  inline void reset(const T* ele) { memcpy(data, ele, sizeof(T) * w * h); }
+  template<typename U>
+  inline void reset(const U* ele)
+  {
+    std::size_t off = 0;
+    for(int i =0; i < w; i++) {
+      data[i].reset(ele + off);
+      off += sizeof(U) * h;
+    }
+  }
 
-  inline void reset(const T* ele, int n) { memcpy(data, ele, sizeof(T) * n); }
+  inline void reset(const T* ele) { memcpy(data, ele, sizeof(T) * w * h); }
 
   inline bool reduce()
   {

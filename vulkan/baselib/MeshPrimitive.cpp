@@ -4,6 +4,7 @@
 #include "VulkanBuffer.h"
 
 #include "config.h"
+#include "SceneData.h"
 
 #define SHADER_DIR ROOT_DIR##"vulkan/baselib"
 
@@ -17,12 +18,19 @@ MeshPrimitive::~MeshPrimitive()
     vkDestroyPipeline(*_device, _pipeline, nullptr);
 }
 
-void MeshPrimitive::build_command_buffer(VkCommandBuffer cmd_buf)
+void MeshPrimitive::set_matrix(const tg::mat4& m)
+{
+  _m = m;
+}
+
+void MeshPrimitive::build_command_buffer(VkCommandBuffer cmd_buf, VkPipelineLayout pipelayout)
 {
   if (!_pipeline)
     return;
 
   vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);
+
+  vkCmdPushConstants(cmd_buf, pipelayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PrimitiveData), &_m);
 
   std::vector<VkBuffer> bufs(_attr_bufs.size());
   for (int i = 0; i < _attr_bufs.size(); i++) {

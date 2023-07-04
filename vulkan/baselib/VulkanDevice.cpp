@@ -529,15 +529,16 @@ std::shared_ptr<VulkanBuffer> VulkanDevice::create_buffer(VkBufferUsageFlags usa
   buffer->_memory = memory;
 
   if (data != nullptr) {
-    void *mapped;
-    VK_CHECK_RESULT(vkMapMemory(_logical_device, memory, 0, size, 0, &mapped));
+    void *mapped = nullptr;
+    VkDeviceSize sz = memReqs.size; 
+    VK_CHECK_RESULT(vkMapMemory(_logical_device, memory, 0, sz, 0, &mapped));
     memcpy(mapped, data, size);
     // If host coherency hasn't been requested, do a manual flush to make writes visible
     if ((memoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) == 0) {
       VkMappedMemoryRange mappedRange = vks::initializers::mappedMemoryRange();
       mappedRange.memory = memory;
       mappedRange.offset = 0;
-      mappedRange.size = size;
+      mappedRange.size = sz;
       vkFlushMappedMemoryRanges(_logical_device, 1, &mappedRange);
     }
     vkUnmapMemory(_logical_device, memory);

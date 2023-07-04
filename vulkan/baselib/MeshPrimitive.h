@@ -4,6 +4,8 @@
 #include <vector>
 #include <memory>
 
+#include "tvec.h"
+
 class VulkanBuffer;
 class VulkanDevice;
 
@@ -15,7 +17,9 @@ public:
   MeshPrimitive(std::shared_ptr<VulkanDevice> &dev);
   ~MeshPrimitive();
 
-  void build_command_buffer(VkCommandBuffer cmd_buf);
+  void set_matrix(const tg::mat4 &m);
+
+  void build_command_buffer(VkCommandBuffer cmd_buf, VkPipelineLayout pipelayout);
 
 private:
 
@@ -30,6 +34,8 @@ private:
 
   VkPrimitiveTopology _mode;
   VkPipeline _pipeline = VK_NULL_HANDLE;
+
+  tg::mat4 _m;
 
   VkIndexType _index_type;
   uint32_t _index_count;

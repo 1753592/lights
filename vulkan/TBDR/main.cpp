@@ -52,6 +52,7 @@ public:
 
     GLTFLoader loader(_device);
     _mesh = loader.load_file(ROOT_DIR "/data/deer.gltf");
+    //_mesh = loader.load_file(ROOT_DIR "/data/vulkanscenemodels.gltf");
   }
 
   ~Test() 

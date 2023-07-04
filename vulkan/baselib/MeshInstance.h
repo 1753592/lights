@@ -16,8 +16,6 @@ public:
   MeshInstance(std::shared_ptr<VulkanDevice> &dev);
   ~MeshInstance();
 
-  void set_m(const tg::mat4 &);
-
   void set_vp(const tg::mat4 &, const tg::mat4 &, const tg::vec3 &);
 
   void create_pipeline(VkRenderPass renderpass, std::vector<VkPipelineShaderStageCreateInfo> &shaders);

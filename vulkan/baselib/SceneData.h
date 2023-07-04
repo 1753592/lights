@@ -8,3 +8,7 @@ struct MVP {
   tg::mat4 view;
   tg::vec4 eye;
 };
+
+struct PrimitiveData{
+  tg::mat4 transform;
+};
