@@ -7,6 +7,9 @@
 #include "VulkanInitializers.hpp"
 
 #include "tvec.h"
+#include "config.h"
+
+#define SHADER_DIR ROOT_DIR##"baselib/shaders/"
 
 
 MeshInstance::MeshInstance(std::shared_ptr<VulkanDevice> &dev) : _device(dev)
@@ -58,6 +61,25 @@ void MeshInstance::set_vp(const tg::mat4 &prj, const tg::mat4 &view, const tg::v
   VK_CHECK_RESULT(vkMapMemory(*_device, _ubo_buf->memory(), 0, sizeof(_mvp), 0, (void **)&data));
   memcpy(data, &_mvp, sizeof(_mvp));
   vkUnmapMemory(*_device, _ubo_buf->memory());
+}
+
+void MeshInstance::create_pipeline(VkRenderPass renderpass)
+{
+  std::vector<VkPipelineShaderStageCreateInfo> shaderStages(2);
+  shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+  shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+  shaderStages[0].module = _device->create_shader(SHADER_DIR "/pbr.vert.spv");
+  shaderStages[0].pName = "main";
+  assert(shaderStages[0].module != VK_NULL_HANDLE);
+
+  shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+  shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+  shaderStages[1].module = _device->create_shader(SHADER_DIR "/pbr.frag.spv");
+  shaderStages[1].pName = "main";
+  assert(shaderStages[1].module != VK_NULL_HANDLE);
+
+  vkDestroyShaderModule(*_device, shaderStages[0].module, nullptr);
+  vkDestroyShaderModule(*_device, shaderStages[1].module, nullptr);
 }
 
 void MeshInstance::create_pipeline(VkRenderPass renderpass, std::vector<VkPipelineShaderStageCreateInfo> &shaders)

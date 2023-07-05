@@ -53,8 +53,8 @@ public:
 
     GLTFLoader loader(_device);
     //_mesh = loader.load_file(ROOT_DIR "/data/deer.gltf");
-    //_mesh = loader.load_file(ROOT_DIR "/data/vulkanscenemodels.gltf");
-    _mesh = loader.load_file("D:\\01_work\\hcmodel\\garbage\\grabage.gltf");
+    _mesh = loader.load_file(ROOT_DIR "/data/vulkanscenemodels.gltf");
+    //_mesh = loader.load_file("D:\\01_work\\hcmodel\\garbage\\grabage.gltf");
   }
 
   ~Test() 
@@ -73,23 +73,7 @@ public:
 
     set_surface(surface, w, h);
 
-    std::vector<VkPipelineShaderStageCreateInfo> shaderStages(2);
-    shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-    shaderStages[0].module = _device->create_shader(SHADER_DIR "/pbr.vert.spv");
-    shaderStages[0].pName = "main";
-    assert(shaderStages[0].module != VK_NULL_HANDLE);
-
-    shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    shaderStages[1].module = _device->create_shader(SHADER_DIR "/pbr.frag.spv");
-    shaderStages[1].pName = "main";
-    assert(shaderStages[1].module != VK_NULL_HANDLE);
-
-    _mesh->create_pipeline(_render_pass, shaderStages);
-
-    vkDestroyShaderModule(*_device, shaderStages[0].module, nullptr);
-    vkDestroyShaderModule(*_device, shaderStages[1].module, nullptr);
+    _mesh->create_pipeline(_render_pass);
 
     rebuild_command();
 

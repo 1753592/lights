@@ -18,6 +18,8 @@ public:
 
   void set_vp(const tg::mat4 &, const tg::mat4 &, const tg::vec3 &);
 
+  void create_pipeline(VkRenderPass renderpass);
+
   void create_pipeline(VkRenderPass renderpass, std::vector<VkPipelineShaderStageCreateInfo> &shaders);
 
   void add_primitive(std::shared_ptr<MeshPrimitive> &pri);

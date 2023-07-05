@@ -63,10 +63,21 @@ find_package(Vulkan)
 
 add_library(${prj_name} ${src} ${hdr})
 
+
+set(shaders
+	shaders/pbr.vert
+	shaders/pbr.frag
+)
+
+source_group(shaders FILES ${shaders})
+target_sources(${prj_name} PRIVATE ${shaders})
+
 target_include_directories(${prj_name} PUBLIC ${Vulkan_INCLUDE_DIR})
 
 target_link_libraries(${prj_name} PUBLIC ${Vulkan_LIBRARY})
 target_link_libraries(${prj_name} PUBLIC SDL2::SDL2 SDL2::SDL2main)
 
 set_target_properties(${prj_name} PROPERTIES FOLDER "v")
+
+compile_shader(${prj_name} ENV opengl FORMAT bin SOURCES ${shaders})
 
