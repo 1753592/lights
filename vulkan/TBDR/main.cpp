@@ -14,6 +14,7 @@
 #include "VulkanBuffer.h"
 #include "VulkanTools.h"
 #include "VulkanInitializers.hpp"
+#include "VulkanTexture.h"
 
 #include "SimpleShape.h"
 
@@ -51,8 +52,9 @@ public:
   Test(const std::shared_ptr<VulkanDevice> &dev) : VulkanView(dev, false) { 
 
     GLTFLoader loader(_device);
-    _mesh = loader.load_file(ROOT_DIR "/data/deer.gltf");
+    //_mesh = loader.load_file(ROOT_DIR "/data/deer.gltf");
     //_mesh = loader.load_file(ROOT_DIR "/data/vulkanscenemodels.gltf");
+    _mesh = loader.load_file("D:\\01_work\\hcmodel\\garbage\\grabage.gltf");
   }
 
   ~Test() 

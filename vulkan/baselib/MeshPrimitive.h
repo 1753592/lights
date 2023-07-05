@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "tvec.h"
+#include "RenderData.h"
 
 class VulkanBuffer;
 class VulkanDevice;
@@ -18,6 +19,12 @@ public:
   ~MeshPrimitive();
 
   void set_matrix(const tg::mat4 &m);
+
+  const Material &material() { return _material; }
+
+  void set_material(const Material &m);
+
+  void set_material_set(VkDescriptorSet set);
 
   void build_command_buffer(VkCommandBuffer cmd_buf, VkPipelineLayout pipelayout);
 
@@ -38,10 +45,14 @@ private:
   tg::mat4 _m;
 
   VkIndexType _index_type;
-  uint32_t _index_count;
+  uint32_t _index_count = 0;
   std::shared_ptr<VulkanBuffer> _index_buf;
 
   std::vector<std::shared_ptr<VulkanBuffer>> _attr_bufs;
   std::vector<VkVertexInputBindingDescription> _input_bind;
   std::vector<VkVertexInputAttributeDescription> _input_attr;
+
+  Material _material = {};
+
+  VkDescriptorSet _material_set = VK_NULL_HANDLE;
 };

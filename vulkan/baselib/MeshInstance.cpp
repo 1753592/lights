@@ -6,7 +6,6 @@
 #include "MeshPrimitive.h"
 #include "VulkanInitializers.hpp"
 
-#include "SceneData.h"
 #include "tvec.h"
 
 
@@ -26,7 +25,7 @@ MeshInstance::MeshInstance(std::shared_ptr<VulkanDevice> &dev) : _device(dev)
 
   VkWriteDescriptorSet writeDescriptorSet = {};
   writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  writeDescriptorSet.dstSet = _matrix_set;
+  writeDescriptorSet.dstSet = _common_set;
   writeDescriptorSet.descriptorCount = 1;
   writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
   writeDescriptorSet.pBufferInfo = &descriptor;
@@ -40,8 +39,11 @@ MeshInstance::~MeshInstance()
   if (_pipe_layout)
     vkDestroyPipelineLayout(*_device, _pipe_layout, nullptr);
 
-  if (_descriptor_layout)
-    vkDestroyDescriptorSetLayout(*_device, _descriptor_layout, nullptr);
+  if (_common_layout)
+    vkDestroyDescriptorSetLayout(*_device, _common_layout, nullptr);
+
+  if (_frag_layout)
+    vkDestroyDescriptorSetLayout(*_device, _frag_layout, nullptr);
 
   if (_descriptor_pool)
     vkDestroyDescriptorPool(*_device, _descriptor_pool, nullptr);
@@ -67,56 +69,91 @@ void MeshInstance::create_pipeline(VkRenderPass renderpass, std::vector<VkPipeli
 
 void MeshInstance::add_primitive(std::shared_ptr<MeshPrimitive>& pri) {
   _pris.emplace_back(pri);
+
+  auto &m = pri->material();
+  if (m.tex) {
+ 
+    VkDescriptorSetAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = _descriptor_pool;
+    allocInfo.descriptorSetCount = 1;
+    allocInfo.pSetLayouts = &_frag_layout;
+
+    VkDescriptorSet material_set;
+    VK_CHECK_RESULT(vkAllocateDescriptorSets(*_device, &allocInfo, &material_set));
+
+    VkDescriptorImageInfo descriptor;
+    descriptor.imageView = m.tex->image_view();
+    descriptor.sampler = m.tex->sampler();
+    descriptor.imageLayout = m.tex->image_layout();
+
+    VkWriteDescriptorSet set = {};
+    set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    set.dstSet = material_set; 
+    set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    set.dstBinding = 0;
+    set.pImageInfo = &descriptor;
+    set.descriptorCount = 1;
+
+    vkUpdateDescriptorSets(*_device, 1, &set, 0, nullptr);
+
+    pri->set_material_set(material_set);
+  }
 }
 
 void MeshInstance::build_command_buffer(VkCommandBuffer cmd_buf)
 {
-  VkDescriptorSet set[2] = {_matrix_set, 0};
+  VkDescriptorSet set[2] = {_common_set, 0};
   vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipe_layout, 0, 1, set, 0, nullptr);
 
   for (auto &pri : _pris) {
-
     //vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipe_layout, 0, 1, set, 0, nullptr);
-
     pri->build_command_buffer(cmd_buf, _pipe_layout);
   }
 }
 
 void MeshInstance::create_pipe_layout()
 {
-  VkDescriptorSetLayoutBinding layoutBinding[3] = {};
-  layoutBinding[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  layoutBinding[0].descriptorCount = 1;
-  layoutBinding[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-  layoutBinding[0].pImmutableSamplers = nullptr;
+  {
+    VkDescriptorSetLayoutBinding layoutBinding = {};
+    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    layoutBinding.descriptorCount = 1;
+    layoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutBinding.pImmutableSamplers = nullptr;
 
-  layoutBinding[1].binding = 1;
-  layoutBinding[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  layoutBinding[1].descriptorCount = 1;
-  layoutBinding[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-  layoutBinding[1].pImmutableSamplers = nullptr;
+    VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
+    descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    descriptorLayout.pNext = nullptr;
+    descriptorLayout.bindingCount = 1;
+    descriptorLayout.pBindings = &layoutBinding;
 
-  layoutBinding[2].binding = 2;
-  layoutBinding[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  layoutBinding[2].descriptorCount = 1;
-  layoutBinding[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-  layoutBinding[2].pImmutableSamplers = nullptr;
+    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*_device, &descriptorLayout, nullptr, &_common_layout));
+  }
 
-  VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
-  descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-  descriptorLayout.pNext = nullptr;
-  descriptorLayout.bindingCount = 3;
-  descriptorLayout.pBindings = layoutBinding;
+  {
+    VkDescriptorSetLayoutBinding layoutBinding = {};
+    layoutBinding.binding = 0;
+    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    layoutBinding.descriptorCount = 1;
+    layoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutBinding.pImmutableSamplers = nullptr;
 
-  VkDescriptorSetLayout descriptor_layout;
-  VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*_device, &descriptorLayout, nullptr, &descriptor_layout));
-  _descriptor_layout = descriptor_layout;
+    VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
+    descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    descriptorLayout.pNext = nullptr;
+    descriptorLayout.bindingCount = 1;
+    descriptorLayout.pBindings = &layoutBinding;
 
+    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*_device, &descriptorLayout, nullptr, &_frag_layout));
+
+  }
+  
+  VkDescriptorSetLayout deslayout[] = {_common_layout, _frag_layout};
   VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = {};
   pPipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pPipelineLayoutCreateInfo.pNext = nullptr;
-  pPipelineLayoutCreateInfo.setLayoutCount = 1;
-  pPipelineLayoutCreateInfo.pSetLayouts = &descriptor_layout;
+  pPipelineLayoutCreateInfo.setLayoutCount = 2;
+  pPipelineLayoutCreateInfo.pSetLayouts = deslayout;
 
   auto pushConstant = vks::initializers::pushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(PrimitiveData), 0);
   pPipelineLayoutCreateInfo.pushConstantRangeCount = 1;
@@ -147,9 +184,9 @@ void MeshInstance::create_pipe_layout()
   allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
   allocInfo.descriptorPool = desPool;
   allocInfo.descriptorSetCount = 1;
-  allocInfo.pSetLayouts = &descriptor_layout;
+  allocInfo.pSetLayouts = &_common_layout;
 
-  VK_CHECK_RESULT(vkAllocateDescriptorSets(*_device, &allocInfo, &_matrix_set));
+  VK_CHECK_RESULT(vkAllocateDescriptorSets(*_device, &allocInfo, &_common_set));
 }
 
 

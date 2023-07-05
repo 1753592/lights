@@ -5,7 +5,7 @@
 #include <memory>
 
 #include "tvec.h"
-#include "SceneData.h"
+#include "RenderData.h"
 
 class VulkanDevice;
 class MeshPrimitive;
@@ -36,9 +36,11 @@ private:
 
   VkDescriptorPool _descriptor_pool = VK_NULL_HANDLE;
 
-  VkDescriptorSetLayout _descriptor_layout = VK_NULL_HANDLE;
+  VkDescriptorSetLayout _common_layout = VK_NULL_HANDLE;
 
-  VkDescriptorSet _matrix_set = VK_NULL_HANDLE;
+  VkDescriptorSetLayout _frag_layout = VK_NULL_HANDLE;
+
+  VkDescriptorSet _common_set = VK_NULL_HANDLE;
 
   std::shared_ptr<VulkanBuffer> _ubo_buf;
 

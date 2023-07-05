@@ -6,24 +6,11 @@
 #include "tiny_gltf.h"
 #include "MeshInstance.h"
 #include "MeshPrimitive.h"
+#include "VulkanTexture.h"
 #include "tmath.h"
+#include "RenderData.h"
 
 #include <set>
-
-struct MaterialUnit{
-  float ao;
-  float metallic;
-  float roughness;
-  tg::vec4 albedo;
-};
-
-struct Material{
-  int bind;
-  bool cull_back;
-  MaterialUnit mu;
-
-  bool operator < (const Material &other) { return bind < other.bind; }
-};
 
 GLTFLoader::GLTFLoader(std::shared_ptr<VulkanDevice> &dev) : _dev(dev)
 {
@@ -47,12 +34,12 @@ std::shared_ptr<MeshInstance> GLTFLoader::load_file(const std::string& file)
 
   for (int i = 0; i < _m->materials.size(); i++) {
     Material &m = materials[i];
-    m.mu.ao = 1;
+    m.pbr.ao = 1;
     auto &material = _m->materials[i];
     auto &color = material.pbrMetallicRoughness.baseColorFactor;
-    m.mu.albedo = tg::vec4(color[0], color[1], color[2], color[3]);
-    m.mu.metallic = material.pbrMetallicRoughness.metallicFactor;
-    m.mu.roughness = material.pbrMetallicRoughness.roughnessFactor;
+    m.pbr.albedo = tg::vec4(color[0], color[1], color[2], color[3]);
+    m.pbr.metallic = material.pbrMetallicRoughness.metallicFactor;
+    m.pbr.roughness = material.pbrMetallicRoughness.roughnessFactor;
 
     material.pbrMetallicRoughness.baseColorTexture.texCoord;
     int idx = material.pbrMetallicRoughness.baseColorTexture.index;
@@ -62,6 +49,18 @@ std::shared_ptr<MeshInstance> GLTFLoader::load_file(const std::string& file)
     auto &tex = _m->textures[idx];
     auto &img = _m->images[tex.source];
     if (tinygltf::IsDataURI(img.uri) || img.image.size() > 0) {}
+
+    auto texture =std::make_shared<VulkanTexture>(_dev);
+    
+    if(img.image.size() > 0) {
+      texture->load_data(img.width, img.height, img.component, img.bits / 8, img.image.data(), img.image.size());
+    } else {
+      auto &bufview = _m->bufferViews[img.bufferView];
+      auto &buf = _m->buffers[bufview.buffer];
+      texture->load_data(img.width, img.height, img.component, img.bits / 8, buf.data.data() + bufview.byteOffset, bufview.byteLength);
+    }
+
+    m.tex = texture;
   }
 
   auto meshInst = std::make_shared<MeshInstance>(_dev);
@@ -78,6 +77,9 @@ std::shared_ptr<MeshInstance> GLTFLoader::load_file(const std::string& file)
       auto mesh_pri = create_primitive(&pri);
       auto dm = m* t *s * r;
       mesh_pri->set_matrix(tg::mat4(dm));
+
+      mesh_pri->set_material(materials[pri.material]);
+
       meshInst->add_primitive(mesh_pri);
     }
   }

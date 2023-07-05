@@ -300,15 +300,7 @@ VulkanDevice::create_image(int w, int h, VkFormat format)
   imageInfo.imageType = VK_IMAGE_TYPE_2D;
   imageInfo.format = format;
   imageInfo.extent.width = w;
-  imageInfo.extent.height = h;
-  imageInfo.extent.depth = 1;
-  imageInfo.mipLevels = 1;
-  imageInfo.arrayLayers = 1;
-  imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-  imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-  imageInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-  imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-  imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  imageInfo.extent.height = h; 
 
   VkImage img = VK_NULL_HANDLE;
   VK_CHECK_RESULT(vkCreateImage(_logical_device, &imageInfo, nullptr, &img));
