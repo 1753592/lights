@@ -65,7 +65,8 @@ add_library(${prj_name} ${src} ${hdr})
 
 
 set(shaders
-	shaders/pbr.vert
+	shaders/pbr_clr.vert
+	shaders/pbr_tex.vert
 	shaders/pbr_clr.frag
 	shaders/pbr_tex.frag
 )

@@ -65,41 +65,49 @@ void MeshInstance::set_vp(const tg::mat4 &prj, const tg::mat4 &view, const tg::v
 
 void MeshInstance::create_pipeline(VkRenderPass renderpass)
 {
-  VkPipelineShaderStageCreateInfo shaderStages[3] = {};
-  shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-  shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-  shaderStages[0].module = _device->create_shader(SHADER_DIR "/pbr.vert.spv");
-  shaderStages[0].pName = "main";
-
+  VkPipelineShaderStageCreateInfo shaderStages[4] = {};
+  {
+    shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    shaderStages[0].module = _device->create_shader(SHADER_DIR "/pbr_clr.vert.spv");
+    shaderStages[0].pName = "main";
+  }
   {
     shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
     shaderStages[1].module = _device->create_shader(SHADER_DIR "/pbr_clr.frag.spv");
     shaderStages[1].pName = "main";
   }
-
   {
     shaderStages[2].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    shaderStages[2].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    shaderStages[2].module = _device->create_shader(SHADER_DIR "/pbr_tex.frag.spv");
+    shaderStages[2].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    shaderStages[2].module = _device->create_shader(SHADER_DIR "/pbr_tex.vert.spv");
     shaderStages[2].pName = "main";
   }
-
-  assert(shaderStages[1].module != VK_NULL_HANDLE);
+  {
+    shaderStages[3].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStages[3].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    shaderStages[3].module = _device->create_shader(SHADER_DIR "/pbr_tex.frag.spv");
+    shaderStages[3].pName = "main";
+  }
 
   std::vector<VkPipelineShaderStageCreateInfo> shaders(2);
-  shaders[0] = shaderStages[0];
-  for(auto pri : _pris) {
-    if (pri->material().tex)
-      shaders[1] = shaderStages[2];
-    else
+  for (auto pri : _pris) {
+    if (pri->material().tex) {
+      shaders[0] = shaderStages[2];
+      shaders[1] = shaderStages[3];
+    }
+    else {
+      shaders[0] = shaderStages[0];
       shaders[1] = shaderStages[1];
+    }
     pri->create_pipeline(renderpass, _pipe_layout, shaders);
   }
 
   vkDestroyShaderModule(*_device, shaderStages[0].module, nullptr);
   vkDestroyShaderModule(*_device, shaderStages[1].module, nullptr);
   vkDestroyShaderModule(*_device, shaderStages[2].module, nullptr);
+  vkDestroyShaderModule(*_device, shaderStages[3].module, nullptr);
 }
 
 void MeshInstance::create_pipeline(VkRenderPass renderpass, std::vector<VkPipelineShaderStageCreateInfo> &shaders)
