@@ -177,13 +177,13 @@ void VulkanImGUI::create_pipeline(VkFormat clrformat)
   VkPipelineShaderStageCreateInfo shaderStages[2] = {};
   shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-  shaderStages[0].module = device->create_shader(hud_vert, sizeof(hud_vert));
+  shaderStages[0].module = device->create_shader((char *)hud_vert, sizeof(hud_vert));
   shaderStages[0].pName = "main";
   assert(shaderStages[0].module != VK_NULL_HANDLE);
 
   shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-  shaderStages[1].module = device->create_shader(hud_frag, sizeof(hud_frag));
+  shaderStages[1].module = device->create_shader((char *)hud_frag, sizeof(hud_frag));
   shaderStages[1].pName = "main";
   assert(shaderStages[1].module != VK_NULL_HANDLE);
 

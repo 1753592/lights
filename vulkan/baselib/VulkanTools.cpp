@@ -386,6 +386,21 @@ bool fileExists(const std::string& filename)
   return !f.fail();
 }
 
+std::string readFile(const std::string& filename)
+{
+  std::string ret;
+  auto f = fopen(filename.c_str(), "rb");
+  if (!f)
+    return ret;
+  fseek(f, 0, SEEK_END);
+  uint64_t len = ftell(f);
+  fseek(f, 0, SEEK_SET);
+  ret.resize(len, 0);
+  fread(&ret[0], 1, len, f);
+  fclose(f);
+  return ret;
+}
+
 uint32_t alignedSize(uint32_t value, uint32_t alignment)
 {
   return (value + alignment - 1) & ~(alignment - 1);

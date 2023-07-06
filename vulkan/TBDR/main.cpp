@@ -52,8 +52,8 @@ public:
   Test(const std::shared_ptr<VulkanDevice> &dev) : VulkanView(dev, false) { 
 
     GLTFLoader loader(_device);
-    //_mesh = loader.load_file(ROOT_DIR "/data/deer.gltf");
-    _mesh = loader.load_file(ROOT_DIR "/data/vulkanscenemodels.gltf");
+    _mesh = loader.load_file(ROOT_DIR "/data/deer.gltf");
+    //_mesh = loader.load_file(ROOT_DIR "/data/vulkanscenemodels.gltf");
     //_mesh = loader.load_file("D:\\01_work\\hcmodel\\garbage\\grabage.gltf");
   }
 
@@ -73,7 +73,8 @@ public:
 
     set_surface(surface, w, h);
 
-    _mesh->create_pipeline(_render_pass);
+    if(_mesh)
+      _mesh->create_pipeline(_render_pass);
 
     rebuild_command();
 
@@ -87,14 +88,14 @@ public:
   void resize(int, int) { update_ubo(); }
   void build_command_buffer(VkCommandBuffer cmd_buf) 
   { 
-    _mesh->build_command_buffer(cmd_buf);
+    if(_mesh) _mesh->build_command_buffer(cmd_buf);
   }
 
   void update_ubo()
   {
     auto prj = tg::perspective<float>(fov, float(width()) / height(), 0.1, 1000);
     auto &manip = manipulator();
-    _mesh->set_vp(prj, manip.view_matrix(), manip.eye());
+    if(_mesh) _mesh->set_vp(prj, manip.view_matrix(), manip.eye());
   }
 
 private:

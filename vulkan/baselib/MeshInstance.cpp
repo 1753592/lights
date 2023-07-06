@@ -9,7 +9,7 @@
 #include "tvec.h"
 #include "config.h"
 
-#define SHADER_DIR ROOT_DIR##"baselib/shaders/"
+#define SHADER_DIR ROOT_DIR##"/vulkan/baselib/shaders"
 
 
 MeshInstance::MeshInstance(std::shared_ptr<VulkanDevice> &dev) : _device(dev)
@@ -65,21 +65,41 @@ void MeshInstance::set_vp(const tg::mat4 &prj, const tg::mat4 &view, const tg::v
 
 void MeshInstance::create_pipeline(VkRenderPass renderpass)
 {
-  std::vector<VkPipelineShaderStageCreateInfo> shaderStages(2);
+  VkPipelineShaderStageCreateInfo shaderStages[3] = {};
   shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
   shaderStages[0].module = _device->create_shader(SHADER_DIR "/pbr.vert.spv");
   shaderStages[0].pName = "main";
-  assert(shaderStages[0].module != VK_NULL_HANDLE);
 
-  shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-  shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-  shaderStages[1].module = _device->create_shader(SHADER_DIR "/pbr.frag.spv");
-  shaderStages[1].pName = "main";
+  {
+    shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    shaderStages[1].module = _device->create_shader(SHADER_DIR "/pbr_clr.frag.spv");
+    shaderStages[1].pName = "main";
+  }
+
+  {
+    shaderStages[2].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStages[2].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    shaderStages[2].module = _device->create_shader(SHADER_DIR "/pbr_tex.frag.spv");
+    shaderStages[2].pName = "main";
+  }
+
   assert(shaderStages[1].module != VK_NULL_HANDLE);
+
+  std::vector<VkPipelineShaderStageCreateInfo> shaders(2);
+  shaders[0] = shaderStages[0];
+  for(auto pri : _pris) {
+    if (pri->material().tex)
+      shaders[1] = shaderStages[2];
+    else
+      shaders[1] = shaderStages[1];
+    pri->create_pipeline(renderpass, _pipe_layout, shaders);
+  }
 
   vkDestroyShaderModule(*_device, shaderStages[0].module, nullptr);
   vkDestroyShaderModule(*_device, shaderStages[1].module, nullptr);
+  vkDestroyShaderModule(*_device, shaderStages[2].module, nullptr);
 }
 
 void MeshInstance::create_pipeline(VkRenderPass renderpass, std::vector<VkPipelineShaderStageCreateInfo> &shaders)
@@ -101,7 +121,7 @@ void MeshInstance::add_primitive(std::shared_ptr<MeshPrimitive>& pri) {
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts = &_frag_layout;
 
-    VkDescriptorSet material_set;
+    VkDescriptorSet material_set; 
     VK_CHECK_RESULT(vkAllocateDescriptorSets(*_device, &allocInfo, &material_set));
 
     VkDescriptorImageInfo descriptor;

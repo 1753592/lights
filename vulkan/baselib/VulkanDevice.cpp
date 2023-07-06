@@ -338,36 +338,19 @@ VkImageView VulkanDevice::create_image_view(VkImage img, VkFormat format)
   return view;
 }
 
-namespace {
-std::string read_file(const std::string &file)
-{
-  std::string ret;
-  auto f = fopen(file.c_str(), "rb");
-  if (!f)
-    return ret;
-  fseek(f, 0, SEEK_END);
-  uint64_t len = ftell(f);
-  fseek(f, 0, SEEK_SET);
-  ret.resize(len, 0);
-  fread(&ret[0], 1, len, f);
-  fclose(f);
-  return ret;
-}
-}  // namespace
-
 VkShaderModule VulkanDevice::create_shader(const std::string &file)
 {
-  auto shader_source = read_file(file);
+  auto shader_source = vks::tools::readFile(file);
   assert(!shader_source.empty());
-  return create_shader((uint32_t *)shader_source.c_str(), shader_source.size());
+  return create_shader(shader_source.c_str(), shader_source.size());
 }
 
-VkShaderModule VulkanDevice::create_shader(const uint32_t *shader_source, int n)
+VkShaderModule VulkanDevice::create_shader(const char *shader_source, int n)
 {
   VkShaderModuleCreateInfo create_info{};
   create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
   create_info.codeSize = n;
-  create_info.pCode = shader_source;
+  create_info.pCode = (uint32_t *)shader_source;
 
   VkShaderModule shader_module;
   VK_CHECK_RESULT(vkCreateShaderModule(_logical_device, &create_info, nullptr, &shader_module));

@@ -42,7 +42,7 @@ public:
 
   VkShaderModule create_shader(const std::string &file);
 
-  VkShaderModule create_shader(const uint32_t *source, int n);
+  VkShaderModule create_shader(const char *source, int n);
 
   VkPipelineCache get_or_create_pipecache();
 

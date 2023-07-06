@@ -2,7 +2,6 @@
 
 layout(location = 0) in vec3 vp_pos;
 layout(location = 1) in vec3 vp_norm;
-layout(location = 2) in vec2 vp_uv;
 
 layout(location = 0) out vec4 frag_color;
 
@@ -13,7 +12,6 @@ layout(binding = 0) uniform MatrixObject{
     vec4 cam;
 } ubo;
 
-layout(set = 1, binding = 0) uniform sampler2D tex;
 
 //layout(binding = 1) uniform Lights{
 //	vec3 light_pos[4];
@@ -26,6 +24,8 @@ layout(set = 1, binding = 0) uniform sampler2D tex;
 //	float ao;
 //	vec3	albedo;
 //};
+
+void base_color(inout vec4 clr);
 
 const float pi = 3.14159265359;
 
@@ -70,7 +70,7 @@ float smith_Geometry(vec3 n, vec3 v, vec3 l, float roughness)
 void main(void)
 {
 	frag_color = vec4(1, 0, 0, 1);
-  frag_color = texture(tex, vp_uv);
+  base_color(frag_color);
 	//vec3 mate_albedo = materials[idx].albedo;
 	//float mate_roughness = materials[idx].roughness;
 	//float mate_metallic = materials[idx].metallic;
@@ -113,4 +113,9 @@ void main(void)
 	////color = pow(color, vec3(1.0 / 2.2));
 
 	//frag_color = vec4(color, 1.0);
+}
+
+void base_color(inout vec4 clr)
+{
+  clr = vec4(1, 0, 0, 1);
 }
