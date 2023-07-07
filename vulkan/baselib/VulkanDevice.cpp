@@ -16,6 +16,7 @@
 #include "VulkanDevice.h"
 #include "VulkanTools.h"
 #include "VulkanBuffer.h"
+#include "VulkanImage.h"
 #include "VulkanInitializers.hpp"
 
 #include <array>
@@ -336,6 +337,80 @@ VkImageView VulkanDevice::create_image_view(VkImage img, VkFormat format)
   VkImageView view = VK_NULL_HANDLE;
   VK_CHECK_RESULT(vkCreateImageView(_logical_device, &colorAttachmentView, nullptr, &view));
   return view;
+}
+
+std::shared_ptr<VulkanImage> VulkanDevice::create_color_image(uint32_t width, uint32_t height, VkFormat format)
+{
+  auto [img, imgmem] = create_image(width, height, format);
+  auto imgview = create_image_view(img, format);
+
+  auto vkimg = std::make_shared<VulkanImage>(shared_from_this());
+  vkimg->image() = img;
+  vkimg->image_mem() = imgmem;
+  vkimg->image_view() = imgview;
+
+  return vkimg;
+}
+
+std::shared_ptr<VulkanImage> VulkanDevice::create_depth_image(uint32_t width, uint32_t height, VkFormat format)
+{
+  VkImage img = VK_NULL_HANDLE;
+  VkDeviceMemory imgmem = VK_NULL_HANDLE;
+  // Create an optimal image used as the depth stencil attachment
+  VkImageCreateInfo image = {};
+  image.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+  image.imageType = VK_IMAGE_TYPE_2D;
+  image.format = format;
+  image.extent = {width, height, 1};
+  image.mipLevels = 1;
+  image.arrayLayers = 1;
+  image.samples = VK_SAMPLE_COUNT_1_BIT;
+  image.tiling = VK_IMAGE_TILING_OPTIMAL;
+  image.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+  image.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  VK_CHECK_RESULT(vkCreateImage(_logical_device, &image, nullptr, &img));
+
+  // Allocate memory for the image (device local) and bind it to our image
+  VkMemoryAllocateInfo memAlloc = {};
+  memAlloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+  VkMemoryRequirements memReqs;
+  vkGetImageMemoryRequirements(_logical_device, img, &memReqs);
+  memAlloc.allocationSize = memReqs.size;
+  auto memIndex = memory_type_index(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+  if (!memIndex)
+    throw std::runtime_error("No proper memory type!");
+  memAlloc.memoryTypeIndex = *memIndex;
+  VK_CHECK_RESULT(vkAllocateMemory(_logical_device, &memAlloc, nullptr, &imgmem));
+  VK_CHECK_RESULT(vkBindImageMemory(_logical_device, img, imgmem, 0));
+
+  // Create a view for the depth stencil image
+  // Images aren't directly accessed in Vulkan, but rather through views described by a subresource range
+  // This allows for multiple views of one image with differing ranges (e.g. for different layers)
+  VkImageViewCreateInfo depthStencilView = {};
+  depthStencilView.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+  depthStencilView.viewType = VK_IMAGE_VIEW_TYPE_2D;
+  depthStencilView.format = format;
+  depthStencilView.subresourceRange = {};
+  depthStencilView.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+  // Stencil aspect should only be set on depth + stencil formats (VK_FORMAT_D16_UNORM_S8_UINT..VK_FORMAT_D32_SFLOAT_S8_UINT)
+  if (format >= VK_FORMAT_D16_UNORM_S8_UINT)
+    depthStencilView.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+
+  depthStencilView.subresourceRange.baseMipLevel = 0;
+  depthStencilView.subresourceRange.levelCount = 1;
+  depthStencilView.subresourceRange.baseArrayLayer = 0;
+  depthStencilView.subresourceRange.layerCount = 1;
+  depthStencilView.image = img;
+
+  VkImageView imgview = VK_NULL_HANDLE;
+  VK_CHECK_RESULT(vkCreateImageView(_logical_device, &depthStencilView, nullptr, &imgview));
+
+  auto vkimg = std::make_shared<VulkanImage>(shared_from_this());
+  vkimg->image() = img;
+  vkimg->image_mem() = imgmem;
+  vkimg->image_view() = imgview;
+
+  return vkimg;
 }
 
 VkShaderModule VulkanDevice::create_shader(const std::string &file)
@@ -723,20 +798,3 @@ VkFormat VulkanDevice::supported_depth_format(bool checkSamplingSupport)
   }
   throw std::runtime_error("Could not find a matching depth format");
 }
-
-void VulkanDevice::destroy_image(ImageUnit &img)
-{
-  if (img.view) {
-    vkDestroyImageView(_logical_device, img.view, nullptr);
-    img.view = VK_NULL_HANDLE;
-  }
-  if (img.image) {
-    vkDestroyImage(_logical_device, img.image, nullptr);
-    img.image = VK_NULL_HANDLE;
-  }
-  if (img.mem) {
-    vkFreeMemory(_logical_device, img.mem, nullptr);
-    img.mem = VK_NULL_HANDLE;
-  }
-}
-

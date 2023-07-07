@@ -12,6 +12,7 @@
 #include "VulkanInstance.h"
 #include "VulkanTools.h"
 #include "VulkanDevice.h"
+#include "VulkanImage.h"
 #include "VulkanSwapChain.h"
 #include "VulkanImGUI.h"
 
@@ -58,7 +59,7 @@ void VulkanView::set_surface(VkSurfaceKHR surface, int w, int h)
   _swapchain->set_surface(surface);
   _swapchain->realize(w, h, true);
 
-  _render_pass = _device->create_render_pass(_swapchain->color_format(), _swapchain->depth_format());
+  _render_pass = _device->create_render_pass(_swapchain->color_format(), VK_FORMAT_D24_UNORM_S8_UINT);
 
   if (_imgui) _imgui->create_pipeline(_swapchain->color_format());
 
@@ -159,7 +160,7 @@ void VulkanView::update()
   SDL_PushEvent(&ev);
 
   if (_imgui && _imgui->update()) {
-    VK_CHECK_RESULT(vkWaitForFences(*_device, 1, &_fences[_frame], VK_TRUE, UINT64_MAX));
+    VK_CHECK_RESULT(vkWaitForFences(*_device, 1, &_fences[_framenum], VK_TRUE, UINT64_MAX));
     _imgui->build_command_buffers();
   }
 }
@@ -184,8 +185,14 @@ void VulkanView::check_frame()
     _cmd_bufs = _device->create_command_buffers(count);
   }
 
-  _depth = _swapchain->create_depth_image(_w, _h);
-  _frame_bufs = _swapchain->create_frame_buffer(_render_pass, _depth.view);
+  _depth = _device->create_depth_image(_w, _h);
+  std::vector<VkImageView> imgs;
+  for(int i = 0; i < count; i++) {
+    auto img = _device->create_color_image(_w, _h);
+    _images.push_back(img);
+    imgs.push_back(img->image_view());
+  }
+  _frame_bufs = _swapchain->create_frame_buffer(_render_pass, imgs, _depth->image_view());
 
   build_command_buffers();
 
@@ -202,10 +209,7 @@ void VulkanView::clear_frame()
     vkDestroyFramebuffer(*_device, framebuf, nullptr);
   _frame_bufs.clear();
 
-  vkDestroyImageView(*_device, _depth.view, nullptr);
-  vkDestroyImage(*_device, _depth.image, nullptr);
-  vkFreeMemory(*_device, _depth.mem, nullptr);
-  _depth = {VK_NULL_HANDLE};
+  _depth.reset();
 }
 
 void VulkanView::create_sync_objs()
@@ -333,8 +337,8 @@ void VulkanView::render()
   VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, _fences[index]));
 
   {
-    _frame = index;
-    auto present = _swapchain->queue_present(queue, _frame, _renderSemaphore);
+    _framenum = index;
+    auto present = _swapchain->queue_present(queue, _framenum, _renderSemaphore);
     if (!((present == VK_SUCCESS) || (present == VK_SUBOPTIMAL_KHR))) {
       VK_CHECK_RESULT(present);
     }

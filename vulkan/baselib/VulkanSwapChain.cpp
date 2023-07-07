@@ -28,8 +28,8 @@ VulkanSwapChain::VulkanSwapChain(const std::shared_ptr<VulkanDevice> &dev)
 VulkanSwapChain::~VulkanSwapChain() 
 {
   if (_swapChain != VK_NULL_HANDLE) {
-    for (uint32_t i = 0; i < _buffers.size(); i++) {
-      vkDestroyImageView(*_device, _buffers[i].view, nullptr);
+    for (uint32_t i = 0; i < _images.size(); i++) {
+      vkDestroyImageView(*_device, _images[i].view, nullptr);
     }
   }
 
@@ -87,26 +87,21 @@ void VulkanSwapChain::set_surface(VkSurfaceKHR surface)
   vkGetPhysicalDeviceSurfaceFormatsKHR(_device->physical_device(), surface, &formatCount, surfaceFormats.data());
 
   if(formatCount == 1 && surfaceFormats[0].format == VK_FORMAT_UNDEFINED) {
-    _colorFormat = VK_FORMAT_B8G8R8A8_UNORM;
+    _color_format = VK_FORMAT_B8G8R8A8_UNORM;
   }else{
-    _colorFormat = VK_FORMAT_UNDEFINED;
+    _color_format = VK_FORMAT_UNDEFINED;
     for(auto &surfaceFormat : surfaceFormats) {
       if(surfaceFormat.format == VK_FORMAT_B8G8R8A8_UNORM) {
-        _colorFormat = surfaceFormat.format;
-        _colorSpace = surfaceFormat.colorSpace;
+        _color_format = surfaceFormat.format;
+        _color_space = surfaceFormat.colorSpace;
         break;
       }
     }
-    if(_colorFormat == VK_FORMAT_UNDEFINED) {
-      _colorFormat = surfaceFormats[0].format;
-      _colorSpace = surfaceFormats[0].colorSpace;
+    if(_color_format == VK_FORMAT_UNDEFINED) {
+      _color_format = surfaceFormats[0].format;
+      _color_space = surfaceFormats[0].colorSpace;
     }
   }
-}
-
-void VulkanSwapChain::set_default_depth_format(VkFormat dep_format) 
-{
-  _depthFormat = dep_format;
 }
 
 void VulkanSwapChain::realize(uint32_t width, uint32_t height, bool vsync, bool fullscreen) 
@@ -174,8 +169,8 @@ void VulkanSwapChain::realize(uint32_t width, uint32_t height, bool vsync, bool 
   swapchainCI.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
   swapchainCI.surface = _surface;
   swapchainCI.minImageCount = desireImages;
-  swapchainCI.imageFormat = _colorFormat;
-  swapchainCI.imageColorSpace = _colorSpace;
+  swapchainCI.imageFormat = _color_format;
+  swapchainCI.imageColorSpace = _color_space;
   swapchainCI.imageExtent = {chainExtent.width, chainExtent.height};
   swapchainCI.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
   swapchainCI.preTransform = (VkSurfaceTransformFlagBitsKHR)preTransform;
@@ -205,24 +200,24 @@ void VulkanSwapChain::realize(uint32_t width, uint32_t height, bool vsync, bool 
   // If an existing swap chain is re-created, destroy the old swap chain
   // This also cleans up all the presentable images
   if (oldchain != VK_NULL_HANDLE) {
-    for (uint32_t i = 0; i < _buffers.size(); i++) {
-      vkDestroyImageView(*_device, _buffers[i].view, nullptr);
+    for (uint32_t i = 0; i < _images.size(); i++) {
+      vkDestroyImageView(*_device, _images[i].view, nullptr);
     }
     vkDestroySwapchainKHR(*_device, oldchain, nullptr);
   }
 
   uint32_t imageCount;
   VK_CHECK_RESULT(vkGetSwapchainImagesKHR(*_device, _swapChain, &imageCount, NULL));
-  _images.resize(imageCount);
-  VK_CHECK_RESULT(vkGetSwapchainImagesKHR(*_device, _swapChain, &imageCount, _images.data()));
+  std::vector<VkImage> images(imageCount);
+  VK_CHECK_RESULT(vkGetSwapchainImagesKHR(*_device, _swapChain, &imageCount, images.data()));
 
   // Get the swap chain buffers containing the image and imageview
-  _buffers.resize(imageCount);
+  _images.resize(imageCount);
   for (uint32_t i = 0; i < imageCount; i++) {
     VkImageViewCreateInfo colorAttachmentView = {};
     colorAttachmentView.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     colorAttachmentView.pNext = NULL;
-    colorAttachmentView.format = _colorFormat;
+    colorAttachmentView.format = _color_format;
     colorAttachmentView.components = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A};
     colorAttachmentView.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     colorAttachmentView.subresourceRange.baseMipLevel = 0;
@@ -232,71 +227,25 @@ void VulkanSwapChain::realize(uint32_t width, uint32_t height, bool vsync, bool 
     colorAttachmentView.viewType = VK_IMAGE_VIEW_TYPE_2D;
     colorAttachmentView.flags = 0;
 
-    _buffers[i].image = _images[i];
+    _images[i].image = images[i];
 
-    colorAttachmentView.image = _buffers[i].image;
+    colorAttachmentView.image = _images[i].image;
 
-    VK_CHECK_RESULT(vkCreateImageView(*_device, &colorAttachmentView, nullptr, &_buffers[i].view));
+    VK_CHECK_RESULT(vkCreateImageView(*_device, &colorAttachmentView, nullptr, &_images[i].view));
   }
 }
 
-ImageUnit VulkanSwapChain::create_depth_image(uint32_t width, uint32_t height)
+std::vector<VkFramebuffer> VulkanSwapChain::create_frame_buffer(VkRenderPass vkPass, const VkImageView& depth)
 {
-  ImageUnit unit = {};
-
-  // Create an optimal image used as the depth stencil attachment
-  VkImageCreateInfo image = {};
-  image.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-  image.imageType = VK_IMAGE_TYPE_2D;
-  image.format = _depthFormat;
-  image.extent = {width, height, 1};
-  image.mipLevels = 1;
-  image.arrayLayers = 1;
-  image.samples = VK_SAMPLE_COUNT_1_BIT;
-  image.tiling = VK_IMAGE_TILING_OPTIMAL;
-  image.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-  image.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  VK_CHECK_RESULT(vkCreateImage(*_device, &image, nullptr, &unit.image));
-
-  // Allocate memory for the image (device local) and bind it to our image
-  VkMemoryAllocateInfo memAlloc = {};
-  memAlloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-  VkMemoryRequirements memReqs;
-  vkGetImageMemoryRequirements(*_device, unit.image, &memReqs);
-  memAlloc.allocationSize = memReqs.size;
-  auto memIndex = _device->memory_type_index(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-  if (!memIndex)
-    throw std::runtime_error("No proper memory type!");
-  memAlloc.memoryTypeIndex = *memIndex; 
-  VK_CHECK_RESULT(vkAllocateMemory(*_device, &memAlloc, nullptr, &unit.mem));
-  VK_CHECK_RESULT(vkBindImageMemory(*_device, unit.image, unit.mem, 0));
-
-  // Create a view for the depth stencil image
-  // Images aren't directly accessed in Vulkan, but rather through views described by a subresource range
-  // This allows for multiple views of one image with differing ranges (e.g. for different layers)
-  VkImageViewCreateInfo depthStencilView = {};
-  depthStencilView.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-  depthStencilView.viewType = VK_IMAGE_VIEW_TYPE_2D;
-  depthStencilView.format = _depthFormat;
-  depthStencilView.subresourceRange = {};
-  depthStencilView.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-  // Stencil aspect should only be set on depth + stencil formats (VK_FORMAT_D16_UNORM_S8_UINT..VK_FORMAT_D32_SFLOAT_S8_UINT)
-  if (_depthFormat >= VK_FORMAT_D16_UNORM_S8_UINT)
-    depthStencilView.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-
-  depthStencilView.subresourceRange.baseMipLevel = 0;
-  depthStencilView.subresourceRange.levelCount = 1;
-  depthStencilView.subresourceRange.baseArrayLayer = 0;
-  depthStencilView.subresourceRange.layerCount = 1;
-  depthStencilView.image = unit.image;
-  VK_CHECK_RESULT(vkCreateImageView(*_device, &depthStencilView, nullptr, &unit.view));
-
-  return unit;
+  std::vector<VkImageView> imgviews;
+  for (auto& img : _images)
+    imgviews.push_back(img.view);
+  return create_frame_buffer(vkPass, imgviews, depth);
 }
 
-std::vector<VkFramebuffer> VulkanSwapChain::create_frame_buffer(VkRenderPass vkPass, const VkImageView& depth) 
+std::vector<VkFramebuffer> VulkanSwapChain::create_frame_buffer(VkRenderPass vkPass, const std::vector<VkImageView>& color, const VkImageView& depth)
 {
-  assert(_buffers.size() == _images.size());
+  assert(_images.size() == color.size());
 
   VkImageView attachments[2];
 
@@ -317,10 +266,9 @@ std::vector<VkFramebuffer> VulkanSwapChain::create_frame_buffer(VkRenderPass vkP
   frameBufferCreateInfo.layers = 1;
 
   std::vector<VkFramebuffer> frameBuffers;
-  // Create frame buffers for every swap chain image
-  frameBuffers.resize(_buffers.size());
+  frameBuffers.resize(color.size());
   for (uint32_t i = 0; i < frameBuffers.size(); i++) {
-    attachments[0] = _buffers[i].view;
+    attachments[0] = color[i];
     VK_CHECK_RESULT(vkCreateFramebuffer(*_device, &frameBufferCreateInfo, nullptr, &frameBuffers[i]));
   }
 

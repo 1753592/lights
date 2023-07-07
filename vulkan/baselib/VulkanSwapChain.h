@@ -4,10 +4,10 @@
 #include <memory>
 #include <vector>
 #include "vulkan/vulkan.h"
-#include "VulkanDef.h"
 
 class VulkanInstance;
 class VulkanDevice;
+class VulkanImage;
 
 class VulkanSwapChain{
 public:
@@ -18,19 +18,15 @@ public:
 
   void set_surface(VkSurfaceKHR surface);
 
-  void set_default_depth_format(VkFormat dep_format = VK_FORMAT_D24_UNORM_S8_UINT);
-
-  VkFormat color_format() { return _colorFormat; }
-
-  VkFormat depth_format() { return _depthFormat; }
+  VkFormat color_format() { return _color_format; }
 
   void realize(uint32_t width, uint32_t height, bool vsync, bool fullscreen = false);
 
   uint32_t image_count() { return _images.size(); }
 
-  ImageUnit create_depth_image(uint32_t width, uint32_t height);
+  std::vector<VkFramebuffer> create_frame_buffer(VkRenderPass vkPass, const VkImageView &depth);
 
-  std::vector<VkFramebuffer> create_frame_buffer(VkRenderPass vkPass, const VkImageView &);
+  std::vector<VkFramebuffer> create_frame_buffer(VkRenderPass vkPass, const std::vector<VkImageView> &color, const VkImageView &depth);
 
   std::tuple<VkResult, uint32_t> acquire_image(VkSemaphore present_sema);
 
@@ -41,20 +37,17 @@ private:
 
   VkSurfaceKHR _surface = VK_NULL_HANDLE;
   uint32_t _queueIndex = UINT32_MAX;
-  VkFormat _colorFormat;
-  VkColorSpaceKHR _colorSpace;
-  VkFormat _depthFormat = VK_FORMAT_D24_UNORM_S8_UINT;
+  VkFormat _color_format;
+  VkColorSpaceKHR _color_space;
   VkSwapchainKHR _swapChain = VK_NULL_HANDLE;
 
   uint32_t _width = 0, _height = 0;
 
-  std::vector<VkImage> _images;
-
-  struct SwapChainBuffer{
+  struct SwapChainImage{
     VkImage image;
     VkImageView view;
   };
-  std::vector<SwapChainBuffer> _buffers;
+  std::vector<SwapChainImage> _images;
 
   //PFN_vkGetPhysicalDeviceSurfaceSupportKHR fpGetPhysicalDeviceSurfaceSupportKHR;
   //PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR fpGetPhysicalDeviceSurfaceCapabilitiesKHR;

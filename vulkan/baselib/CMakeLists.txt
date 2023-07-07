@@ -19,6 +19,7 @@ set(hdr
 	VulkanBuffer.h
 	VulkanDevice.h
 	VulkanTexture.h
+	VulkanImage.h
 	VulkanDebug.h
 	VulkanTools.h
 	VulkanInitializers.hpp
@@ -42,6 +43,7 @@ set(src
 	VulkanBuffer.cpp
 	VulkanDevice.cpp
 	VulkanTexture.cpp
+	VulkanImage.cpp
 	VulkanDebug.cpp
 	VulkanTools.cpp
 

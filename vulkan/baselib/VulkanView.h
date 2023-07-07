@@ -12,6 +12,7 @@ class VulkanDevice;
 
 class VulkanSwapChain;
 class VulkanImGUI;
+class VulkanImage;
 
 class VulkanView {
 public:
@@ -83,7 +84,9 @@ protected:
   uint32_t _frame = 0;
 
   VkRenderPass _render_pass = VK_NULL_HANDLE;
-  ImageUnit _depth = {VK_NULL_HANDLE};
+
+  std::shared_ptr<VulkanImage> _depth = {VK_NULL_HANDLE};
+  std::vector<std::shared_ptr<VulkanImage>> _images;
 
   VkSemaphore _presentSemaphore = VK_NULL_HANDLE;
   VkSemaphore _renderSemaphore = VK_NULL_HANDLE;
