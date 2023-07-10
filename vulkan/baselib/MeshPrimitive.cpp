@@ -95,12 +95,12 @@ void MeshPrimitive::create_pipeline(VkRenderPass renderpass, VkPipelineLayout pi
   VkPipelineColorBlendAttachmentState blendAttachmentState[1] = {};
   blendAttachmentState[0].colorWriteMask = 0xf;
   blendAttachmentState[0].blendEnable = VK_TRUE;
-  blendAttachmentState[0].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_COLOR;
-  blendAttachmentState[0].dstColorBlendFactor = VK_BLEND_FACTOR_DST_COLOR;
+  blendAttachmentState[0].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+  blendAttachmentState[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
   blendAttachmentState[0].colorBlendOp = VK_BLEND_OP_ADD;
   blendAttachmentState[0].alphaBlendOp = VK_BLEND_OP_ADD;
-  blendAttachmentState[0].srcAlphaBlendFactor= VK_BLEND_FACTOR_SRC_ALPHA;
-  blendAttachmentState[0].dstAlphaBlendFactor= VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+  blendAttachmentState[0].srcAlphaBlendFactor= VK_BLEND_FACTOR_ONE;
+  blendAttachmentState[0].dstAlphaBlendFactor= VK_BLEND_FACTOR_ZERO;
 
   VkPipelineColorBlendStateCreateInfo colorBlendState = {};
   colorBlendState.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;

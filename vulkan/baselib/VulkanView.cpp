@@ -186,6 +186,7 @@ void VulkanView::check_frame()
   }
 
   _depth = _device->create_depth_image(_w, _h);
+  #if 0
   std::vector<VkImageView> imgs;
   for(int i = 0; i < count; i++) {
     auto img = _device->create_color_image(_w, _h);
@@ -193,6 +194,9 @@ void VulkanView::check_frame()
     imgs.push_back(img->image_view());
   }
   _frame_bufs = _swapchain->create_frame_buffer(_render_pass, imgs, _depth->image_view());
+  #else
+  _frame_bufs = _swapchain->create_frame_buffer(_render_pass, _depth->image_view());
+  #endif
 
   build_command_buffers();
 
@@ -238,7 +242,7 @@ void VulkanView::build_command_buffers()
   buf_info.pNext = nullptr;
 
   VkClearValue clearValues[2];
-  clearValues[0].color = {{0.0, 0.0, 0.2, 1.0}};
+  clearValues[0].color = {{0.0, 0.0, 0.0, 1.0}};
   clearValues[1].depthStencil = {1, 0};
 
   VkRenderPassBeginInfo renderPassBeginInfo = {};

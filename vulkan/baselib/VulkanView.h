@@ -81,7 +81,7 @@ protected:
   std::vector<VkFramebuffer> _frame_bufs;
 
   int _w, _h;
-  uint32_t _frame = 0;
+  uint32_t _framenum = 0;
 
   VkRenderPass _render_pass = VK_NULL_HANDLE;
 

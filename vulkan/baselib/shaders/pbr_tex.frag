@@ -72,8 +72,13 @@ float smith_Geometry(vec3 n, vec3 v, vec3 l, float roughness)
 
 void main(void)
 {
-	frag_color = vec4(1, 0, 0, 1);
   base_color(frag_color);
+
+	if (frag_color.a == 0.f)
+    discard;
+
+  //vec3 color = frag_color.xyz;
+
 	//vec3 mate_albedo = materials[idx].albedo;
 	//float mate_roughness = materials[idx].roughness;
 	//float mate_metallic = materials[idx].metallic;
@@ -112,10 +117,10 @@ void main(void)
 	//vec3 ambient = vec3(0.03) * mate_albedo * mate_ao;
 	//vec3 color = ambient + lo;
 
-	////color = color / (color + vec3(1.0));
-	////color = pow(color, vec3(1.0 / 2.2));
+	//color = color / (color + vec3(1.0));
+	//color = pow(color, vec3(1.0 / 2.2));
 
-	//frag_color = vec4(color, 1.0);
+	//frag_color.rgb = color;
 }
 
 
