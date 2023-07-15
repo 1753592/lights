@@ -14,6 +14,7 @@
 #include "VulkanSwapChain.h"
 #include "VulkanBuffer.h"
 #include "VulkanTools.h"
+#include "VulkanImage.h"
 #include "VulkanInitializers.hpp"
 
 #include "SimpleShape.h"
@@ -112,8 +113,6 @@ public:
       vkDestroyPipeline(*_device, _pipeline, nullptr);
       _pipeline = VK_NULL_HANDLE;
     }
-
-    _device->destroy_image(_depth);
   }
 
   void set_window(SDL_Window *win)
@@ -131,7 +130,7 @@ public:
 
     int count = _swapchain->image_count();
 
-    _render_pass = _device->create_render_pass(_swapchain->color_format(), _swapchain->depth_format());
+    _render_pass = _device->create_render_pass(_swapchain->color_format());
 
     _cmd_bufs = _device->create_command_buffers(count);
 
@@ -145,9 +144,9 @@ public:
   void apply_resource()
   {
     int count = _swapchain->image_count();
-    _depth = _swapchain->create_depth_image(_w, _h);
+    _depth = _device->create_depth_image(_w, _h);
 
-    _frame_bufs = _swapchain->create_frame_buffer(_render_pass, _depth.view);
+    _frame_bufs = _swapchain->create_frame_buffer(_render_pass, _depth->image_view());
 
     build_command_buffers(_frame_bufs, _render_pass);
 
@@ -164,10 +163,7 @@ public:
       vkDestroyFramebuffer(*_device, framebuf, nullptr);
     _frame_bufs.clear();
 
-    vkDestroyImageView(*_device, _depth.view, nullptr);
-    vkDestroyImage(*_device, _depth.image, nullptr);
-    vkFreeMemory(*_device, _depth.mem, nullptr);
-    _depth = {VK_NULL_HANDLE};
+    _depth.reset();
   }
 
   void create_sync_object()
@@ -769,7 +765,8 @@ private:
   uint32_t _frame = 0;
 
   VkRenderPass _render_pass = VK_NULL_HANDLE;
-  ImageUnit _depth = {VK_NULL_HANDLE};
+
+  std::shared_ptr<VulkanImage> _depth;
 
   VkSemaphore _presentSemaphore;
   VkSemaphore _renderSemaphore;

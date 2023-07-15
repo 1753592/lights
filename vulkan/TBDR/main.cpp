@@ -75,11 +75,11 @@ public:
     set_surface(surface, w, h);
 
     if(_mesh)
-      _mesh->create_pipeline(_render_pass);
+      _mesh->create_pipeline(render_pass());
 
-    rebuild_command();
+    build_command_buffers();
 
-    update();
+    update_frame();
   }
 
   void wheel(int delta) { update_ubo(); }

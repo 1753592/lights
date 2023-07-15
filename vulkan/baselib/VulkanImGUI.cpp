@@ -247,7 +247,7 @@ void VulkanImGUI::check_frame(int count, VkFormat clrformat)
   build_command_buffers();
 }
 
-bool VulkanImGUI::update()
+bool VulkanImGUI::update_frame()
 {
   ImDrawData* imDrawData = ImGui::GetDrawData();
   bool updateCmdBuffers = false;

@@ -30,9 +30,13 @@ public:
 
   VulkanSwapChain *swapchain() { return _swapchain.get(); }
 
-  VkRenderPass render_pass() { return _render_pass; }
+  const VkRenderPass& render_pass() { return _render_pass; }
 
   void set_render_pass(VkRenderPass render_pass);
+
+  const std::vector<VkFramebuffer> &frame_buffers() { return _frame_bufs; } 
+
+  void set_frame_buffers(const std::vector<VkFramebuffer> &frame_bufs);
 
   uint32_t frame_count();
 
@@ -50,11 +54,19 @@ public:
   virtual void right_drag(int x, int y, int xdel, int ydel){};
   virtual void key_up(int){};
 
+  virtual void render();
+
 protected:
 
-  void update();
+  void update_frame();
 
-  void rebuild_command();
+  virtual void create_render_pass();
+
+  virtual void create_frame_buffers();
+
+  virtual void create_command_buffers();
+
+  virtual void build_command_buffers();
 
 private:
   void initialize();
@@ -65,11 +77,7 @@ private:
 
   void create_sync_objs();
 
-  void build_command_buffers();
-
   void resize_impl(int w, int h);
-
-  void render();
 
 protected:
   std::shared_ptr<VulkanDevice> _device;
@@ -78,15 +86,18 @@ protected:
   std::shared_ptr<VulkanImGUI> _imgui = 0;
 
   std::vector<VkCommandBuffer> _cmd_bufs;
-  std::vector<VkFramebuffer> _frame_bufs;
 
   int _w, _h;
   uint32_t _framenum = 0;
 
-  VkRenderPass _render_pass = VK_NULL_HANDLE;
+  VkFormat _depth_format = VK_FORMAT_D24_UNORM_S8_UINT;
 
   std::shared_ptr<VulkanImage> _depth = {VK_NULL_HANDLE};
   std::vector<std::shared_ptr<VulkanImage>> _images;
+
+private:
+  VkRenderPass _render_pass = VK_NULL_HANDLE;
+  std::vector<VkFramebuffer> _frame_bufs;
 
   VkSemaphore _presentSemaphore = VK_NULL_HANDLE;
   VkSemaphore _renderSemaphore = VK_NULL_HANDLE;

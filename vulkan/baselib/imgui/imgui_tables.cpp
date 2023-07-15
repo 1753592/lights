@@ -877,7 +877,7 @@ void ImGui::TableUpdateLayout(ImGuiTable* table)
                 width_auto = fixed_max_width_auto;
 
             // Apply automatic width
-            // Latch initial size for fixed columns and update it constantly for auto-resizing column (unless clipped!)
+            // Latch initial size for fixed columns and update_frame it constantly for auto-resizing column (unless clipped!)
             if (column->AutoFitQueue != 0x00)
                 column->WidthRequest = width_auto;
             else if ((column->Flags & ImGuiTableColumnFlags_WidthFixed) && !column_is_resizable && column->IsRequestOutput)
@@ -1276,7 +1276,7 @@ void    ImGui::EndTable()
 
     // Setup inner scrolling range
     // FIXME: This ideally should be done earlier, in BeginTable() SetNextWindowContentSize call, just like writing to inner_window->DC.CursorMaxPos.y,
-    // but since the later is likely to be impossible to do we'd rather update both axises together.
+    // but since the later is likely to be impossible to do we'd rather update_frame both axises together.
     if (table->Flags & ImGuiTableFlags_ScrollX)
     {
         const float outer_padding_for_border = (table->Flags & ImGuiTableFlags_BordersOuterV) ? TABLE_BORDER_SIZE : 0.0f;
@@ -3982,7 +3982,7 @@ void ImGui::NextColumn()
     PopItemWidth();
 
     // Optimization: avoid PopClipRect() + SetCurrentChannel() + PushClipRect()
-    // (which would needlessly attempt to update commands in the wrong channel, then pop or overwrite them),
+    // (which would needlessly attempt to update_frame commands in the wrong channel, then pop or overwrite them),
     ImGuiOldColumnData* column = &columns->Columns[columns->Current];
     SetWindowClipRectBeforeSetChannel(window, column->ClipRect);
     columns->Splitter.SetCurrentChannel(window->DrawList, columns->Current + 1);

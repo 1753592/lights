@@ -370,6 +370,8 @@ public:
   inline const T& y() const { return base::data_[1]; }
   inline const T& z() const { return base::data_[2]; }
 
+  inline void set(const T& v) { set(v, v, v); }
+
   inline void set(const T& x, const T& y, const T& z)
   {
     base::data_[0] = x;

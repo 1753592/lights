@@ -21,7 +21,7 @@ public:
 
   void check_frame(int n, VkFormat clrformat);
 
-  bool update();
+  bool update_frame();
 
   void draw(const VkCommandBuffer cmdbuf);
 

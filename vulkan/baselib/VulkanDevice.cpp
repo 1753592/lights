@@ -345,9 +345,10 @@ std::shared_ptr<VulkanImage> VulkanDevice::create_color_image(uint32_t width, ui
   auto imgview = create_image_view(img, format);
 
   auto vkimg = std::make_shared<VulkanImage>(shared_from_this());
-  vkimg->image() = img;
-  vkimg->image_mem() = imgmem;
-  vkimg->image_view() = imgview;
+  vkimg->_image = img;
+  vkimg->_image_mem = imgmem;
+  vkimg->_image_view = imgview;
+  vkimg->_format = format;
 
   return vkimg;
 }
@@ -406,9 +407,10 @@ std::shared_ptr<VulkanImage> VulkanDevice::create_depth_image(uint32_t width, ui
   VK_CHECK_RESULT(vkCreateImageView(_logical_device, &depthStencilView, nullptr, &imgview));
 
   auto vkimg = std::make_shared<VulkanImage>(shared_from_this());
-  vkimg->image() = img;
-  vkimg->image_mem() = imgmem;
-  vkimg->image_view() = imgview;
+  vkimg->_image = img;
+  vkimg->_image_mem = imgmem;
+  vkimg->_image_view = imgview;
+  vkimg->_format = format;
 
   return vkimg;
 }

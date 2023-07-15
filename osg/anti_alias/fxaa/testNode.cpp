@@ -186,7 +186,7 @@ void TestNode::init()
   //_quad = createTexturedQuadGeometry(Vec3(0, -0.5, 0), Vec3(0.5, 0.5, 0), Vec3(-0.5, 0.5, 0));
   _quad = createTexturedQuadGeometry(Vec3(-0.5, -0.5, 0), Vec3(1, 0, 0), Vec3(0, 1, 0));
   auto clr = new Vec3Array;
-  clr->push_back(Vec3(1, 0, 0));
+  clr->push_back(Vec3(1, 1, 1));
   // clr->push_back(Vec3(0, 1, 0));
   // clr->push_back(Vec3(0, 0, 1));
   // clr->push_back(Vec3(1, 1, 0));

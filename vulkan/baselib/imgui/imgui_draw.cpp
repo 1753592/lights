@@ -1336,7 +1336,7 @@ static inline ImDrawFlags FixRectCornerFlags(ImDrawFlags flags)
     // We cannot support hard coded 0x00 with 'float rounding > 0.0f' --> replace with ImDrawFlags_RoundCornersNone or use 'float rounding = 0.0f'
 #endif
 
-    // If this triggers, please update your code replacing hardcoded values with new ImDrawFlags_RoundCorners* values.
+    // If this triggers, please update_frame your code replacing hardcoded values with new ImDrawFlags_RoundCorners* values.
     // Note that ImDrawFlags_Closed (== 0x01) is an invalid flag for AddRect(), AddRectFilled(), PathRect() etc...
     IM_ASSERT((flags & 0x0F) == 0 && "Misuse of legacy hardcoded ImDrawCornerFlags values!");
 

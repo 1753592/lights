@@ -24,6 +24,8 @@ public:
 
   uint32_t image_count() { return _images.size(); }
 
+  VkImageView image_view(int idx) { return _images[idx].view; }
+
   std::vector<VkFramebuffer> create_frame_buffer(VkRenderPass vkPass, const VkImageView &depth);
 
   std::vector<VkFramebuffer> create_frame_buffer(VkRenderPass vkPass, const std::vector<VkImageView> &color, const VkImageView &depth);

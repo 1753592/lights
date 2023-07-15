@@ -5,10 +5,12 @@ cmake_minimum_required(VERSION 3.8.0)
 set(prj_name shadowmap)
 
 set(hdr
+	shadow.h
 )
 
 set(src
 	main.cpp
+	shadow.cpp
 )
 
 add_executable(${prj_name} ${src} ${hdr})
