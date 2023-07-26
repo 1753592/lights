@@ -53,6 +53,7 @@ private:
   VkSampler _sampler = VK_NULL_HANDLE;
   VkDescriptorPool _descriptor_pool = VK_NULL_HANDLE;
   VkDescriptorSet _descriptor_set = VK_NULL_HANDLE;
+  VkDescriptorSetLayout _descriptor_layout = VK_NULL_HANDLE;
 
   VkPipelineLayout _pipe_layout = VK_NULL_HANDLE;
   VkPipeline _pipeline = VK_NULL_HANDLE;

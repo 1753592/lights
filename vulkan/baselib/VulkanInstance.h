@@ -9,7 +9,7 @@
 class VulkanDevice;
 class VulkanSwapChain;
 
-class VulkanInstance : public std::enable_shared_from_this<VulkanInstance>{
+class VulkanInstance {
 public:
   static VulkanInstance &instance();
 

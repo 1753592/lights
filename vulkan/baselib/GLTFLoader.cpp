@@ -12,7 +12,7 @@
 
 #include <set>
 
-GLTFLoader::GLTFLoader(std::shared_ptr<VulkanDevice> &dev) : _dev(dev)
+GLTFLoader::GLTFLoader(const std::shared_ptr<VulkanDevice> &dev) : _dev(dev)
 {
   _m = std::make_shared<tinygltf::Model>();
 }

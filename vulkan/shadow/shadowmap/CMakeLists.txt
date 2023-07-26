@@ -18,8 +18,8 @@ add_executable(${prj_name} ${src} ${hdr})
 set(shaders
 	pbr.vert
 	pbr.frag
-	#test.vert
-	#test.frag
+	depth.vert
+	depth.frag
 )
 
 source_group(shaders FILES ${shaders})

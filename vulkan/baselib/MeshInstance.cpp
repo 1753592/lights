@@ -52,12 +52,10 @@ MeshInstance::~MeshInstance()
     vkDestroyDescriptorPool(*_device, _descriptor_pool, nullptr);
 }
 
-void MeshInstance::set_vp(const tg::mat4 &prj, const tg::mat4 &view, const tg::vec3 &eye)
+void MeshInstance::set_mvp(const MVP &mvp)
 {
+  _mvp = mvp;
   uint8_t *data = 0;
-  _mvp.prj = prj;
-  _mvp.view = view;
-  _mvp.eye = eye;
   VK_CHECK_RESULT(vkMapMemory(*_device, _ubo_buf->memory(), 0, sizeof(_mvp), 0, (void **)&data));
   memcpy(data, &_mvp, sizeof(_mvp));
   vkUnmapMemory(*_device, _ubo_buf->memory());
@@ -205,9 +203,9 @@ void MeshInstance::create_pipe_layout()
   pPipelineLayoutCreateInfo.setLayoutCount = 2;
   pPipelineLayoutCreateInfo.pSetLayouts = deslayout;
 
-  auto pushConstant = vks::initializers::pushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(PrimitiveData), 0);
-  pPipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-  pPipelineLayoutCreateInfo.pPushConstantRanges = &pushConstant;
+  //auto pushConstant = vks::initializers::pushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(PrimitiveData), 0);
+  //pPipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+  //pPipelineLayoutCreateInfo.pPushConstantRanges = &pushConstant;
 
   VkPipelineLayout pipe_layout;
   VK_CHECK_RESULT(vkCreatePipelineLayout(*_device, &pPipelineLayoutCreateInfo, nullptr, &pipe_layout));

@@ -71,6 +71,8 @@ VulkanImGUI::~VulkanImGUI()
     vkDestroyDescriptorPool(*device, _descriptor_pool, nullptr);
   if (_sampler)
     vkDestroySampler(*device, _sampler, nullptr);
+  if(_descriptor_layout)
+    vkDestroyDescriptorSetLayout(*device, _descriptor_layout, 0);
 
   for (auto& frame : _frame_bufs)
     vkDestroyFramebuffer(*device, frame, nullptr);
@@ -124,6 +126,7 @@ void VulkanImGUI::create_pipeline(VkFormat clrformat)
   VkDescriptorSetLayout descriptor_layout;
   VkDescriptorSetLayoutCreateInfo descriptorLayout = vks::initializers::descriptorSetLayoutCreateInfo(setLayoutBindings);
   VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*device, &descriptorLayout, nullptr, &descriptor_layout));
+  _descriptor_layout = descriptor_layout;
 
   VkDescriptorSetAllocateInfo allocInfo = vks::initializers::descriptorSetAllocateInfo(_descriptor_pool, &descriptor_layout, 1);
   VK_CHECK_RESULT(vkAllocateDescriptorSets(*device, &allocInfo, &_descriptor_set));
@@ -230,7 +233,6 @@ void VulkanImGUI::create_pipeline(VkFormat clrformat)
 
   vkDestroyShaderModule(*device, shaderStages[0].module, nullptr);
   vkDestroyShaderModule(*device, shaderStages[1].module, nullptr);
-  vkDestroyDescriptorSetLayout(*device, descriptor_layout, 0);
 }
 
 void VulkanImGUI::check_frame(int count, VkFormat clrformat)

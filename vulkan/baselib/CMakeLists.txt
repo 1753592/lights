@@ -27,6 +27,10 @@ set(hdr
 	MeshInstance.h
 	MeshPrimitive.h
 
+	BasicPipeline.h
+	TexturePipeline.h
+	DepthPipeline.h
+
 	VulkanImGUI.h
 
 	Manipulator.h
@@ -49,6 +53,10 @@ set(src
 
 	MeshInstance.cpp
 	MeshPrimitive.cpp
+
+	BasicPipeline.cpp
+	TexturePipeline.cpp
+	DepthPipeline.cpp
 
 	VulkanImGUI.cpp
 

@@ -38,7 +38,7 @@ public:
   VkRenderPass create_render_pass(VkFormat color, VkFormat depth = VK_FORMAT_D24_UNORM_S8_UINT);
   void destroy_render_pass(VkRenderPass rdpass);
   
-  std::tuple<VkImage, VkDeviceMemory> create_image(int w, int h,VkFormat format = VK_FORMAT_R8G8B8A8_UNORM);
+  std::tuple<VkImage, VkDeviceMemory> create_image(int w, int h, VkFormat format = VK_FORMAT_R8G8B8A8_UNORM);
   VkImageView create_image_view(VkImage img, VkFormat format = VK_FORMAT_R8G8B8A8_UNORM);
 
   std::shared_ptr<VulkanImage> create_color_image(uint32_t width, uint32_t height, VkFormat format = VK_FORMAT_R8G8B8A8_UNORM);

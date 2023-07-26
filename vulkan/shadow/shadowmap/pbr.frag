@@ -15,15 +15,15 @@ layout(binding = 0) uniform MatrixObject{
 
 layout(binding = 1) uniform Light
 {
-  vec3 light_pos;
-  vec3 light_color;
+  vec4 light_pos;
+  vec4 light_color;
 } light;
 
 layout(binding = 2) uniform Material {
   float ao;
   float metallic;
   float roughness;
-  vec3 albedo;
+  vec4 albedo;
 } material;
 
 
@@ -70,7 +70,7 @@ float smith_Geometry(vec3 n, vec3 v, vec3 l, float roughness)
 
 void main(void)
 {
-  vec3 mate_albedo = material.albedo;
+  vec3 mate_albedo = material.albedo.rgb;
   float mate_roughness = material.roughness;
   float mate_metallic = material.metallic;
   float mate_ao = material.ao;
@@ -83,11 +83,17 @@ void main(void)
   f0 = mix(f0, mate_albedo, mate_metallic);
   vec3 lo = vec3(0.0);
 
-  vec3 l = normalize(light.light_pos - vp_pos);
+  vec3 light_pos = light.light_pos.xyz;
+  vec3 light_color = light.light_color.rgb;
+
+  vec3 l = normalize(light_pos - vp_pos);
   vec3 h = normalize(v + l);
-  float distance = length(light.light_pos - vp_pos);
+  float distance = length(light_pos - vp_pos);
   float attenuation = 1.0 / (distance * distance);
-  vec3 radiance = light.light_color * attenuation;
+  vec3 radiance = light_color * attenuation;
+
+  frag_color = vec4(l, 1);
+  return;
 
   float nv = distribution_GGX(n, h, mate_roughness);
 

@@ -20,13 +20,12 @@ class MeshInstance;
 
 class GLTFLoader{
 public:
-  GLTFLoader(std::shared_ptr<VulkanDevice> &dev);
+  GLTFLoader(const std::shared_ptr<VulkanDevice> &dev);
   ~GLTFLoader();
 
   std::shared_ptr<MeshInstance> load_file(const std::string &file);
 
 private:
-  void create_pipeline();
 
   std::shared_ptr<MeshPrimitive> create_primitive(const tinygltf::Primitive *pri);
 

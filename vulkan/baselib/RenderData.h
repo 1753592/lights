@@ -10,21 +10,27 @@ struct MVP {
   tg::vec4 eye;
 };
 
-struct PrimitiveData{
-  tg::mat4 transform;
+struct ParallelLight{
+  tg::vec4 light_dir;
+  tg::vec4 light_color;
 };
 
+struct PointLight{
+  tg::vec4 light_pos;
+  tg::vec4 light_color;
+};
 
-struct PBRData{
-  float ao;
-  float metallic;
-  float roughness;
+struct PBRBasic{
+  float   ao;
+  float   metallic;
+  float   roughness;
+  int     place;
   tg::vec4 albedo;
 };
 
 struct Material{
-  bool      cull; 
-  PBRData   pbr;
+  bool          cull; 
+  PBRBasic      pbr;
   std::shared_ptr<VulkanTexture> tex;
 };
 

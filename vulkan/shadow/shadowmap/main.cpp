@@ -16,8 +16,13 @@
 #include "VulkanTools.h"
 #include "VulkanInitializers.hpp"
 
+#include "BasicPipeline.h"
+#include "DepthPipeline.h"
+
 #include "SimpleShape.h"
+#include "RenderData.h"
 #include "GLTFLoader.h"
+#include "MeshInstance.h"
 
 #include "imgui/imgui.h"
 
@@ -28,33 +33,26 @@ constexpr float fov = 60;
 
 VulkanInstance &inst = VulkanInstance::instance();
 
-struct {
-  tg::mat4 prj;
-  tg::mat4 view;
-  tg::mat4 model;
-  tg::vec4 cam;
-} matrix_ubo;
-
-struct{
-  tg::vec3 light_pos;
-  tg::vec3 light_color;
-}light;
-
-struct alignas(16) {
-  struct alignas(16) aligned_vec3 : vec3 {};
-
-  float ao = 1;
-  float metallic = 0.5;
-  float roughness = 0.2;
-  aligned_vec3 albedo;
-} material_ubo;
+PBRBasic pbr;
+PointLight light;
 
 class View : public VulkanView {
 public:
   View(const std::shared_ptr<VulkanDevice> &dev) : VulkanView(dev, false)
   {
+    std::cout << 1;
     create_sphere();
+
+    GLTFLoader loader(dev);
+    _tree = loader.load_file(ROOT_DIR "/data/oaktree.gltf");
+
+    _basic_pipeline = std::make_shared<BasicPipeline>(dev);
+
+    //_depth_pipeline = std::make_shared<DepthPipeline>(dev, 2048, 2048);
+    _depth_image = _device->create_depth_image(2048, 2048, VK_FORMAT_D32_SFLOAT);
+
     create_pipe_layout();
+
     set_uniforms();
   }
 
@@ -85,21 +83,6 @@ public:
     if (_descript_pool) {
       vkDestroyDescriptorPool(*device(), _descript_pool, nullptr);
       _descript_pool = VK_NULL_HANDLE;
-    }
-
-    if (_pipe_layout) {
-      vkDestroyPipelineLayout(*device(), _pipe_layout, nullptr);
-      _pipe_layout = VK_NULL_HANDLE;
-    }
-
-    if (_depth_pipeline) {
-      vkDestroyPipeline(*device(), _depth_pipeline, nullptr);
-      _depth_pipeline = VK_NULL_HANDLE;
-    }
-
-    if(_main_pipeline) {
-      vkDestroyPipeline(*device(), _main_pipeline, nullptr);
-      _main_pipeline = VK_NULL_HANDLE;
     }
   }
 
@@ -133,15 +116,46 @@ public:
   void build_command_buffer(VkCommandBuffer cmd_buf) override
   {
     {
+      if (_depth_pipeline) {
+        vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, *_depth_pipeline);
+        vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_pipeline->pipe_layout(), 0, 1, &_depth_matrix_set, 0, nullptr);
+
+        VkDeviceSize offset[2] = {0, _vert_count * sizeof(vec3)};
+        VkBuffer bufs[2] = {};
+        bufs[0] = _vert_buf;
+        bufs[1] = _vert_buf;
+        vkCmdBindVertexBuffers(cmd_buf, 0, 1, bufs, offset);
+        vkCmdBindIndexBuffer(cmd_buf, _index_buf, 0, VK_INDEX_TYPE_UINT16);
+        vkCmdDrawIndexed(cmd_buf, _index_count, 1, 0, 0, 0);
+      }
     }
 
     vkCmdNextSubpass(cmd_buf, VK_SUBPASS_CONTENTS_INLINE);
 
-    if (_main_pipeline) {
-      vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _main_pipeline);
+    {
+      VkViewport viewport = {};
+      viewport.y = _h;
+      viewport.width = _w;
+      viewport.height = -_h;
+      viewport.minDepth = 0;
+      viewport.maxDepth = 1;
+      vkCmdSetViewport(cmd_buf, 0, 1, &viewport);
+    }
+
+    {
+      VkRect2D scissor = {};
+      scissor.extent.width = _w;
+      scissor.extent.height = _h;
+      scissor.offset.x = 0;
+      scissor.offset.y = 0;
+      vkCmdSetScissor(cmd_buf, 0, 1, &scissor);
+    }
+
+    if (_basic_pipeline && _basic_pipeline->valid()) {
+      vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, *_basic_pipeline);
 
       VkDescriptorSet dessets[2] = {_matrix_set, _material_set};
-      vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipe_layout, 0, 1, dessets, 0, nullptr);
+      vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _basic_pipeline->pipe_layout(), 0, 1, dessets, 0, nullptr);
 
       {
         VkDeviceSize offset[2] = {0, _vert_count * sizeof(vec3)};
@@ -153,6 +167,8 @@ public:
         vkCmdDrawIndexed(cmd_buf, _index_count, 1, 0, 0, 0);
       }
     }
+
+    //_tree->build_command_buffer(cmd_buf);
   }
 
   void create_pipe_layout()
@@ -183,19 +199,7 @@ public:
 
     VkDescriptorSetLayout matrix_lay, material_lay;
     VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*device(), &descriptorLayout, nullptr, &matrix_lay));
-
-    //{
-    //  VkDescriptorSetLayoutBinding material_binding = {};
-    //  material_binding.binding = 2;
-    //  material_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    //  material_binding.descriptorCount = 1;
-    //  material_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-    //  descriptorLayout.bindingCount = 1;
-    //  descriptorLayout.pBindings = &material_binding;
-
-    //  VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*device(), &descriptorLayout, nullptr, &material_lay));
-    //}
+    _basic_pipeline->set_descriptor_layout(matrix_lay);
 
     VkDescriptorSetLayout layouts[2] = {matrix_lay, material_lay};
 
@@ -204,10 +208,6 @@ public:
     pPipelineLayoutCreateInfo.pNext = nullptr;
     pPipelineLayoutCreateInfo.setLayoutCount = 1;
     pPipelineLayoutCreateInfo.pSetLayouts = layouts;
-
-    VkPipelineLayout pipe_layout;
-    VK_CHECK_RESULT(vkCreatePipelineLayout(*device(), &pPipelineLayoutCreateInfo, nullptr, &pipe_layout));
-    _pipe_layout = pipe_layout;
 
     //----------------------------------------------------------------------------------------------------
 
@@ -237,11 +237,11 @@ public:
     VK_CHECK_RESULT(vkAllocateDescriptorSets(*device(), &allocInfo, &_matrix_set));
 
     VkDescriptorBufferInfo descriptor = {};
-    int sz = sizeof(matrix_ubo);
+    int sz = sizeof(_matrix);
     _ubo_buf = device()->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sz);
     descriptor.buffer = *_ubo_buf;
     descriptor.offset = 0;
-    descriptor.range = sizeof(matrix_ubo);
+    descriptor.range = sizeof(_matrix);
 
     sz = sizeof(light);
     VkDescriptorBufferInfo ldescriptor = {};
@@ -250,7 +250,7 @@ public:
     ldescriptor.offset = 0;
     ldescriptor.range = sz;
 
-    sz = sizeof(material_ubo);
+    sz = sizeof(pbr);
     VkDescriptorBufferInfo mdescriptor = {};
     _material = device()->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sz);
     mdescriptor.buffer = *_material;
@@ -267,16 +267,13 @@ public:
     writeDescriptorSet.dstBinding = 0;
     vkUpdateDescriptorSets(*device(), 1, &writeDescriptorSet, 0, nullptr);
 
-    writeDescriptorSet.pBufferInfo = &ldescriptor;
+    writeDescriptorSet.pBufferInfo = &mdescriptor;
     writeDescriptorSet.dstBinding = 1;
     vkUpdateDescriptorSets(*device(), 1, &writeDescriptorSet, 0, nullptr);
 
-    writeDescriptorSet.pBufferInfo = &mdescriptor;
+    writeDescriptorSet.pBufferInfo = &ldescriptor;
     writeDescriptorSet.dstBinding = 2;
     vkUpdateDescriptorSets(*device(), 1, &writeDescriptorSet, 0, nullptr);
-
-    vkDestroyDescriptorSetLayout(*device(), matrix_lay, nullptr);
-    vkDestroyDescriptorSetLayout(*device(), material_lay, nullptr);
   }
 
   void create_render_pass()
@@ -324,6 +321,7 @@ public:
     VkSubpassDescription subpass[2] = {0};
     subpass[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass[0].colorAttachmentCount = 0;
+    //subpass[0].pColorAttachments = &mainColorReference;
     subpass[0].pDepthStencilAttachment = &depthReference;
 
     subpass[1].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -370,12 +368,13 @@ public:
     VK_CHECK_RESULT(vkCreateRenderPass(*device(), &renderPassCreateInfo, nullptr, &vkpass));
 
     set_render_pass(vkpass);
+
+    //_tree->create_pipeline(vkpass);
   }
 
   void create_frame_buffers()
   {
     VkImageView attachments[3];
-    _depth_image = _device->create_depth_image(_w, _h, VK_FORMAT_D32_SFLOAT);
     attachments[0] = _depth_image->image_view();
     attachments[2] = _depth->image_view();
 
@@ -401,118 +400,35 @@ public:
 
   void create_pipeline()
   {
-    VkGraphicsPipelineCreateInfo pipelineCreateInfo = {};
-    pipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    pipelineCreateInfo.layout = _pipe_layout;
-    pipelineCreateInfo.renderPass = render_pass();
+    if (_depth_pipeline) {
+      _depth_pipeline->realize(render_pass());
 
-    VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = {};
-    inputAssemblyState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssemblyState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+      auto des_layout = _depth_pipeline->descriptor_layout();
+      VkDescriptorSetAllocateInfo allocInfo = {};
+      allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+      allocInfo.descriptorPool = _descript_pool;
+      allocInfo.descriptorSetCount = 1;
+      allocInfo.pSetLayouts = &des_layout;
 
-    VkPipelineRasterizationStateCreateInfo rasterizationState = {};
-    rasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    rasterizationState.polygonMode = VK_POLYGON_MODE_FILL;
-    rasterizationState.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizationState.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    rasterizationState.depthClampEnable = VK_FALSE;
-    rasterizationState.rasterizerDiscardEnable = VK_FALSE;
-    rasterizationState.depthBiasEnable = VK_FALSE;
-    rasterizationState.lineWidth = 1.0f;
+      VK_CHECK_RESULT(vkAllocateDescriptorSets(*device(), &allocInfo, &_depth_matrix_set));
 
-    VkPipelineColorBlendAttachmentState blendAttachmentState[1] = {};
-    blendAttachmentState[0].colorWriteMask = 0xf;
-    blendAttachmentState[0].blendEnable = VK_FALSE;
-    VkPipelineColorBlendStateCreateInfo colorBlendState = {};
-    colorBlendState.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    colorBlendState.attachmentCount = 1;
-    colorBlendState.pAttachments = blendAttachmentState;
+      int sz = sizeof(_depth_matrix);
+      VkDescriptorBufferInfo descriptor = {};
+      descriptor.buffer = *_depth_matrix_buf;
+      descriptor.offset = 0;
+      descriptor.range = sz;
 
-    VkPipelineViewportStateCreateInfo viewportState = {};
-    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-    viewportState.viewportCount = 1;
-    viewportState.scissorCount = 1;
+      VkWriteDescriptorSet writeDescriptorSet = {};
+      writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+      writeDescriptorSet.dstSet = _depth_matrix_set;
+      writeDescriptorSet.descriptorCount = 1;
+      writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+      writeDescriptorSet.pBufferInfo = &descriptor;
+      writeDescriptorSet.dstBinding = 0;
+      vkUpdateDescriptorSets(*device(), 1, &writeDescriptorSet, 0, nullptr);
+    }
 
-    std::vector<VkDynamicState> dynamicStateEnables;
-    dynamicStateEnables.push_back(VK_DYNAMIC_STATE_VIEWPORT);
-    dynamicStateEnables.push_back(VK_DYNAMIC_STATE_SCISSOR);
-    VkPipelineDynamicStateCreateInfo dynamicState = {};
-    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.pDynamicStates = dynamicStateEnables.data();
-    dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStateEnables.size());
-
-    VkPipelineDepthStencilStateCreateInfo depthStencilState = {};
-    depthStencilState.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    depthStencilState.depthTestEnable = VK_TRUE;
-    depthStencilState.depthWriteEnable = VK_TRUE;
-    depthStencilState.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
-    depthStencilState.depthBoundsTestEnable = VK_FALSE;
-    depthStencilState.back.failOp = VK_STENCIL_OP_KEEP;
-    depthStencilState.back.passOp = VK_STENCIL_OP_KEEP;
-    depthStencilState.back.compareOp = VK_COMPARE_OP_ALWAYS;
-    depthStencilState.stencilTestEnable = VK_FALSE;
-    depthStencilState.front = depthStencilState.back;
-
-    VkPipelineMultisampleStateCreateInfo multisampleState = {};
-    multisampleState.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    multisampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-    multisampleState.pSampleMask = nullptr;
-
-    VkVertexInputBindingDescription vertexInputBindings[2] = {};
-    vertexInputBindings[0].binding = 0;  // vkCmdBindVertexBuffers
-    vertexInputBindings[0].stride = sizeof(vec3);
-    vertexInputBindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-    vertexInputBindings[1].binding = 1;  // vkCmdBindVertexBuffers
-    vertexInputBindings[1].stride = sizeof(vec3);
-    vertexInputBindings[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-    VkVertexInputAttributeDescription vertexInputAttributs[2] = {};
-    vertexInputAttributs[0].binding = 0;
-    vertexInputAttributs[0].location = 0;
-    vertexInputAttributs[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-    vertexInputAttributs[0].offset = 0;
-    vertexInputAttributs[1].binding = 1;
-    vertexInputAttributs[1].location = 1;
-    vertexInputAttributs[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-    vertexInputAttributs[1].offset = 0;
-
-    VkPipelineVertexInputStateCreateInfo vertexInputState = {};
-    vertexInputState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputState.vertexBindingDescriptionCount = 2;
-    vertexInputState.pVertexBindingDescriptions = vertexInputBindings;
-    vertexInputState.vertexAttributeDescriptionCount = 2;
-    vertexInputState.pVertexAttributeDescriptions = vertexInputAttributs;
-
-    VkPipelineShaderStageCreateInfo shaderStages[2] = {};
-    shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-    shaderStages[0].module = device()->create_shader(SHADER_DIR "/pbr.vert.spv");
-    shaderStages[0].pName = "main";
-    assert(shaderStages[0].module != VK_NULL_HANDLE);
-
-    shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    shaderStages[1].module = device()->create_shader(SHADER_DIR "/pbr.frag.spv");
-    shaderStages[1].pName = "main";
-    assert(shaderStages[1].module != VK_NULL_HANDLE);
-
-    pipelineCreateInfo.stageCount = 2;
-    pipelineCreateInfo.pStages = shaderStages;
-
-    pipelineCreateInfo.pVertexInputState = &vertexInputState;
-    pipelineCreateInfo.pInputAssemblyState = &inputAssemblyState;
-    pipelineCreateInfo.pRasterizationState = &rasterizationState;
-    pipelineCreateInfo.pColorBlendState = &colorBlendState;
-    pipelineCreateInfo.pMultisampleState = &multisampleState;
-    pipelineCreateInfo.pViewportState = &viewportState;
-    pipelineCreateInfo.pDepthStencilState = &depthStencilState;
-    pipelineCreateInfo.pDynamicState = &dynamicState;
-    pipelineCreateInfo.subpass = 1;
-
-    VK_CHECK_RESULT(vkCreateGraphicsPipelines(*device(), device()->get_or_create_pipecache(), 1, &pipelineCreateInfo, nullptr, &_main_pipeline));
-
-    vkDestroyShaderModule(*device(), shaderStages[0].module, nullptr);
-    vkDestroyShaderModule(*device(), shaderStages[1].module, nullptr);
+    _basic_pipeline->realize(render_pass(), 1);
 
     build_command_buffers();
   }
@@ -552,25 +468,6 @@ public:
 
       vkCmdBeginRenderPass(cmd_buf, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-      {
-        VkViewport viewport = {};
-        viewport.y = _h;
-        viewport.width = _w;
-        viewport.height = -_h;
-        viewport.minDepth = 0;
-        viewport.maxDepth = 1;
-        vkCmdSetViewport(cmd_buf, 0, 1, &viewport);
-      }
-
-      {
-        VkRect2D scissor = {};
-        scissor.extent.width = _w;
-        scissor.extent.height = _h;
-        scissor.offset.x = 0;
-        scissor.offset.y = 0;
-        vkCmdSetScissor(cmd_buf, 0, 1, &scissor);
-      }
-
       build_command_buffer(cmd_buf);
 
       vkCmdEndRenderPass(cmd_buf);
@@ -590,34 +487,50 @@ public:
 
   void update_ubo()
   {
-    matrix_ubo.cam = manipulator().eye();
-    matrix_ubo.view = manipulator().view_matrix();
-    matrix_ubo.model = tg::mat4::identity();
-    matrix_ubo.prj = tg::perspective<float>(fov, float(width()) / height(), 0.1, 1000);
-    // tg::near_clip(matrix_ubo.prj, tg::vec4(0, 0, -1, 0.5));
+    _matrix.eye = manipulator().eye();
+    _matrix.view = manipulator().view_matrix();
+    _matrix.model = tg::mat4::identity();
+    _matrix.prj = tg::perspective<float>(fov, float(width()) / height(), 0.1, 1000);
+    // tg::near_clip(_matrix.prj, tg::vec4(0, 0, -1, 0.5));
     uint8_t *data = 0;
-    VK_CHECK_RESULT(vkMapMemory(*device(), _ubo_buf->memory(), 0, sizeof(matrix_ubo), 0, (void **)&data));
-    memcpy(data, &matrix_ubo, sizeof(matrix_ubo));
+    VK_CHECK_RESULT(vkMapMemory(*device(), _ubo_buf->memory(), 0, sizeof(_matrix), 0, (void **)&data));
+    memcpy(data, &_matrix, sizeof(_matrix));
     vkUnmapMemory(*device(), _ubo_buf->memory());
+
+    auto mvp = _matrix;
+    mvp.model = tg::translate(vec3(0, 0, 1));
+    _tree->set_mvp(mvp);
   }
 
-  void set_uniforms() 
+  void set_uniforms()
   {
-    light.light_color = vec3(1, 1, 1);
-    light.light_pos = vec3(10, 10, 10);
+    vec3 light_pos = vec3(5, 5, 5);
+
+    light.light_pos = light_pos;
+    light.light_color = vec3(500);
 
     uint8_t *data = 0;
     VK_CHECK_RESULT(vkMapMemory(*device(), _light->memory(), 0, sizeof(light), 0, (void **)&data));
     memcpy(data, &light, sizeof(light));
 
-    material_ubo.albedo.set(0.5);
-    VK_CHECK_RESULT(vkMapMemory(*device(), _material->memory(), 0, sizeof(material_ubo), 0, (void **)&data));
-    memcpy(data, &material_ubo, sizeof(material_ubo));
+    pbr.albedo = vec3(0.8);
+    pbr.ao = 1;
+    pbr.metallic = 0.2;
+    pbr.roughness = 0.7;
+    VK_CHECK_RESULT(vkMapMemory(*device(), _material->memory(), 0, sizeof(pbr), 0, (void **)&data));
+    memcpy(data, &pbr, sizeof(pbr));
+
+    //_depth_matrix_buf =
+    //    device()->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sizeof(MVP));
+    //_depth_matrix.view = tg::lookat(light_pos);
+    //_depth_matrix.prj = tg::perspective<float>(60, 1, 0.5, 1000);
+    //VK_CHECK_RESULT(vkMapMemory(*device(), _depth_matrix_buf->memory(), 0, sizeof(material_ubo), 0, (void **)&data));
+    //memcpy(data, &_depth_matrix, sizeof(MVP));
   }
 
   void create_sphere()
   {
-    Box box(vec3(0), vec3(10, 10, 1));
+    Box box(vec3(0), vec3(20, 20, 2));
     box.build();
     auto &verts = box.get_vertex();
     auto &norms = box.get_norms();
@@ -745,20 +658,25 @@ private:
 
   VkDescriptorPool _descript_pool = VK_NULL_HANDLE;
 
+  std::shared_ptr<BasicPipeline> _basic_pipeline;
+  std::shared_ptr<DepthPipeline> _depth_pipeline;
+
   VkDescriptorSet _matrix_set = VK_NULL_HANDLE;
   VkDescriptorSet _material_set = VK_NULL_HANDLE;
 
-  VkPipelineLayout _pipe_layout = VK_NULL_HANDLE;
-  VkPipeline _depth_pipeline = VK_NULL_HANDLE, _main_pipeline = VK_NULL_HANDLE;
+  VkDescriptorSet _depth_matrix_set = VK_NULL_HANDLE;
+  std::shared_ptr<VulkanBuffer> _depth_matrix_buf;
 
   std::shared_ptr<VulkanImage> _depth_image;
 
   std::shared_ptr<VulkanBuffer> _ubo_buf, _light, _material;
 
-  std::shared_ptr<VulkanBuffer> _material_buf;
+  MVP _matrix, _depth_matrix;
 
   uint32_t _vert_count = 0;
   uint32_t _index_count = 0;
+
+  std::shared_ptr<MeshInstance> _tree;
 };
 
 int main(int argc, char **argv)

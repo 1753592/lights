@@ -200,13 +200,13 @@ inline Tmat4<T> translate(T x, T y, T z)
 }
 
 template <typename T>
-inline Tmat4<T> translate(const vecN<T, 3>& v)
+inline Tmat4<T> translate(const Tvec3<T>& v)
 {
 	return translate(v[0], v[1], v[2]);
 }
 
 template <typename T>
-inline Tmat4<T> lookat(const vecN<T, 3>& eye, const vecN<T, 3>& center = vecN<T, 3>(), const vecN<T, 3>& up = vecN<T, 3>(0, 0, 1))
+inline Tmat4<T> lookat(const Tvec3<T>& eye, const Tvec3<T>& center = Tvec3<T>(), const Tvec3<T>& up = Tvec3<T>(0, 0, 1))
 {
 	const Tvec3<T> f = normalize(center - eye);
 	const Tvec3<T> upN = normalize(up);
