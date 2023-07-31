@@ -15,44 +15,44 @@ class MeshPrimitive {
   friend class MeshInstance;
 
 public:
-  MeshPrimitive(std::shared_ptr<VulkanDevice> &dev);
+  MeshPrimitive();
   ~MeshPrimitive();
 
-  void set_matrix(const tg::mat4 &m);
+  void set_transform(const tg::mat4 &m);
+
+  const tg::mat4 &transform() { return _m; }
+
+  void set_vertex(uint8_t *data, int n);
+
+  void set_normal(uint8_t *data, int n);
+
+  void set_uvs(uint8_t *data, int n);
+
+  void set_index(uint8_t *data, int n);
+
+  uint32_t index_count();
 
   const Material &material() { return _material; }
 
   void set_material(const Material &m);
 
-  void set_material_set(VkDescriptorSet set);
-
-  void build_command_buffer(VkCommandBuffer cmd_buf, VkPipelineLayout pipelayout);
+  void realize(const std::shared_ptr<VulkanDevice> &dev);
 
 private:
 
-  void add_vertex_buf(uint8_t *data, int n);
-
-  void set_index_buf(uint8_t *data, int n);
-
-  void create_pipeline(VkRenderPass renderpass, VkPipelineLayout pipelayout, std::vector<VkPipelineShaderStageCreateInfo> &shaders);
-
 private:
-  std::shared_ptr<VulkanDevice> _device;
-
-  VkPrimitiveTopology _mode;
-  VkPipeline _pipeline = VK_NULL_HANDLE;
-
   tg::mat4 _m;
 
   VkIndexType _index_type;
-  uint32_t _index_count = 0;
-  std::shared_ptr<VulkanBuffer> _index_buf;
 
-  std::vector<std::shared_ptr<VulkanBuffer>> _attr_bufs;
-  std::vector<VkVertexInputBindingDescription> _input_bind;
-  std::vector<VkVertexInputAttributeDescription> _input_attr;
+  std::vector<tg::vec3> _vertexs;
+  std::vector<tg::vec3> _normals;
+  std::vector<tg::vec2> _uvs;
+
+  std::vector<uint16_t> _indexs;
+
+  std::shared_ptr<VulkanBuffer> _vertex_buf, _normal_buf, _uv_buf, _index_buf;
+
 
   Material _material = {};
-
-  VkDescriptorSet _material_set = VK_NULL_HANDLE;
 };

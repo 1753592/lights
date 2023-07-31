@@ -17,6 +17,7 @@
 #include "VulkanInitializers.hpp"
 
 #include "BasicPipeline.h"
+#include "TexturePipeline.h"
 #include "DepthPipeline.h"
 
 #include "SimpleShape.h"
@@ -34,7 +35,7 @@ constexpr float fov = 60;
 VulkanInstance &inst = VulkanInstance::instance();
 
 PBRBasic pbr;
-PointLight light;
+ParallelLight light;
 
 class View : public VulkanView {
 public:
@@ -43,10 +44,13 @@ public:
     std::cout << 1;
     create_sphere();
 
-    GLTFLoader loader(dev);
+    GLTFLoader loader;
     _tree = loader.load_file(ROOT_DIR "/data/oaktree.gltf");
+    _tree->set_transform(tg::translate(tg::vec3(0, 0, 1)) * tg::scale(4));
+    _tree->realize(dev);
 
     _basic_pipeline = std::make_shared<BasicPipeline>(dev);
+    _texture_pipeline = std::make_shared<TexturePipeline>(dev);
 
     //_depth_pipeline = std::make_shared<DepthPipeline>(dev, 2048, 2048);
     _depth_image = _device->create_depth_image(2048, 2048, VK_FORMAT_D32_SFLOAT);
@@ -154,8 +158,11 @@ public:
     if (_basic_pipeline && _basic_pipeline->valid()) {
       vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, *_basic_pipeline);
 
-      VkDescriptorSet dessets[2] = {_matrix_set, _material_set};
-      vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _basic_pipeline->pipe_layout(), 0, 1, dessets, 0, nullptr);
+      VkDescriptorSet dessets[2] = {_matrix_set, _light_set};
+      vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _basic_pipeline->pipe_layout(), 0, 2, dessets, 0, nullptr);
+
+      auto mt = tg::mat4::identity();
+      vkCmdPushConstants(cmd_buf, _basic_pipeline->pipe_layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Transform), &mt);
 
       {
         VkDeviceSize offset[2] = {0, _vert_count * sizeof(vec3)};
@@ -168,46 +175,38 @@ public:
       }
     }
 
-    //_tree->build_command_buffer(cmd_buf);
+    _tree->build_command_buffer(cmd_buf, _texture_pipeline);
   }
 
   void create_pipe_layout()
   {
-    VkDescriptorSetLayoutBinding layoutBinding[4] = {};
-    layoutBinding[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutBinding[0].descriptorCount = 1;
-    layoutBinding[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutBinding[0].pImmutableSamplers = nullptr;
+    //VkDescriptorSetLayoutBinding layoutBinding[4] = {};
+    //layoutBinding[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    //layoutBinding[0].descriptorCount = 1;
+    //layoutBinding[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    //layoutBinding[0].pImmutableSamplers = nullptr;
 
-    layoutBinding[1].binding = 1;
-    layoutBinding[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutBinding[1].descriptorCount = 1;
-    layoutBinding[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutBinding[1].pImmutableSamplers = nullptr;
+    //layoutBinding[1].binding = 1;
+    //layoutBinding[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    //layoutBinding[1].descriptorCount = 1;
+    //layoutBinding[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    //layoutBinding[1].pImmutableSamplers = nullptr;
 
-    layoutBinding[2].binding = 2;
-    layoutBinding[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutBinding[2].descriptorCount = 1;
-    layoutBinding[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutBinding[2].pImmutableSamplers = nullptr;
+    //layoutBinding[2].binding = 2;
+    //layoutBinding[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    //layoutBinding[2].descriptorCount = 1;
+    //layoutBinding[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    //layoutBinding[2].pImmutableSamplers = nullptr;
 
-    VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
-    descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    descriptorLayout.pNext = nullptr;
-    descriptorLayout.bindingCount = 3;
-    descriptorLayout.pBindings = layoutBinding;
+    //VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
+    //descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    //descriptorLayout.pNext = nullptr;
+    //descriptorLayout.bindingCount = 3;
+    //descriptorLayout.pBindings = layoutBinding;
 
-    VkDescriptorSetLayout matrix_lay, material_lay;
-    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*device(), &descriptorLayout, nullptr, &matrix_lay));
-    _basic_pipeline->set_descriptor_layout(matrix_lay);
-
-    VkDescriptorSetLayout layouts[2] = {matrix_lay, material_lay};
-
-    VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = {};
-    pPipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pPipelineLayoutCreateInfo.pNext = nullptr;
-    pPipelineLayoutCreateInfo.setLayoutCount = 1;
-    pPipelineLayoutCreateInfo.pSetLayouts = layouts;
+    //VkDescriptorSetLayout matrix_lay, material_lay;
+    //VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*device(), &descriptorLayout, nullptr, &matrix_lay));
+    //_basic_pipeline->set_descriptor_layout(matrix_lay);
 
     //----------------------------------------------------------------------------------------------------
 
@@ -227,14 +226,19 @@ public:
     _descript_pool = desPool;
 
     //----------------------------------------------------------------------------------------------------
+    auto mlayout = _basic_pipeline->matrix_layout();
+    auto llayout = _basic_pipeline->light_layout();
 
     VkDescriptorSetAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = desPool;
     allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &matrix_lay;
+    allocInfo.pSetLayouts = &mlayout;
 
     VK_CHECK_RESULT(vkAllocateDescriptorSets(*device(), &allocInfo, &_matrix_set));
+
+    allocInfo.pSetLayouts = &llayout;
+    VK_CHECK_RESULT(vkAllocateDescriptorSets(*device(), &allocInfo, &_light_set));
 
     VkDescriptorBufferInfo descriptor = {};
     int sz = sizeof(_matrix);
@@ -267,6 +271,7 @@ public:
     writeDescriptorSet.dstBinding = 0;
     vkUpdateDescriptorSets(*device(), 1, &writeDescriptorSet, 0, nullptr);
 
+    writeDescriptorSet.dstSet = _light_set;
     writeDescriptorSet.pBufferInfo = &mdescriptor;
     writeDescriptorSet.dstBinding = 1;
     vkUpdateDescriptorSets(*device(), 1, &writeDescriptorSet, 0, nullptr);
@@ -368,8 +373,6 @@ public:
     VK_CHECK_RESULT(vkCreateRenderPass(*device(), &renderPassCreateInfo, nullptr, &vkpass));
 
     set_render_pass(vkpass);
-
-    //_tree->create_pipeline(vkpass);
   }
 
   void create_frame_buffers()
@@ -403,7 +406,7 @@ public:
     if (_depth_pipeline) {
       _depth_pipeline->realize(render_pass());
 
-      auto des_layout = _depth_pipeline->descriptor_layout();
+      auto des_layout = _depth_pipeline->matrix_layout();
       VkDescriptorSetAllocateInfo allocInfo = {};
       allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
       allocInfo.descriptorPool = _descript_pool;
@@ -429,6 +432,7 @@ public:
     }
 
     _basic_pipeline->realize(render_pass(), 1);
+    _texture_pipeline->realize(render_pass(), 1);
 
     build_command_buffers();
   }
@@ -489,25 +493,18 @@ public:
   {
     _matrix.eye = manipulator().eye();
     _matrix.view = manipulator().view_matrix();
-    _matrix.model = tg::mat4::identity();
     _matrix.prj = tg::perspective<float>(fov, float(width()) / height(), 0.1, 1000);
     // tg::near_clip(_matrix.prj, tg::vec4(0, 0, -1, 0.5));
     uint8_t *data = 0;
     VK_CHECK_RESULT(vkMapMemory(*device(), _ubo_buf->memory(), 0, sizeof(_matrix), 0, (void **)&data));
     memcpy(data, &_matrix, sizeof(_matrix));
     vkUnmapMemory(*device(), _ubo_buf->memory());
-
-    auto mvp = _matrix;
-    mvp.model = tg::translate(vec3(0, 0, 1));
-    _tree->set_mvp(mvp);
   }
 
   void set_uniforms()
   {
-    vec3 light_pos = vec3(5, 5, 5);
-
-    light.light_pos = light_pos;
-    light.light_color = vec3(500);
+    light.light_dir = tg::normalize(vec3(1, 1, 1));
+    light.light_color = vec3(10);
 
     uint8_t *data = 0;
     VK_CHECK_RESULT(vkMapMemory(*device(), _light->memory(), 0, sizeof(light), 0, (void **)&data));
@@ -659,10 +656,11 @@ private:
   VkDescriptorPool _descript_pool = VK_NULL_HANDLE;
 
   std::shared_ptr<BasicPipeline> _basic_pipeline;
+  std::shared_ptr<TexturePipeline> _texture_pipeline;
   std::shared_ptr<DepthPipeline> _depth_pipeline;
 
   VkDescriptorSet _matrix_set = VK_NULL_HANDLE;
-  VkDescriptorSet _material_set = VK_NULL_HANDLE;
+  VkDescriptorSet _light_set = VK_NULL_HANDLE;
 
   VkDescriptorSet _depth_matrix_set = VK_NULL_HANDLE;
   std::shared_ptr<VulkanBuffer> _depth_matrix_buf;

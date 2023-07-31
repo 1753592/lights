@@ -6,7 +6,7 @@
 
 #include "stb_image.h"
 
-VulkanTexture::VulkanTexture(std::shared_ptr<VulkanDevice>& dev) : _device(dev)
+VulkanTexture::VulkanTexture()
 {
 }
 
@@ -30,6 +30,8 @@ void VulkanTexture::load_image(const std::string& file)
 
 void VulkanTexture::load_data(int w, int h, int comp, int compsize, uint8_t*data, int n)
 {
+  return;
+
   auto buf = _device->create_buffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, n, (void *)data);
   auto [img, mem] = _device->create_image(w, h);
   _image = img; _image_mem = mem;

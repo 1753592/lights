@@ -8,7 +8,7 @@ class VulkanDevice;
 
 class VulkanTexture {
 public:
-  VulkanTexture(std::shared_ptr<VulkanDevice> &dev);
+  VulkanTexture();
 
   ~VulkanTexture();
 
@@ -24,6 +24,8 @@ public:
 
 private:
   std::shared_ptr<VulkanDevice> _device;
+
+  int _w, _h;
 
   VkImageLayout _image_layout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
 

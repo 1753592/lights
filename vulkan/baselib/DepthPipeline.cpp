@@ -25,7 +25,7 @@ void DepthPipeline::realize(VkRenderPass render_pass, int subpass)
   pPipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pPipelineLayoutCreateInfo.pNext = nullptr;
   pPipelineLayoutCreateInfo.setLayoutCount = 1;
-  pPipelineLayoutCreateInfo.pSetLayouts = &_descriptor_layout;
+  //pPipelineLayoutCreateInfo.pSetLayouts = &_descriptor_layout;
 
   VkPipelineLayout pipe_layout = VK_NULL_HANDLE;
   VK_CHECK_RESULT(vkCreatePipelineLayout(*_device, &pPipelineLayoutCreateInfo, nullptr, &pipe_layout));
@@ -137,21 +137,21 @@ void DepthPipeline::realize(VkRenderPass render_pass, int subpass)
 
 void DepthPipeline::initialize()
 {
-  if (_descriptor_layout) {
-    VkDescriptorSetLayoutBinding layoutBinding = {};
-    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutBinding.descriptorCount = 1;
-    layoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutBinding.pImmutableSamplers = nullptr;
+  //if (_descriptor_layout) {
+  //  VkDescriptorSetLayoutBinding layoutBinding = {};
+  //  layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  //  layoutBinding.descriptorCount = 1;
+  //  layoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+  //  layoutBinding.pImmutableSamplers = nullptr;
 
-    VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
-    descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    descriptorLayout.pNext = nullptr;
-    descriptorLayout.bindingCount = 1;
-    descriptorLayout.pBindings = &layoutBinding;
+  //  VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
+  //  descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  //  descriptorLayout.pNext = nullptr;
+  //  descriptorLayout.bindingCount = 1;
+  //  descriptorLayout.pBindings = &layoutBinding;
 
-    VkDescriptorSetLayout descriptor_layout = VK_NULL_HANDLE;
-    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*_device, &descriptorLayout, nullptr, &descriptor_layout));
-    _descriptor_layout = descriptor_layout;
-  }
+  //  VkDescriptorSetLayout descriptor_layout = VK_NULL_HANDLE;
+  //  VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*_device, &descriptorLayout, nullptr, &descriptor_layout));
+  //  _descriptor_layout = descriptor_layout;
+  //}
 }

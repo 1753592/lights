@@ -14,8 +14,11 @@ public:
 
   bool valid() { return _pipeline != VK_NULL_HANDLE; }
 
-  VkDescriptorSetLayout descriptor_layout() { return _descriptor_layout; }
-  void set_descriptor_layout(VkDescriptorSetLayout layout) { _descriptor_layout = layout; }
+  VkDescriptorSetLayout matrix_layout();
+  void set_matrix_layout(VkDescriptorSetLayout layout) { _matrix_layout = layout; }
+
+  VkDescriptorSetLayout light_layout();
+  void set_light_layout(VkDescriptorSetLayout layout) { _light_layout = layout; }
 
   VkPipelineLayout pipe_layout() { return _pipe_layout; }
 
@@ -25,7 +28,9 @@ protected:
   
   std::shared_ptr<VulkanDevice> _device;
 
-  VkDescriptorSetLayout _descriptor_layout = VK_NULL_HANDLE;
+  VkDescriptorSetLayout _matrix_layout = VK_NULL_HANDLE;
+  VkDescriptorSetLayout _light_layout = VK_NULL_HANDLE;
+
   VkPipelineLayout  _pipe_layout = VK_NULL_HANDLE;
   VkPipeline        _pipeline = VK_NULL_HANDLE;
 

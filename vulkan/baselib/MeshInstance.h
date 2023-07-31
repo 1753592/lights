@@ -10,43 +10,32 @@
 class VulkanDevice;
 class MeshPrimitive;
 class VulkanBuffer;
+class TexturePipeline;
 
 class MeshInstance{
 public:
-  MeshInstance(std::shared_ptr<VulkanDevice> &dev);
+  MeshInstance();
   ~MeshInstance();
 
-  void set_mvp(const MVP &mvp);
-
-  void create_pipeline(VkRenderPass renderpass);
-
-  void create_pipeline(VkRenderPass renderpass, std::vector<VkPipelineShaderStageCreateInfo> &shaders);
+  void set_transform(const tg::mat4 &);
 
   void add_primitive(std::shared_ptr<MeshPrimitive> &pri);
 
-  void build_command_buffer(VkCommandBuffer cmd_buf);
+  void realize(const std::shared_ptr<VulkanDevice> &dev);
+
+  void build_command_buffer(VkCommandBuffer cmd_buf, const std::shared_ptr<TexturePipeline> &pipeline);
 
 private:
-
-  void create_pipe_layout();
 
 private:
 
   std::shared_ptr<VulkanDevice> _device;
 
-  VkPipelineLayout _pipe_layout = VK_NULL_HANDLE;
+  tg::mat4 _transform;
 
   VkDescriptorPool _descriptor_pool = VK_NULL_HANDLE;
 
-  VkDescriptorSetLayout _common_layout = VK_NULL_HANDLE;
-
-  VkDescriptorSetLayout _frag_layout = VK_NULL_HANDLE;
-
-  VkDescriptorSet _common_set = VK_NULL_HANDLE;
-
-  std::shared_ptr<VulkanBuffer> _ubo_buf;
+  std::vector<VkDescriptorSet> _matrix_sets;
 
   std::vector<std::shared_ptr<MeshPrimitive>> _pris;
-
-  MVP _mvp;
 };

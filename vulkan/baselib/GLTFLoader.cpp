@@ -12,9 +12,8 @@
 
 #include <set>
 
-GLTFLoader::GLTFLoader(const std::shared_ptr<VulkanDevice> &dev) : _dev(dev)
+GLTFLoader::GLTFLoader() 
 {
-  _m = std::make_shared<tinygltf::Model>();
 }
 
 GLTFLoader::~GLTFLoader()
@@ -25,6 +24,7 @@ std::shared_ptr<MeshInstance> GLTFLoader::load_file(const std::string& file)
 {
   tinygltf::TinyGLTF gltf;
   std::string err, warn;
+  _m = std::make_shared<tinygltf::Model>();
   if (!gltf.LoadASCIIFromFile(_m.get(), &err, &warn, file))
     return nullptr;
   //_m->scenes;
@@ -50,7 +50,7 @@ std::shared_ptr<MeshInstance> GLTFLoader::load_file(const std::string& file)
     auto &img = _m->images[tex.source];
     if (tinygltf::IsDataURI(img.uri) || img.image.size() > 0) {}
 
-    auto texture =std::make_shared<VulkanTexture>(_dev);
+    auto texture =std::make_shared<VulkanTexture>();
     
     if(img.image.size() > 0) {
       texture->load_data(img.width, img.height, img.component, img.bits / 8, img.image.data(), img.image.size());
@@ -63,7 +63,7 @@ std::shared_ptr<MeshInstance> GLTFLoader::load_file(const std::string& file)
     m.tex = texture;
   }
 
-  auto meshInst = std::make_shared<MeshInstance>(_dev);
+  auto meshInst = std::make_shared<MeshInstance>();
   auto m = tg::rotate<float>(M_PI_2, tg::vec3(1, 0, 0));
 
   for (auto &node : _m->nodes) {
@@ -76,7 +76,7 @@ std::shared_ptr<MeshInstance> GLTFLoader::load_file(const std::string& file)
     for (auto &pri : mesh.primitives) {
       auto mesh_pri = create_primitive(&pri);
       auto dm = m* t *s * r;
-      mesh_pri->set_matrix(tg::mat4(dm));
+      mesh_pri->set_transform(tg::mat4(dm));
 
       mesh_pri->set_material(materials[pri.material]);
 
@@ -90,63 +90,57 @@ std::shared_ptr<MeshInstance> GLTFLoader::load_file(const std::string& file)
 std::shared_ptr<MeshPrimitive>
 GLTFLoader::create_primitive(const tinygltf::Primitive *pri)
 {
-  auto mesh_pri = std::make_shared<MeshPrimitive>(_dev);
-  mesh_pri->_input_attr.reserve(pri->attributes.size());
-  mesh_pri->_input_bind.reserve(pri->attributes.size());
+  auto mesh_pri = std::make_shared<MeshPrimitive>();
 
   for (auto &attr : pri->attributes) {
     VkVertexInputBindingDescription vkinput;
     VkVertexInputAttributeDescription vkattr;
     auto &acc = _m->accessors[attr.second];
     auto &bufview = _m->bufferViews[acc.bufferView];
+    auto &buf = _m->buffers[bufview.buffer];
     if (attr.first.compare("POSITION") == 0) {
       vkattr.location = 0;
       vkattr.binding = 0;
+      mesh_pri->set_vertex(buf.data.data() + bufview.byteOffset, bufview.byteLength);
     } else if (attr.first.compare("NORMAL") == 0) {
       vkattr.location = 1;
       vkattr.binding = 1;
+      mesh_pri->set_normal(buf.data.data() + bufview.byteOffset, bufview.byteLength);
     } else if (attr.first.compare("TEXCOORD_0") == 0) {
       vkattr.location = 2;
       vkattr.binding = 2;
+      mesh_pri->set_uvs(buf.data.data() + bufview.byteOffset, bufview.byteLength);
     } else if (attr.first.compare("TEXCOORD_1") == 1) {
       vkattr.location = 3;
       vkattr.binding = 3;
     } else
       continue;
 
-    vkattr.format = attr_format(&acc);
-    vkattr.offset = 0;
-    vkinput.binding = vkattr.binding;
-    vkinput.stride = acc.ByteStride(_m->bufferViews[acc.bufferView]);
-    vkinput.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-    mesh_pri->_input_attr.emplace_back(vkattr);
-    mesh_pri->_input_bind.emplace_back(vkinput);
-
-    auto &buf = _m->buffers[bufview.buffer];
-    mesh_pri->add_vertex_buf(buf.data.data() + bufview.byteOffset, bufview.byteLength);
+    //vkattr.format = attr_format(&acc);
+    //vkattr.offset = 0;
+    //vkinput.binding = vkattr.binding;
+    //vkinput.stride = acc.ByteStride(_m->bufferViews[acc.bufferView]);
+    //vkinput.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
   }
-  if (pri->mode == TINYGLTF_MODE_LINE_LOOP)
-    mesh_pri->_mode = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
-  else if (pri->mode == TINYGLTF_MODE_TRIANGLES)
-    mesh_pri->_mode = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-  else
-    return nullptr;
+  //if (pri->mode == TINYGLTF_MODE_LINE_LOOP)
+  //else if (pri->mode == TINYGLTF_MODE_TRIANGLES)
+  //else return nullptr;
 
   if (pri->indices >= 0) {
     auto &idx_acc = _m->accessors[pri->indices];
     auto ty = idx_acc.componentType;
-    if (ty == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
+    auto &bufview = _m->bufferViews[idx_acc.bufferView];
+    auto &buf = _m->buffers[bufview.buffer];
+
+    if (ty == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
       mesh_pri->_index_type = VK_INDEX_TYPE_UINT16;
+      mesh_pri->set_index(buf.data.data() + bufview.byteOffset, bufview.byteLength);
+    }
     else if (ty == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)
       mesh_pri->_index_type = VK_INDEX_TYPE_UINT32;
     else
       return nullptr;
 
-    auto &bufview = _m->bufferViews[idx_acc.bufferView];
-    auto &buf = _m->buffers[bufview.buffer];
-    mesh_pri->set_index_buf(buf.data.data() + bufview.byteOffset, bufview.byteLength);
-    mesh_pri->_index_count = idx_acc.count;
   }
 
   return mesh_pri; 

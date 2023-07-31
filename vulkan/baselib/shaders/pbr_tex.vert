@@ -2,17 +2,10 @@
 
 layout(binding = 0) uniform MVP
 {
-  mat4 model;
+  vec4 eye;
   mat4 proj;
   mat4 view;
-  vec4 cam;
-}
-mvp;
-
-layout(push_constant) uniform PrimitiveData
-{
-  mat4 model;
-} primitive;
+} mvp;
 
 layout(location = 0) in vec3 attr_pos;
 layout(location = 1) in vec3 attr_norm;
@@ -22,9 +15,15 @@ layout(location = 0) out vec3 vp_pos;
 layout(location = 1) out vec3 vp_norm;
 layout(location = 2) out vec2 vp_uv;
 
+layout(push_constant) uniform Transform
+{
+  mat4 m;
+}
+transform;
+
 void main(void)
 {
-  gl_Position = mvp.proj * mvp.view * mvp.model * primitive.model * vec4(attr_pos, 1.0);
+  gl_Position = mvp.proj * mvp.view * transform.m * vec4(attr_pos, 1.0);
 
   vp_uv = attr_uv;
   vp_pos = attr_pos;

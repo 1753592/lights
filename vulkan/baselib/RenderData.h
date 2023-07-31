@@ -4,10 +4,13 @@
 #include "VulkanTexture.h"
 
 struct MVP {
-  tg::mat4 model;
+  tg::vec4 eye;
   tg::mat4 prj;
   tg::mat4 view;
-  tg::vec4 eye;
+};
+
+struct Transform{
+  tg::mat4 m;
 };
 
 struct ParallelLight{

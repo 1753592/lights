@@ -6,13 +6,13 @@ layout(location = 1) in vec3 vp_norm;
 layout(location = 0) out vec4 frag_color;
 
 layout(binding = 0) uniform MVP{
+    vec4 eye;
     mat4 proj;
     mat4 view;
     mat4 model;
-    vec4 cam;
 } mvp;
 
-layout(binding = 1) uniform Material{
+layout(set = 1, binding = 1) uniform Material{
 	float ao;
 	float metallic;
 	float roughness;
@@ -20,8 +20,8 @@ layout(binding = 1) uniform Material{
 } material;
 
 
-layout(binding = 2) uniform PointLight {
-  vec4 light_pos;
+layout(set = 1, binding = 2) uniform ParallelLight {
+  vec4 light_dir;
   vec4 light_color;
 } light;
 
@@ -72,19 +72,17 @@ void main(void)
   float mate_metallic = material.metallic;
   float mate_ao = material.ao;
 
-  vec3 cam = mvp.cam.xyz;
+  vec3 eye = mvp.eye.xyz;
   vec3 n = normalize(vp_norm);
-  vec3 v = normalize(cam - vp_pos);
+  vec3 v = normalize(eye - vp_pos);
 
   vec3 f0 = vec3(0.04);
   f0 = mix(f0, mate_albedo, mate_metallic);
   vec3 lo = vec3(0.0);
 
-  vec3 l = normalize(light.light_pos.xyz - vp_pos);
+  vec3 l = light.light_dir.xyz;
   vec3 h = normalize(v + l);
-  float distance = length(light.light_pos.xyz - vp_pos);
-  float attenuation = 1.0 / (distance * distance);
-  vec3 radiance = light.light_color.rgb * attenuation;
+  vec3 radiance = light.light_color.rgb;
 
   float nv = distribution_GGX(n, h, mate_roughness);
   float gv = smith_Geometry(n, v, l, mate_roughness);

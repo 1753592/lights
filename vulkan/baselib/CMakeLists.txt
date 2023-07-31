@@ -27,6 +27,7 @@ set(hdr
 	MeshInstance.h
 	MeshPrimitive.h
 
+	PipelineBase.h
 	BasicPipeline.h
 	TexturePipeline.h
 	DepthPipeline.h
