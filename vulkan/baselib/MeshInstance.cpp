@@ -4,6 +4,7 @@
 #include "VulkanDevice.h"
 #include "VulkanBuffer.h"
 #include "MeshPrimitive.h"
+#include "VulkanTexture.h"
 #include "VulkanInitializers.hpp"
 #include "TexturePipeline.h"
 
@@ -20,6 +21,10 @@ MeshInstance::MeshInstance()
 
 MeshInstance::~MeshInstance()
 {
+  if(_pbr_set) {
+    vkFreeDescriptorSets(*_device, _device->get_or_create_descriptor_pool(), 1, &_pbr_set);
+    _pbr_set = VK_NULL_HANDLE;
+  }
 }
 
 void MeshInstance::set_transform(const tg::mat4 &transform)
@@ -57,50 +62,56 @@ void MeshInstance::add_primitive(std::shared_ptr<MeshPrimitive>& pri) {
 
 void MeshInstance::realize(const std::shared_ptr<VulkanDevice> &dev)
 {
-  //if (!_descriptor_pool) {
-  //  VkDescriptorPoolSize pooltype;
-  //  pooltype.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  //  pooltype.descriptorCount = _pris.size() * 10;
-
-  //  VkDescriptorPoolCreateInfo descriptorPoolInfo = {};
-  //  descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-  //  descriptorPoolInfo.pNext = nullptr;
-  //  descriptorPoolInfo.poolSizeCount = 1;
-  //  descriptorPoolInfo.pPoolSizes = &pooltype;
-  //  descriptorPoolInfo.maxSets = _pris.size() * 10;
-
-  //  VkDescriptorPool desPool;
-  //  VK_CHECK_RESULT(vkCreateDescriptorPool(*_device, &descriptorPoolInfo, nullptr, &desPool));
-  //  _descriptor_pool = desPool;
-  //}
-
-  //VkDescriptorSetAllocateInfo allocInfo = {};
-  //allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-  //allocInfo.descriptorPool = desPool;
-  //allocInfo.descriptorSetCount = 1;
-  //allocInfo.pSetLayouts = &mlayout;
-
-  //VK_CHECK_RESULT(vkAllocateDescriptorSets(*device(), &allocInfo, &_matrix_set));
-
-  //VkDescriptorBufferInfo descriptor = {};
-  //descriptor.buffer = *_mvp_buf;
-  //descriptor.offset = 0;
-  //descriptor.range = sz;
-
-  //VkWriteDescriptorSet writeDescriptorSet = {};
-  //writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  //writeDescriptorSet.dstSet = _matrix_set;
-  //writeDescriptorSet.descriptorCount = 1;
-  //writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  //writeDescriptorSet.pBufferInfo = &descriptor;
-  //writeDescriptorSet.dstBinding = 0;
-  //vkUpdateDescriptorSets(*device(), 1, &writeDescriptorSet, 0, nullptr);
-
   _device = dev;
 
-  for(auto &pri : _pris) {
+  for (auto &pri : _pris) {
     pri->realize(dev);
+    auto &tex = pri->material().albedo_tex;
+    if (tex)
+      tex->realize(dev);
   }
+
+  vkCmdPushDescriptorSetKHR = (PFN_vkCmdPushDescriptorSetKHR)vkGetDeviceProcAddr(*dev, "vkCmdPushDescriptorSetKHR");
+}
+
+void MeshInstance::realize(const std::shared_ptr<VulkanDevice> &dev, const std::shared_ptr<TexturePipeline> &pipeline)
+{
+  realize(dev);
+
+  std::vector<PBRData> pbrdata(_pris.size());
+  for (int i = 0; i < _pris.size(); i++) {
+    auto &pbr = pbrdata[i];
+    auto &m = _pris[i]->material();
+    memcpy(&pbr, &m.pbrdata, sizeof(PBRData));
+  }
+  uint32_t sz = pbrdata.size() * sizeof(PBRData);
+  auto ori_buf = dev->create_buffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, sz, pbrdata.data());
+  auto dst_buf = dev->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, sz, 0);
+  dev->copy_buffer(ori_buf.get(), dst_buf.get(), dev->transfer_queue());
+  _pbr_buf = dst_buf;
+
+  auto layout = pipeline->pbr_layout();
+  VkDescriptorSetAllocateInfo allocInfo = {};
+  allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+  allocInfo.descriptorPool = _device->get_or_create_descriptor_pool();
+  allocInfo.descriptorSetCount = 1;
+  allocInfo.pSetLayouts = &layout;
+
+  VK_CHECK_RESULT(vkAllocateDescriptorSets(*_device, &allocInfo, &_pbr_set));
+
+  VkDescriptorBufferInfo descriptor = {};
+  descriptor.buffer = *_pbr_buf;
+  descriptor.offset = 0;
+  descriptor.range = sizeof(PBRData);
+
+  VkWriteDescriptorSet writeDescriptorSet = {};
+  writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+  writeDescriptorSet.dstSet = _pbr_set;
+  writeDescriptorSet.descriptorCount = 1;
+  writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+  writeDescriptorSet.pBufferInfo = &descriptor;
+  writeDescriptorSet.dstBinding = 0;
+  vkUpdateDescriptorSets(*_device, 1, &writeDescriptorSet, 0, nullptr);
 }
 
 void MeshInstance::build_command_buffer(VkCommandBuffer cmd_buf, const std::shared_ptr<TexturePipeline> &pipeline)
@@ -108,11 +119,26 @@ void MeshInstance::build_command_buffer(VkCommandBuffer cmd_buf, const std::shar
   if (!pipeline || !pipeline->valid())
     return;
 
+
   vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, *pipeline);
 
-  for (auto &pri : _pris) {
+  for (int i = 0; i < _pris.size(); i++) {
+    auto &pri = _pris[i];
     auto m = _transform * pri->transform();
     vkCmdPushConstants(cmd_buf, pipeline->pipe_layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(m), &m);
+
+    uint32_t uoffset = i * sizeof(PBRData);
+    vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipe_layout(), 2, 1, &_pbr_set, 1, &uoffset);
+
+    VkWriteDescriptorSet texture_set = {};
+    texture_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    texture_set.dstSet = 0;
+    texture_set.dstBinding = 0;
+    texture_set.descriptorCount = 1;
+    texture_set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    auto descriptor = pri->material().albedo_tex->descriptor();
+    texture_set.pImageInfo = &descriptor;
+    vkCmdPushDescriptorSetKHR(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipe_layout(), 3, 1, &texture_set);
 
     std::vector<VkBuffer> bufs(3);
     bufs[0] = *pri->_vertex_buf;

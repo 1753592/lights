@@ -23,7 +23,7 @@ struct PointLight{
   tg::vec4 light_color;
 };
 
-struct PBRBasic{
+struct alignas(64) PBRData {
   float   ao;
   float   metallic;
   float   roughness;
@@ -33,7 +33,7 @@ struct PBRBasic{
 
 struct Material{
   bool          cull; 
-  PBRBasic      pbr;
-  std::shared_ptr<VulkanTexture> tex;
+  PBRData       pbrdata;
+  std::shared_ptr<VulkanTexture> albedo_tex;
 };
 

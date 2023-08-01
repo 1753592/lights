@@ -9,21 +9,20 @@ layout(binding = 0) uniform MVP{
     vec4 eye;
     mat4 proj;
     mat4 view;
-    mat4 model;
 } mvp;
 
-layout(set = 1, binding = 1) uniform Material{
+layout(set = 1, binding = 0) uniform ParallelLight {
+  vec4 light_dir;
+  vec4 light_color;
+} light;
+
+layout(set = 2, binding = 0) uniform Material{
 	float ao;
 	float metallic;
 	float roughness;
 	vec4	albedo;
 } material;
 
-
-layout(set = 1, binding = 2) uniform ParallelLight {
-  vec4 light_dir;
-  vec4 light_color;
-} light;
 
 const float pi = 3.14159265359;
 

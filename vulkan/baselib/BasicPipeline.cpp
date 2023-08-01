@@ -36,15 +36,20 @@ BasicPipeline::~BasicPipeline()
     vkDestroyDescriptorSetLayout(*_device, _light_layout, nullptr);
     _light_layout = VK_NULL_HANDLE;
   }
+
+  if (_pbr_layout) {
+    vkDestroyDescriptorSetLayout(*_device, _pbr_layout, nullptr);
+    _pbr_layout = VK_NULL_HANDLE;
+  }
 }
 
 void BasicPipeline::realize(VkRenderPass render_pass, int subpass)
 {
-  initialize();
+  auto pipelay = pipe_layout();
 
   VkGraphicsPipelineCreateInfo pipelineCreateInfo = {};
   pipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-  pipelineCreateInfo.layout = _pipe_layout;
+  pipelineCreateInfo.layout = pipelay;
   pipelineCreateInfo.renderPass = render_pass;
 
   VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = {};
@@ -183,24 +188,18 @@ VkDescriptorSetLayout BasicPipeline::matrix_layout()
 VkDescriptorSetLayout BasicPipeline::light_layout()
 {
   if (!_light_layout) {
-    VkDescriptorSetLayoutBinding layoutBindings[2] = {};
-    layoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutBindings[0].descriptorCount = 1;
-    layoutBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutBindings[0].pImmutableSamplers = nullptr;
-    layoutBindings[0].binding = 1;
-
-    layoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutBindings[1].descriptorCount = 1;
-    layoutBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutBindings[1].pImmutableSamplers = nullptr;
-    layoutBindings[1].binding = 2;
+    VkDescriptorSetLayoutBinding layoutBinding = {};
+    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    layoutBinding.descriptorCount = 1;
+    layoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutBinding.pImmutableSamplers = nullptr;
+    layoutBinding.binding = 0;
 
     VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
     descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     descriptorLayout.pNext = nullptr;
-    descriptorLayout.bindingCount = 2;
-    descriptorLayout.pBindings = layoutBindings;
+    descriptorLayout.bindingCount = 1;
+    descriptorLayout.pBindings = &layoutBinding;
 
     VkDescriptorSetLayout deslay = VK_NULL_HANDLE;
     VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*_device, &descriptorLayout, nullptr, &deslay));
@@ -210,10 +209,33 @@ VkDescriptorSetLayout BasicPipeline::light_layout()
   return _light_layout;
 }
 
-void BasicPipeline::initialize()
+VkDescriptorSetLayout BasicPipeline::pbr_layout()
+{
+  if(!_pbr_layout) {
+    VkDescriptorSetLayoutBinding layoutBinding = {};
+    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    layoutBinding.descriptorCount = 1;
+    layoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutBinding.pImmutableSamplers = nullptr;
+    layoutBinding.binding = 0;
+
+    VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
+    descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    descriptorLayout.pNext = nullptr;
+    descriptorLayout.bindingCount = 1;
+    descriptorLayout.pBindings = &layoutBinding;
+
+    VkDescriptorSetLayout deslay = VK_NULL_HANDLE;
+    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*_device, &descriptorLayout, nullptr, &deslay));
+    _pbr_layout = deslay;
+  }
+  return _pbr_layout;
+}
+
+VkPipelineLayout BasicPipeline::pipe_layout()
 {
   if (!_pipe_layout) {
-    VkDescriptorSetLayout layouts[2] = {matrix_layout(), light_layout()};
+    VkDescriptorSetLayout layouts[3] = {matrix_layout(), light_layout(), pbr_layout()};
 
     VkPushConstantRange transformConstants;
     transformConstants.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
@@ -223,7 +245,7 @@ void BasicPipeline::initialize()
     VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = {};
     pPipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pPipelineLayoutCreateInfo.pNext = nullptr;
-    pPipelineLayoutCreateInfo.setLayoutCount = 2;
+    pPipelineLayoutCreateInfo.setLayoutCount = 3;
     pPipelineLayoutCreateInfo.pSetLayouts = layouts;
     pPipelineLayoutCreateInfo.pushConstantRangeCount = 1;
     pPipelineLayoutCreateInfo.pPushConstantRanges = &transformConstants;
@@ -232,4 +254,5 @@ void BasicPipeline::initialize()
     VK_CHECK_RESULT(vkCreatePipelineLayout(*_device, &pPipelineLayoutCreateInfo, nullptr, &pipe_layout));
     _pipe_layout = pipe_layout;
   }
+  return _pipe_layout;
 }

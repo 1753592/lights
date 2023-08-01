@@ -101,6 +101,7 @@ void VulkanInstance::initialize()
   instanceCreateInfo.pApplicationInfo = &appInfo;
 
   instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+  //instanceExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
 
   if (instanceExtensions.size() > 0) {
     instanceCreateInfo.enabledExtensionCount = instanceExtensions.size();

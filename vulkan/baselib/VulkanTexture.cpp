@@ -22,41 +22,58 @@ VulkanTexture::~VulkanTexture()
     vkDestroySampler(*_device, _sampler, nullptr);
 }
 
+VkDescriptorImageInfo VulkanTexture::descriptor()
+{
+  VkDescriptorImageInfo descriptor;
+  descriptor.imageLayout = _image_layout;
+  descriptor.imageView = _image_view;
+  descriptor.sampler = _sampler;
+  return descriptor;
+}
+
 void VulkanTexture::load_image(const std::string& file)
 {
   int x = 0, y = 0, n = 0;
   uint8_t* data = stbi_load(file.c_str(), &x, &y, &n, 0);
 }
 
-void VulkanTexture::load_data(int w, int h, int comp, int compsize, uint8_t*data, int n)
+void VulkanTexture::set_image(int w, int h, int channel, int channel_depth, uint8_t*data, int n)
 {
+  _w = w;
+  _h = h;
+  _channel = channel;
+  _channel_depth = channel_depth;
+  _data.resize(n);
+  memcpy(_data.data(), data, n);
   return;
+}
 
-  auto buf = _device->create_buffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, n, (void *)data);
-  auto [img, mem] = _device->create_image(w, h);
-  _image = img; _image_mem = mem;
+void VulkanTexture::realize(const std::shared_ptr<VulkanDevice>& dev)
+{
+  if (_sampler)
+    return;
+
+  _device = dev;
+  auto buf = _device->create_buffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, _data.size(), (void*)_data.data());
+  auto [img, mem] = _device->create_image(_w, _h);
+  _image = img;
+  _image_mem = mem;
 
   VkBufferImageCopy buffer_region = {};
   buffer_region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
   buffer_region.imageSubresource.mipLevel = 0;
   buffer_region.imageSubresource.baseArrayLayer = 0;
   buffer_region.imageSubresource.layerCount = 1;
-  buffer_region.imageExtent.width = w;
-  buffer_region.imageExtent.height = h;
+  buffer_region.imageExtent.width = _w;
+  buffer_region.imageExtent.height = _h;
   buffer_region.imageExtent.depth = 1;
   buffer_region.bufferOffset = 0;
-  buffer_region.bufferImageHeight = h;
-  buffer_region.bufferRowLength = w ;
+  buffer_region.bufferImageHeight = _h;
+  buffer_region.bufferRowLength = _w;
 
   VkImageSubresourceRange subrange = {};
   subrange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
   subrange.baseMipLevel = 0;
-  //layoutBinding[2].binding = 0;
-  //layoutBinding[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  //layoutBinding[2].descriptorCount = 1;
-  //layoutBinding[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-  //layoutBinding[2].pImmutableSamplers = nullptr;
-
   subrange.levelCount = 1;
   subrange.layerCount = 1;
 

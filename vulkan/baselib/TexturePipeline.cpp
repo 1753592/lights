@@ -4,6 +4,7 @@
 
 #include "tvec.h"
 #include "config.h"
+#include "RenderData.h"
 
 using tg::vec2;
 using tg::vec3;
@@ -17,16 +18,41 @@ TexturePipeline::TexturePipeline(const std::shared_ptr<VulkanDevice> &dev) : Bas
 
 TexturePipeline::~TexturePipeline()
 {
+  if(_texture_layout) {
+    vkDestroyDescriptorSetLayout(*_device, _texture_layout, nullptr);
+    _texture_layout = VK_NULL_HANDLE;
+  }
+}
 
+VkDescriptorSetLayout TexturePipeline::texture_layout()
+{
+  if (!_texture_layout) {
+    VkDescriptorSetLayoutBinding layoutBinding = {};
+    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    layoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutBinding.binding = 0;
+    layoutBinding.descriptorCount = 1;
+
+    VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+    layoutInfo.pBindings = &layoutBinding;
+    layoutInfo.bindingCount = 1;
+
+    VkDescriptorSetLayout tex_layout = VK_NULL_HANDLE;
+    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*_device, &layoutInfo, nullptr, &tex_layout));
+    _texture_layout = tex_layout;
+  }
+  return _texture_layout;
 }
 
 void TexturePipeline::realize(VkRenderPass render_pass, int subpass)
 {
-  initialize();
+  auto pipe_lay = pipe_layout();
 
   VkGraphicsPipelineCreateInfo pipelineCreateInfo = {};
   pipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-  pipelineCreateInfo.layout = _pipe_layout;
+  pipelineCreateInfo.layout = pipe_lay;
   pipelineCreateInfo.renderPass = render_pass;
 
   VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = {};
@@ -143,5 +169,54 @@ void TexturePipeline::realize(VkRenderPass render_pass, int subpass)
 
   vkDestroyShaderModule(*_device, shaderStages[0].module, nullptr);
   vkDestroyShaderModule(*_device, shaderStages[1].module, nullptr);
+}
+
+VkDescriptorSetLayout TexturePipeline::pbr_layout()
+{
+  if(!_pbr_layout) {
+    VkDescriptorSetLayoutBinding layoutBinding = {};
+    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    layoutBinding.descriptorCount = 1;
+    layoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutBinding.pImmutableSamplers = nullptr;
+    layoutBinding.binding = 0;
+
+    VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
+    descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    descriptorLayout.pNext = nullptr;
+    descriptorLayout.bindingCount = 1;
+    descriptorLayout.pBindings = &layoutBinding;
+
+    VkDescriptorSetLayout deslay = VK_NULL_HANDLE;
+    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*_device, &descriptorLayout, nullptr, &deslay));
+    _pbr_layout = deslay;
+  }
+  return _pbr_layout;
+}
+
+VkPipelineLayout TexturePipeline::pipe_layout()
+{
+  if (!_pipe_layout) {
+    VkDescriptorSetLayout layouts[4] = {matrix_layout(), light_layout(), pbr_layout(), texture_layout()};
+
+    VkPushConstantRange transformConstants;
+    transformConstants.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    transformConstants.offset = 0;
+    transformConstants.size = sizeof(Transform);
+
+    VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = {};
+    pPipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pPipelineLayoutCreateInfo.pNext = nullptr;
+    pPipelineLayoutCreateInfo.setLayoutCount = 4;
+    pPipelineLayoutCreateInfo.pSetLayouts = layouts;
+    pPipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+    pPipelineLayoutCreateInfo.pPushConstantRanges = &transformConstants;
+
+    VkPipelineLayout pipe_layout = VK_NULL_HANDLE;
+    VK_CHECK_RESULT(vkCreatePipelineLayout(*_device, &pPipelineLayoutCreateInfo, nullptr, &pipe_layout));
+    _pipe_layout = pipe_layout;
+  }
+
+  return _pipe_layout;
 }
 

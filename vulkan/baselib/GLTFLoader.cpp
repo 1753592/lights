@@ -34,12 +34,12 @@ std::shared_ptr<MeshInstance> GLTFLoader::load_file(const std::string& file)
 
   for (int i = 0; i < _m->materials.size(); i++) {
     Material &m = materials[i];
-    m.pbr.ao = 1;
+    m.pbrdata.ao = 1;
     auto &material = _m->materials[i];
     auto &color = material.pbrMetallicRoughness.baseColorFactor;
-    m.pbr.albedo = tg::vec4(color[0], color[1], color[2], color[3]);
-    m.pbr.metallic = material.pbrMetallicRoughness.metallicFactor;
-    m.pbr.roughness = material.pbrMetallicRoughness.roughnessFactor;
+    m.pbrdata.albedo = tg::vec4(color[0], color[1], color[2], color[3]);
+    m.pbrdata.metallic = material.pbrMetallicRoughness.metallicFactor;
+    m.pbrdata.roughness = material.pbrMetallicRoughness.roughnessFactor;
 
     material.pbrMetallicRoughness.baseColorTexture.texCoord;
     int idx = material.pbrMetallicRoughness.baseColorTexture.index;
@@ -53,14 +53,14 @@ std::shared_ptr<MeshInstance> GLTFLoader::load_file(const std::string& file)
     auto texture =std::make_shared<VulkanTexture>();
     
     if(img.image.size() > 0) {
-      texture->load_data(img.width, img.height, img.component, img.bits / 8, img.image.data(), img.image.size());
+      texture->set_image(img.width, img.height, img.component, img.bits, img.image.data(), img.image.size());
     } else {
       auto &bufview = _m->bufferViews[img.bufferView];
       auto &buf = _m->buffers[bufview.buffer];
-      texture->load_data(img.width, img.height, img.component, img.bits / 8, buf.data.data() + bufview.byteOffset, bufview.byteLength);
+      texture->set_image(img.width, img.height, img.component, img.bits, buf.data.data() + bufview.byteOffset, bufview.byteLength);
     }
 
-    m.tex = texture;
+    m.albedo_tex = texture;
   }
 
   auto meshInst = std::make_shared<MeshInstance>();

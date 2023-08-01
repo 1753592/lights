@@ -23,9 +23,12 @@ transform;
 
 void main(void)
 {
-  gl_Position = mvp.proj * mvp.view * transform.m * vec4(attr_pos, 1.0);
+  vec4 pos = transform.m * vec4(attr_pos, 1.0);
+  gl_Position = mvp.proj * mvp.view * pos;
 
   vp_uv = attr_uv;
-  vp_pos = attr_pos;
-  vp_norm = attr_norm;
+  vp_pos = pos.xyz / pos.w;
+
+  vec4 norm = transform.m * vec4(attr_norm, 0);
+  vp_norm = norm.xyz;
 }

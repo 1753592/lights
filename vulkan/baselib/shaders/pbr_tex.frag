@@ -13,19 +13,21 @@ layout(binding = 0) uniform MatrixObject
   mat4 view;
 } mvp;
 
-// layout(set = 1, binding = 0) uniform sampler2D tex;
+layout(set = 1, binding = 0) uniform ParallelLight
+{
+  vec4 light_dir;
+  vec4 light_color;
+} light;
 
-// layout(binding = 1) uniform Lights{
-//	vec3 light_pos[4];
-//	vec3 light_color[4];
-// } lights;
-//
-// struct Material{
-//	float metallic;
-//	float roughness;
-//	float ao;
-//	vec3	albedo;
-// };
+layout(set = 2, binding = 0) uniform Material
+{
+  float ao;
+  float metallic;
+  float roughness;
+  vec4 albedo;
+} material;
+
+layout(set = 3, binding = 0) uniform sampler2D tex;
 
 const float pi = 3.14159265359;
 
@@ -69,53 +71,48 @@ float smith_Geometry(vec3 n, vec3 v, vec3 l, float roughness)
 
 void main(void)
 {
-  frag_color = vec4(1, 0, 0, 1);
-  // frag_color = texture(tex, vp_uv);
-  // if (frag_color.a == 0.f)
-  //   discard;
+  frag_color = texture(tex, vp_uv);
+  if (frag_color.a == 0.f)
+    discard;
 
-  // vec3 color = frag_color.rgb;
+  vec3 mate_albedo = frag_color.rgb;
+  float mate_roughness = material.roughness;
+  float mate_metallic = material.metallic;
+  float mate_ao = material.ao;
 
-  // vec3 mate_albedo = materials[idx].albedo;
-  // float mate_roughness = materials[idx].roughness;
-  // float mate_metallic = materials[idx].metallic;
-  // float mate_ao = materials[idx].ao;
+  vec3 eye = mvp.eye.xyz;
+  vec3 n = normalize(vp_norm);
+  vec3 v = normalize(eye - vp_pos);
 
-  // vec3 eye = mvp.eye.xyz;
-  // vec3 n = normalize(vp_norm);
-  // vec3 v = normalize(eye - vp_pos);
+  vec3 f0 = vec3(0.04);
+  f0 = mix(f0, mate_albedo, mate_metallic);
+  vec3 lo = vec3(0.0);
 
-  // vec3 f0 = vec3(0.04);
-  // f0 = mix(f0, mate_albedo, mate_metallic);
-  // vec3 lo = vec3(0.0);
-  // for (int i = 0; i < 4; i++) {
-  //	vec3 l = normalize(lights.light_pos[i] - vp_pos);
-  //	vec3 h = normalize(v + l);
-  //	float distance = length(lights.light_pos[i] - vp_pos);
-  //	float attenuation = 1.0 / (distance * distance);
-  //	vec3 radiance = lights.light_color[i] * attenuation;
+  vec3 l = light.light_dir.xyz;
+  vec3 h = normalize(v + l);
+  vec3 radiance = light.light_color.rgb;
 
-  //	float nv = distribution_GGX(n, h, mate_roughness);
-  //	float gv = smith_Geometry(n, v, l, mate_roughness);
-  //	vec3 fv = fresnel_schlick(clamp(dot(h, v), 0.0, 1.0), f0);
+  float nv = distribution_GGX(n, h, mate_roughness);
+  float gv = smith_Geometry(n, v, l, mate_roughness);
+  vec3 fv = fresnel_schlick(clamp(dot(h, v), 0.0, 1.0), f0);
 
-  //	vec3 nominator = nv * gv * fv;
-  //	float denominator = 4 * max(dot(n, v), 0) * max(dot(n, l), 0.0);
-  //	vec3 specular = nominator / max(denominator, 0.000001);
+  vec3 nominator = nv * gv * fv;
+  float denominator = 4 * max(dot(n, v), 0) * max(dot(n, l), 0.0);
+  vec3 specular = nominator / max(denominator, 0.000001);
 
-  //	vec3 ks = fv; vec3 kd = vec3(1.0) - ks;
-  //	kd *= (1.0 - mate_metallic);
+  vec3 ks = fv;
+  vec3 kd = vec3(1.0) - ks;
+  kd *= (1.0 - mate_metallic);
 
-  //	float ndotl = max(dot(n, l), 0);
+  float ndotl = max(dot(n, l), 0);
 
-  //	lo += (kd * mate_albedo / pi + specular) * radiance * ndotl;
-  //}
+  lo += (kd * mate_albedo / pi + specular) * radiance * ndotl;
 
-  // vec3 ambient = vec3(0.03) * mate_albedo * mate_ao;
-  // vec3 color = ambient + lo;
+  vec3 ambient = vec3(0.03) * mate_albedo * mate_ao;
+  vec3 color = ambient + lo;
 
-  // color = color / (color + vec3(1.0));
-  // color = pow(color, vec3(1.0 / 2.2));
+  color = color / (color + vec3(1.0));
+  //color = pow(color, vec3(1.0 / 2.2));
 
-  // frag_color.rgb = color;
+  frag_color = vec4(color, 1.0);
 }

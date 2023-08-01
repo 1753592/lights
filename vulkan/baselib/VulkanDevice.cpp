@@ -68,14 +68,24 @@ VulkanDevice::VulkanDevice(VkPhysicalDevice _physical_device)
  */
 VulkanDevice::~VulkanDevice()
 {
-  if (_pipe_cache)
+  if (_pipe_cache) {
     vkDestroyPipelineCache(_logical_device, _pipe_cache, nullptr);
+    _pipe_cache = VK_NULL_HANDLE;
+  }
 
   if (_command_pool) {
     vkDestroyCommandPool(_logical_device, _command_pool, nullptr);
+    _command_pool = VK_NULL_HANDLE;
   }
+
+  if(_descriptor_pool) {
+    vkDestroyDescriptorPool(_logical_device, _descriptor_pool, nullptr);
+    _descriptor_pool = VK_NULL_HANDLE;
+  }
+
   if (_logical_device) {
     vkDestroyDevice(_logical_device, nullptr);
+    _logical_device = VK_NULL_HANDLE;
   }
 }
 
@@ -179,6 +189,8 @@ VkResult VulkanDevice::realize(VkPhysicalDeviceFeatures enabledFeatures, std::ve
     deviceExtensions.push_back(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME);
   }
 #endif
+
+  deviceExtensions.push_back(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
 
   if (deviceExtensions.size() > 0) {
     for (const char *enabledExtension : deviceExtensions) {

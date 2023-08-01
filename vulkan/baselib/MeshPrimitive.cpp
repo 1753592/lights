@@ -80,26 +80,3 @@ void MeshPrimitive::realize(const std::shared_ptr<VulkanDevice>& dev)
   dev->copy_buffer(index_ori_buf.get(), index_buf.get(), dev->transfer_queue());
   _index_buf = index_buf;
 }
-
-//void MeshPrimitive::build_command_buffer(VkCommandBuffer cmd_buf, VkPipelineLayout pipelayout)
-//{
-//  if (!_pipeline)
-//    return;
-//
-//  vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);
-//
-//  //vkCmdPushConstants(cmd_buf, pipelayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PrimitiveData), &_m);
-//
-//  if(_material.tex)
-//    vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelayout, 1, 1, &_material_set, 0, nullptr);
-//
-//  std::vector<VkBuffer> bufs(_attr_bufs.size());
-//  for (int i = 0; i < _attr_bufs.size(); i++) {
-//    bufs[_input_attr[i].location] = *_attr_bufs[i];
-//  }
-//  std::vector<VkDeviceSize> offset(_attr_bufs.size(), 0);
-//  vkCmdBindVertexBuffers(cmd_buf, 0, bufs.size(), bufs.data(), offset.data());
-//  vkCmdBindIndexBuffer(cmd_buf, *_index_buf, 0, _index_type);
-//  vkCmdDrawIndexed(cmd_buf, _index_count, 1, 0, 0, 0);
-//}
-

@@ -34,7 +34,7 @@ constexpr float fov = 60;
 
 VulkanInstance &inst = VulkanInstance::instance();
 
-PBRBasic pbr;
+PBRData pbr;
 ParallelLight light;
 
 class View : public VulkanView {
@@ -47,7 +47,6 @@ public:
     GLTFLoader loader;
     _tree = loader.load_file(ROOT_DIR "/data/oaktree.gltf");
     _tree->set_transform(tg::translate(tg::vec3(0, 0, 1)) * tg::scale(4));
-    _tree->realize(dev);
 
     _basic_pipeline = std::make_shared<BasicPipeline>(dev);
     _texture_pipeline = std::make_shared<TexturePipeline>(dev);
@@ -158,8 +157,8 @@ public:
     if (_basic_pipeline && _basic_pipeline->valid()) {
       vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, *_basic_pipeline);
 
-      VkDescriptorSet dessets[2] = {_matrix_set, _light_set};
-      vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _basic_pipeline->pipe_layout(), 0, 2, dessets, 0, nullptr);
+      VkDescriptorSet dessets[3] = {_matrix_set, _light_set, _pbr_set};
+      vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _basic_pipeline->pipe_layout(), 0, 3, dessets, 0, nullptr);
 
       auto mt = tg::mat4::identity();
       vkCmdPushConstants(cmd_buf, _basic_pipeline->pipe_layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Transform), &mt);
@@ -180,36 +179,6 @@ public:
 
   void create_pipe_layout()
   {
-    //VkDescriptorSetLayoutBinding layoutBinding[4] = {};
-    //layoutBinding[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    //layoutBinding[0].descriptorCount = 1;
-    //layoutBinding[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-    //layoutBinding[0].pImmutableSamplers = nullptr;
-
-    //layoutBinding[1].binding = 1;
-    //layoutBinding[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    //layoutBinding[1].descriptorCount = 1;
-    //layoutBinding[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    //layoutBinding[1].pImmutableSamplers = nullptr;
-
-    //layoutBinding[2].binding = 2;
-    //layoutBinding[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    //layoutBinding[2].descriptorCount = 1;
-    //layoutBinding[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    //layoutBinding[2].pImmutableSamplers = nullptr;
-
-    //VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
-    //descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    //descriptorLayout.pNext = nullptr;
-    //descriptorLayout.bindingCount = 3;
-    //descriptorLayout.pBindings = layoutBinding;
-
-    //VkDescriptorSetLayout matrix_lay, material_lay;
-    //VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*device(), &descriptorLayout, nullptr, &matrix_lay));
-    //_basic_pipeline->set_descriptor_layout(matrix_lay);
-
-    //----------------------------------------------------------------------------------------------------
-
     VkDescriptorPoolSize typeCounts[1];
     typeCounts[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     typeCounts[0].descriptorCount = 10;
@@ -228,6 +197,7 @@ public:
     //----------------------------------------------------------------------------------------------------
     auto mlayout = _basic_pipeline->matrix_layout();
     auto llayout = _basic_pipeline->light_layout();
+    auto playout = _basic_pipeline->pbr_layout();
 
     VkDescriptorSetAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -239,6 +209,9 @@ public:
 
     allocInfo.pSetLayouts = &llayout;
     VK_CHECK_RESULT(vkAllocateDescriptorSets(*device(), &allocInfo, &_light_set));
+
+    allocInfo.pSetLayouts = &playout; 
+    VK_CHECK_RESULT(vkAllocateDescriptorSets(*device(), &allocInfo, &_pbr_set));
 
     VkDescriptorBufferInfo descriptor = {};
     int sz = sizeof(_matrix);
@@ -261,7 +234,6 @@ public:
     mdescriptor.offset = 0;
     mdescriptor.range = sz;
 
-
     VkWriteDescriptorSet writeDescriptorSet = {};
     writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     writeDescriptorSet.dstSet = _matrix_set;
@@ -272,12 +244,13 @@ public:
     vkUpdateDescriptorSets(*device(), 1, &writeDescriptorSet, 0, nullptr);
 
     writeDescriptorSet.dstSet = _light_set;
-    writeDescriptorSet.pBufferInfo = &mdescriptor;
-    writeDescriptorSet.dstBinding = 1;
+    writeDescriptorSet.pBufferInfo = &ldescriptor;
+    writeDescriptorSet.dstBinding = 0;
     vkUpdateDescriptorSets(*device(), 1, &writeDescriptorSet, 0, nullptr);
 
-    writeDescriptorSet.pBufferInfo = &ldescriptor;
-    writeDescriptorSet.dstBinding = 2;
+    writeDescriptorSet.dstSet = _pbr_set;
+    writeDescriptorSet.pBufferInfo = &mdescriptor;
+    writeDescriptorSet.dstBinding = 0;
     vkUpdateDescriptorSets(*device(), 1, &writeDescriptorSet, 0, nullptr);
   }
 
@@ -434,6 +407,8 @@ public:
     _basic_pipeline->realize(render_pass(), 1);
     _texture_pipeline->realize(render_pass(), 1);
 
+    _tree->realize(_device, _texture_pipeline);
+
     build_command_buffers();
   }
 
@@ -527,7 +502,7 @@ public:
 
   void create_sphere()
   {
-    Box box(vec3(0), vec3(20, 20, 2));
+    Box box(vec3(0), vec3(40, 40, 2));
     box.build();
     auto &verts = box.get_vertex();
     auto &norms = box.get_norms();
@@ -661,6 +636,7 @@ private:
 
   VkDescriptorSet _matrix_set = VK_NULL_HANDLE;
   VkDescriptorSet _light_set = VK_NULL_HANDLE;
+  VkDescriptorSet _pbr_set = VK_NULL_HANDLE;
 
   VkDescriptorSet _depth_matrix_set = VK_NULL_HANDLE;
   std::shared_ptr<VulkanBuffer> _depth_matrix_buf;

@@ -23,19 +23,22 @@ public:
 
   void realize(const std::shared_ptr<VulkanDevice> &dev);
 
+  void realize(const std::shared_ptr<VulkanDevice> &dev, const std::shared_ptr<TexturePipeline> &pipeline);
+
   void build_command_buffer(VkCommandBuffer cmd_buf, const std::shared_ptr<TexturePipeline> &pipeline);
 
 private:
 
 private:
-
   std::shared_ptr<VulkanDevice> _device;
+
+  PFN_vkCmdPushDescriptorSetKHR vkCmdPushDescriptorSetKHR;
 
   tg::mat4 _transform;
 
-  VkDescriptorPool _descriptor_pool = VK_NULL_HANDLE;
-
-  std::vector<VkDescriptorSet> _matrix_sets;
-
   std::vector<std::shared_ptr<MeshPrimitive>> _pris;
+
+  std::shared_ptr<VulkanBuffer> _pbr_buf;
+
+  VkDescriptorSet _pbr_set = VK_NULL_HANDLE;
 };

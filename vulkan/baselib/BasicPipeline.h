@@ -20,16 +20,18 @@ public:
   VkDescriptorSetLayout light_layout();
   void set_light_layout(VkDescriptorSetLayout layout) { _light_layout = layout; }
 
-  VkPipelineLayout pipe_layout() { return _pipe_layout; }
+  VkDescriptorSetLayout pbr_layout();
+  void set_pbr_layout(VkDescriptorSetLayout layout) { _pbr_layout = layout; }
+
+  VkPipelineLayout pipe_layout();
 
 protected:
-
-  void initialize();
   
   std::shared_ptr<VulkanDevice> _device;
 
   VkDescriptorSetLayout _matrix_layout = VK_NULL_HANDLE;
   VkDescriptorSetLayout _light_layout = VK_NULL_HANDLE;
+  VkDescriptorSetLayout _pbr_layout = VK_NULL_HANDLE;
 
   VkPipelineLayout  _pipe_layout = VK_NULL_HANDLE;
   VkPipeline        _pipeline = VK_NULL_HANDLE;
