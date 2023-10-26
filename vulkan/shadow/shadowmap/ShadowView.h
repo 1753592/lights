@@ -55,6 +55,7 @@ private:
   VkDescriptorSet _matrix_set = VK_NULL_HANDLE;
   VkDescriptorSet _light_set = VK_NULL_HANDLE;
   VkDescriptorSet _pbr_set = VK_NULL_HANDLE;
+  VkDescriptorSet _basic_tex_set = VK_NULL_HANDLE;
 
   VkDescriptorSet _depth_matrix_set = VK_NULL_HANDLE;
   std::shared_ptr<VulkanBuffer> _depth_matrix_buf;
@@ -71,4 +72,6 @@ private:
   uint32_t _index_count = 0;
 
   std::shared_ptr<MeshInstance> _tree;
+
+  std::shared_ptr<VulkanTexture> _basic_texture;
 };

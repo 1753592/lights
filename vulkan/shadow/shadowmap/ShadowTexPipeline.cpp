@@ -1,55 +1,34 @@
-#include "VulkanPipeline.h"
+#include "ShadowTexPipeline.h"
 #include "VulkanPass.h"
 #include "VulkanTools.h"
+#include "RenderData.h"
+
 
 #include "config.h"
 #include "tvec.h"
-#include "RenderData.h"
 
 using tg::vec3;
-using tg::vec4;
+using tg::vec2;
 
-#define SHADER_DIR ROOT_DIR##"/vulkan/baselib/shaders"
+#define SHADER_DIR ROOT_DIR##"/vulkan/shadow/shadowmap"
 
-VulkanPipeline::VulkanPipeline(const std::shared_ptr<VulkanDevice>& dev) : _device(dev)
+ShadowTexPipeline::ShadowTexPipeline(const std::shared_ptr<VulkanDevice> &dev) : ShadowPipeline(dev)
 {
 }
 
-VulkanPipeline::~VulkanPipeline()
+ShadowTexPipeline::~ShadowTexPipeline()
 {
-  if(_pipeline) {
-    vkDestroyPipeline(*_device, _pipeline, nullptr);
-    _pipeline = VK_NULL_HANDLE;
-  }
-
-  if(_pipe_layout) {
-    vkDestroyPipelineLayout(*_device, _pipe_layout, nullptr);
-    _pipe_layout = VK_NULL_HANDLE;
-  }
-
-  if(_matrix_layout) {
-    vkDestroyDescriptorSetLayout(*_device, _matrix_layout, nullptr);
-    _matrix_layout = VK_NULL_HANDLE;
-  }
-
-  if(_light_layout) {
-    vkDestroyDescriptorSetLayout(*_device, _light_layout, nullptr);
-    _light_layout = VK_NULL_HANDLE;
-  }
-
-  if (_pbr_layout) {
-    vkDestroyDescriptorSetLayout(*_device, _pbr_layout, nullptr);
-    _pbr_layout = VK_NULL_HANDLE;
-  }
+  if (_shadow_layout)
+    vkDestroyDescriptorSetLayout(*_device, _shadow_layout, 0);
 }
 
-void VulkanPipeline::realize(VulkanPass *render_pass, int subpass)
+void ShadowTexPipeline::realize(VulkanPass *render_pass, int subpass)
 {
-  auto pipelay = pipe_layout();
+  auto pipe_lay = pipe_layout();
 
   VkGraphicsPipelineCreateInfo pipelineCreateInfo = {};
   pipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-  pipelineCreateInfo.layout = pipelay;
+  pipelineCreateInfo.layout = pipe_lay;
   pipelineCreateInfo.renderPass = *render_pass;
 
   VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = {};
@@ -104,15 +83,18 @@ void VulkanPipeline::realize(VulkanPass *render_pass, int subpass)
   multisampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
   multisampleState.pSampleMask = nullptr;
 
-  VkVertexInputBindingDescription vertexInputBindings[2] = {};
+  VkVertexInputBindingDescription vertexInputBindings[3] = {};
   vertexInputBindings[0].binding = 0;  // vkCmdBindVertexBuffers
   vertexInputBindings[0].stride = sizeof(vec3);
   vertexInputBindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
   vertexInputBindings[1].binding = 1;  // vkCmdBindVertexBuffers
   vertexInputBindings[1].stride = sizeof(vec3);
   vertexInputBindings[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+  vertexInputBindings[2].binding = 2;
+  vertexInputBindings[2].stride = sizeof(vec2);
+  vertexInputBindings[2].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-  VkVertexInputAttributeDescription vertexInputAttributs[2] = {};
+  VkVertexInputAttributeDescription vertexInputAttributs[3] = {};
   vertexInputAttributs[0].binding = 0;
   vertexInputAttributs[0].location = 0;
   vertexInputAttributs[0].format = VK_FORMAT_R32G32B32_SFLOAT;
@@ -121,24 +103,28 @@ void VulkanPipeline::realize(VulkanPass *render_pass, int subpass)
   vertexInputAttributs[1].location = 1;
   vertexInputAttributs[1].format = VK_FORMAT_R32G32B32_SFLOAT;
   vertexInputAttributs[1].offset = 0;
+  vertexInputAttributs[2].binding = 2;
+  vertexInputAttributs[2].location = 2;
+  vertexInputAttributs[2].format = VK_FORMAT_R32G32_SFLOAT;
+  vertexInputAttributs[2].offset = 0;
 
   VkPipelineVertexInputStateCreateInfo vertexInputState = {};
   vertexInputState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-  vertexInputState.vertexBindingDescriptionCount = 2;
+  vertexInputState.vertexBindingDescriptionCount = 3;
   vertexInputState.pVertexBindingDescriptions = vertexInputBindings;
-  vertexInputState.vertexAttributeDescriptionCount = 2;
+  vertexInputState.vertexAttributeDescriptionCount = 3;
   vertexInputState.pVertexAttributeDescriptions = vertexInputAttributs;
 
   VkPipelineShaderStageCreateInfo shaderStages[2] = {};
   shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-  shaderStages[0].module = _device->create_shader(SHADER_DIR "/pbr_clr.vert.spv");
+  shaderStages[0].module = _device->create_shader(SHADER_DIR "/shadow.vert.spv");
   shaderStages[0].pName = "main";
   assert(shaderStages[0].module != VK_NULL_HANDLE);
 
   shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-  shaderStages[1].module = _device->create_shader(SHADER_DIR "/pbr_clr.frag.spv");
+  shaderStages[1].module = _device->create_shader(SHADER_DIR "/shadow.frag.spv");
   shaderStages[1].pName = "main";
   assert(shaderStages[1].module != VK_NULL_HANDLE);
 
@@ -159,83 +145,12 @@ void VulkanPipeline::realize(VulkanPass *render_pass, int subpass)
 
   vkDestroyShaderModule(*_device, shaderStages[0].module, nullptr);
   vkDestroyShaderModule(*_device, shaderStages[1].module, nullptr);
-
 }
 
-VkDescriptorSetLayout VulkanPipeline::matrix_layout()
-{
-  if (!_matrix_layout) {
-    VkDescriptorSetLayoutBinding layoutBinding = {};
-    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutBinding.descriptorCount = 1;
-    layoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutBinding.pImmutableSamplers = nullptr;
-    layoutBinding.binding = 0;
-
-    VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
-    descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    descriptorLayout.pNext = nullptr;
-    descriptorLayout.bindingCount = 1;
-    descriptorLayout.pBindings = &layoutBinding;
-
-    VkDescriptorSetLayout deslay = VK_NULL_HANDLE;
-    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*_device, &descriptorLayout, nullptr, &deslay));
-    _matrix_layout = deslay;
-  }
-  return _matrix_layout;
-}
-
-VkDescriptorSetLayout VulkanPipeline::light_layout()
-{
-  if (!_light_layout) {
-    VkDescriptorSetLayoutBinding layoutBinding = {};
-    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutBinding.descriptorCount = 1;
-    layoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutBinding.pImmutableSamplers = nullptr;
-    layoutBinding.binding = 0;
-
-    VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
-    descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    descriptorLayout.pNext = nullptr;
-    descriptorLayout.bindingCount = 1;
-    descriptorLayout.pBindings = &layoutBinding;
-
-    VkDescriptorSetLayout deslay = VK_NULL_HANDLE;
-    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*_device, &descriptorLayout, nullptr, &deslay));
-    _light_layout = deslay;
-  }
-
-  return _light_layout;
-}
-
-VkDescriptorSetLayout VulkanPipeline::pbr_layout()
-{
-  if(!_pbr_layout) {
-    VkDescriptorSetLayoutBinding layoutBinding = {};
-    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-    layoutBinding.descriptorCount = 1;
-    layoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutBinding.pImmutableSamplers = nullptr;
-    layoutBinding.binding = 0;
-
-    VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
-    descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    descriptorLayout.pNext = nullptr;
-    descriptorLayout.bindingCount = 1;
-    descriptorLayout.pBindings = &layoutBinding;
-
-    VkDescriptorSetLayout deslay = VK_NULL_HANDLE;
-    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*_device, &descriptorLayout, nullptr, &deslay));
-    _pbr_layout = deslay;
-  }
-  return _pbr_layout;
-}
-
-VkPipelineLayout VulkanPipeline::pipe_layout()
+VkPipelineLayout ShadowTexPipeline::pipe_layout()
 {
   if (!_pipe_layout) {
-    VkDescriptorSetLayout layouts[3] = {matrix_layout(), light_layout(), pbr_layout()};
+    VkDescriptorSetLayout layouts[5] = {matrix_layout(), light_layout(), pbr_layout(), texture_layout(), shadow_layout()};
 
     VkPushConstantRange transformConstants;
     transformConstants.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
@@ -245,7 +160,7 @@ VkPipelineLayout VulkanPipeline::pipe_layout()
     VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = {};
     pPipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pPipelineLayoutCreateInfo.pNext = nullptr;
-    pPipelineLayoutCreateInfo.setLayoutCount = 3;
+    pPipelineLayoutCreateInfo.setLayoutCount = 5;
     pPipelineLayoutCreateInfo.pSetLayouts = layouts;
     pPipelineLayoutCreateInfo.pushConstantRangeCount = 1;
     pPipelineLayoutCreateInfo.pPushConstantRanges = &transformConstants;
@@ -254,5 +169,35 @@ VkPipelineLayout VulkanPipeline::pipe_layout()
     VK_CHECK_RESULT(vkCreatePipelineLayout(*_device, &pPipelineLayoutCreateInfo, nullptr, &pipe_layout));
     _pipe_layout = pipe_layout;
   }
+
   return _pipe_layout;
+}
+
+VkDescriptorSetLayout ShadowTexPipeline::shadow_layout()
+{
+  if (!_shadow_layout) {
+    VkDescriptorSetLayoutBinding layoutBinding[2] = {};
+    layoutBinding[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    layoutBinding[0].descriptorCount = 1;
+    layoutBinding[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutBinding[0].pImmutableSamplers = nullptr;
+    layoutBinding[0].binding = 0;
+
+    layoutBinding[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    layoutBinding[1].descriptorCount = 1;
+    layoutBinding[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutBinding[1].pImmutableSamplers = nullptr;
+    layoutBinding[1].binding = 1;
+
+    VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
+    descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    descriptorLayout.pNext = nullptr;
+    descriptorLayout.bindingCount = 2;
+    descriptorLayout.pBindings = layoutBinding;
+
+    VkDescriptorSetLayout deslay = VK_NULL_HANDLE;
+    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*_device, &descriptorLayout, nullptr, &deslay));
+    _shadow_layout = deslay;
+  }
+  return _shadow_layout;
 }

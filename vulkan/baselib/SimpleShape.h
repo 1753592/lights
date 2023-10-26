@@ -119,6 +119,8 @@ public:
     for (int i = 0; i < 24; i++)
       _norms.push_back(norm[i / 4]);
 
+    _uvs.assign(_verts.size(), {0.5, 0.5});
+
     _indices.reserve(36);
     int count = 0;
     for(int i = 0; i < 6; i++) {

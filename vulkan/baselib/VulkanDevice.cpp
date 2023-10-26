@@ -217,6 +217,9 @@ VkResult VulkanDevice::realize(VkPhysicalDeviceFeatures enabledFeatures, std::ve
   vkGetPhysicalDeviceFeatures(_physical_device, &features);
   vkGetPhysicalDeviceMemoryProperties(_physical_device, &memoryProperties);
 
+
+  vkCmdPushDescriptorSetKHR = (PFN_vkCmdPushDescriptorSetKHR)vkGetDeviceProcAddr(_logical_device, "vkCmdPushDescriptorSetKHR");
+
   return result;
 }
 

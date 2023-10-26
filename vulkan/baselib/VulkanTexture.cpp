@@ -48,6 +48,15 @@ void VulkanTexture::set_image(int w, int h, int channel, int channel_depth, uint
   return;
 }
 
+void VulkanTexture::set_image(int w, int h, const tg::Tvec4<uint8_t> &clr)
+{
+  _w = w;
+  _h = h;
+  _data.resize(w * h * 4);
+  for (int i = 0; i < w * h; i++) 
+    memcpy(&_data[i << 2], &clr, sizeof(tg::Tvec4<uint8_t>));
+}
+
 void VulkanTexture::realize(const std::shared_ptr<VulkanDevice>& dev)
 {
   if (_sampler)

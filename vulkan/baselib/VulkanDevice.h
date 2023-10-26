@@ -81,6 +81,10 @@ public:
 
   const std::vector<VkQueueFamilyProperties> &queue_family_properties() { return _queue_family_properties; }
 
+public:
+
+  PFN_vkCmdPushDescriptorSetKHR vkCmdPushDescriptorSetKHR = nullptr;
+
 private:
   /** @brief Physical device representation */
   VkPhysicalDevice _physical_device = VK_NULL_HANDLE;

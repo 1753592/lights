@@ -29,6 +29,15 @@ layout(set = 2, binding = 0) uniform Material
 
 layout(set = 3, binding = 0) uniform sampler2D tex;
 
+layout(set = 4, binding = 0) uniform ShadowMatrix{
+  vec4 eye;
+  mat4 proj;
+  mat4 view;
+  mat4 mvp;
+} shadow_matrix;
+
+layout(set = 4, binding = 1) uniform sampler2D shadow_tex;
+
 const float pi = 3.14159265359;
 
 vec3 fresnel_schlick(float cosTheta, vec3 f0)

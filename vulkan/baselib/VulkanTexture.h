@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "tvec.h"
+
 class VulkanDevice;
 
 class VulkanTexture {
@@ -24,6 +26,8 @@ public:
   void load_image(const std::string &file);
 
   void set_image(int w, int h, int channel, int depth, uint8_t*data, int n);
+
+  void set_image(int w, int h, const tg::Tvec4<uint8_t> &clr);
 
   void realize(const std::shared_ptr<VulkanDevice> &dev);
 

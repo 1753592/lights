@@ -39,7 +39,6 @@ VulkanInstance &inst = VulkanInstance::instance();
 
 ShadowView::ShadowView(const std::shared_ptr<VulkanDevice> &dev) : VulkanView(dev, false)
 {
-  std::cout << 1;
   create_sphere();
 
   GLTFLoader loader;
@@ -54,6 +53,12 @@ ShadowView::ShadowView(const std::shared_ptr<VulkanDevice> &dev) : VulkanView(de
   _depth_image = _device->create_depth_image(2048, 2048, VK_FORMAT_D32_SFLOAT);
 
   _depth_pass = std::make_shared<DepthPass>(dev);
+
+  {
+    _basic_texture = std::make_shared<VulkanTexture>();
+    _basic_texture->set_image(32, 32, tg::Tvec4<uint8_t>(128, 128, 128, 255));
+    _basic_texture->realize(_device);
+  }
 
   create_pipe_layout();
 
@@ -101,7 +106,7 @@ void ShadowView::create_sphere()
   box.build();
   auto &verts = box.get_vertex();
   auto &norms = box.get_norms();
-  // auto &uv = sp.get_uvs();
+  auto &uv = box.get_uvs();
   auto &index = box.get_index();
   _vert_count = verts.size();
   _index_count = index.size();
@@ -134,7 +139,7 @@ void ShadowView::create_sphere()
   offset += verts.size() * sizeof(vec3);
   memcpy((uint8_t *)data + offset, norms.data(), norms.size() * sizeof(vec3));
   offset += norms.size() * sizeof(vec3);
-  // memcpy((uint8_t *)data + offset, uv.data(), uv.size() * sizeof(vec2));
+  memcpy((uint8_t *)data + offset, uv.data(), uv.size() * sizeof(vec2));
   vkUnmapMemory(*device(), vertices.mem);
   VK_CHECK_RESULT(vkBindBufferMemory(*device(), vertices.buffer, vertices.mem, 0));
 
@@ -309,13 +314,13 @@ void ShadowView::build_depth_command_buffer(VkCommandBuffer cmd_buf)
     vkCmdBindIndexBuffer(cmd_buf, _index_buf, 0, VK_INDEX_TYPE_UINT16);
     vkCmdDrawIndexed(cmd_buf, _index_count, 1, 0, 0, 0);
 
-    _tree->build_command_buffer(cmd_buf, _depth_pipeline);
+    //_tree->build_command_buffer(cmd_buf, _depth_pipeline);
   }
 }
 
 void ShadowView::build_command_buffers()
 {
-  if (!_depth_pipeline->valid() || !_basic_pipeline->valid())
+  if (!_depth_pipeline->valid() || !_basic_pipeline->valid() || !_shadow_pipeline->valid())
     return;
 
   vkDeviceWaitIdle(*_device);
@@ -397,20 +402,33 @@ void ShadowView::build_command_buffer(VkCommandBuffer cmd_buf)
     vkCmdSetScissor(cmd_buf, 0, 1, &scissor);
   }
 
-  if (_basic_pipeline && _basic_pipeline->valid()) {
-    vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, *_basic_pipeline);
+  if (_shadow_pipeline && _shadow_pipeline->valid()) {
+    vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, *_shadow_pipeline);
 
+    uint32_t offset[1] = {};
     VkDescriptorSet dessets[3] = {_matrix_set, _light_set, _pbr_set};
-    vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _basic_pipeline->pipe_layout(), 0, 3, dessets, 0, nullptr);
+    vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _shadow_pipeline->pipe_layout(), 0, 3, dessets, 1, offset);
 
-    vkCmdPushConstants(cmd_buf, _basic_pipeline->pipe_layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Transform), &mt);
+    VkWriteDescriptorSet texture_set = {};
+    texture_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    texture_set.dstSet = 0;
+    texture_set.dstBinding = 0;
+    texture_set.descriptorCount = 1;
+    texture_set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    auto descriptor = _basic_texture->descriptor();
+    texture_set.pImageInfo = &descriptor;
+    _device->vkCmdPushDescriptorSetKHR(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _shadow_pipeline->pipe_layout(), 3, 1, &texture_set);
+
+    vkCmdPushConstants(cmd_buf, _shadow_pipeline->pipe_layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Transform), &mt);
 
     {
-      VkDeviceSize offset[2] = {0, _vert_count * sizeof(vec3)};
-      VkBuffer bufs[2] = {};
+      VkDeviceSize offset[3] = {0, _vert_count * sizeof(vec3), _vert_count * (sizeof(vec3) + sizeof(vec2))};
+      VkBuffer bufs[3] = {};
       bufs[0] = _vert_buf;
       bufs[1] = _vert_buf;
-      vkCmdBindVertexBuffers(cmd_buf, 0, 2, bufs, offset);
+      bufs[2] = _vert_buf;
+
+      vkCmdBindVertexBuffers(cmd_buf, 0, 3, bufs, offset);
       vkCmdBindIndexBuffer(cmd_buf, _index_buf, 0, VK_INDEX_TYPE_UINT16);
       vkCmdDrawIndexed(cmd_buf, _index_count, 1, 0, 0, 0);
     }
@@ -493,7 +511,37 @@ void ShadowView::create_pipe_layout()
   writeDescriptorSet.dstSet = _pbr_set;
   writeDescriptorSet.pBufferInfo = &mdescriptor;
   writeDescriptorSet.dstBinding = 0;
+  //writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
   vkUpdateDescriptorSets(*device(), 1, &writeDescriptorSet, 0, nullptr);
+
+
+  //----------------------------------------------------------------------------------------------------
+  {
+    auto clayout = _shadow_pipeline->texture_layout();
+    VkDescriptorSetAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = desPool;
+    allocInfo.descriptorSetCount = 1;
+    allocInfo.pSetLayouts = &clayout;
+
+    VK_CHECK_RESULT(vkAllocateDescriptorSets(*device(), &allocInfo, &_basic_tex_set));
+
+    VkDescriptorImageInfo texDescriptor = {};
+    texDescriptor.imageView = _basic_texture->image_view();
+    texDescriptor.sampler = _basic_texture->sampler();
+    texDescriptor.imageLayout = _basic_texture->image_layout();
+
+    VkWriteDescriptorSet wd_set = {};
+    wd_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    wd_set.dstBinding = 0;
+    wd_set.descriptorCount = 1;
+    wd_set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    wd_set.pImageInfo = &_basic_texture->descriptor(); 
+    wd_set.dstSet = _basic_tex_set;
+
+    vkUpdateDescriptorSets(*device(), 1, &wd_set, 0, nullptr);
+  }
 }
 
 void ShadowView::create_frame_buffers()
