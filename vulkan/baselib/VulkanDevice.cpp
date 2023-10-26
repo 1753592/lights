@@ -419,10 +419,7 @@ std::shared_ptr<VulkanImage> VulkanDevice::create_depth_image(uint32_t width, ui
   VK_CHECK_RESULT(vkCreateImageView(_logical_device, &depthStencilView, nullptr, &imgview));
 
   auto vkimg = std::make_shared<VulkanImage>(shared_from_this());
-  vkimg->_image = img;
-  vkimg->_image_mem = imgmem;
-  vkimg->_image_view = imgview;
-  vkimg->_format = format;
+  vkimg->setImage(width, height, format, imgmem, img, imgview);
 
   return vkimg;
 }

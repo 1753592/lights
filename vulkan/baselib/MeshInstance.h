@@ -10,6 +10,7 @@
 class VulkanDevice;
 class MeshPrimitive;
 class VulkanBuffer;
+class VulkanPipeline;
 class TexturePipeline;
 
 class MeshInstance{
@@ -24,6 +25,8 @@ public:
   void realize(const std::shared_ptr<VulkanDevice> &dev);
 
   void realize(const std::shared_ptr<VulkanDevice> &dev, const std::shared_ptr<TexturePipeline> &pipeline);
+
+  void build_command_buffer(VkCommandBuffer cmd_buf, const std::shared_ptr<VulkanPipeline> &pipeline);
 
   void build_command_buffer(VkCommandBuffer cmd_buf, const std::shared_ptr<TexturePipeline> &pipeline);
 

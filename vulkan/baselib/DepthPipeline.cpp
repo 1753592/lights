@@ -1,15 +1,17 @@
 #include "DepthPipeline.h"
+#include "VulkanPass.h"
 #include "VulkanTools.h"
 
 #include "config.h"
 #include "tvec.h"
+#include "RenderData.h"
 
 using tg::vec3;
 
 #define SHADER_DIR ROOT_DIR##"/vulkan/baselib/shaders"
 
 
-DepthPipeline::DepthPipeline(const std::shared_ptr<VulkanDevice>& dev, int w, int h) : BasicPipeline(dev), _w(w), _h(h)
+DepthPipeline::DepthPipeline(const std::shared_ptr<VulkanDevice>& dev, int w, int h) : Base(dev), _w(w), _h(h)
 {
 }
 
@@ -17,24 +19,12 @@ DepthPipeline::~DepthPipeline()
 {
 }
 
-void DepthPipeline::realize(VkRenderPass render_pass, int subpass)
+void DepthPipeline::realize(VulkanPass *render_pass, int subpass)
 {
-  initialize();
-
-  VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = {};
-  pPipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  pPipelineLayoutCreateInfo.pNext = nullptr;
-  pPipelineLayoutCreateInfo.setLayoutCount = 1;
-  //pPipelineLayoutCreateInfo.pSetLayouts = &_descriptor_layout;
-
-  VkPipelineLayout pipe_layout = VK_NULL_HANDLE;
-  VK_CHECK_RESULT(vkCreatePipelineLayout(*_device, &pPipelineLayoutCreateInfo, nullptr, &pipe_layout));
-  _pipe_layout = pipe_layout;
-
   VkGraphicsPipelineCreateInfo pipelineCreateInfo = {};
   pipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-  pipelineCreateInfo.layout = _pipe_layout;
-  pipelineCreateInfo.renderPass = render_pass;
+  pipelineCreateInfo.layout = pipe_layout();
+  pipelineCreateInfo.renderPass = *render_pass;
 
   VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = {};
   inputAssemblyState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -58,7 +48,9 @@ void DepthPipeline::realize(VkRenderPass render_pass, int subpass)
   colorBlendState.attachmentCount = 1;
   colorBlendState.pAttachments = blendAttachmentState;
 
-  VkViewport vp; vp.width = _w; vp.height = _h;
+  VkViewport vp; 
+  vp.x = 0; vp.y = _h;
+  vp.width = _w; vp.height = -_h;
   vp.minDepth = 0; vp.maxDepth = 1;
   VkRect2D rt = {0}; rt.extent.width = _w; rt.extent.height = _h;
   VkPipelineViewportStateCreateInfo viewportState = {};
@@ -127,7 +119,7 @@ void DepthPipeline::realize(VkRenderPass render_pass, int subpass)
   pipelineCreateInfo.pViewportState = &viewportState;
   pipelineCreateInfo.pDepthStencilState = &depthStencilState;
   pipelineCreateInfo.pDynamicState = 0;
-  pipelineCreateInfo.subpass = 0;
+  pipelineCreateInfo.subpass = subpass;
 
   VK_CHECK_RESULT(vkCreateGraphicsPipelines(*_device, _device->get_or_create_pipecache(), 1, &pipelineCreateInfo, nullptr, &_pipeline));
 
@@ -135,23 +127,27 @@ void DepthPipeline::realize(VkRenderPass render_pass, int subpass)
   vkDestroyShaderModule(*_device, shaderStages[1].module, nullptr);
 }
 
-void DepthPipeline::initialize()
+VkPipelineLayout DepthPipeline::pipe_layout()
 {
-  //if (_descriptor_layout) {
-  //  VkDescriptorSetLayoutBinding layoutBinding = {};
-  //  layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  //  layoutBinding.descriptorCount = 1;
-  //  layoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-  //  layoutBinding.pImmutableSamplers = nullptr;
+  if (!_pipe_layout) {
+    auto lay = matrix_layout();
 
-  //  VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
-  //  descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-  //  descriptorLayout.pNext = nullptr;
-  //  descriptorLayout.bindingCount = 1;
-  //  descriptorLayout.pBindings = &layoutBinding;
+    VkPushConstantRange transformConstants;
+    transformConstants.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    transformConstants.offset = 0;
+    transformConstants.size = sizeof(Transform);
 
-  //  VkDescriptorSetLayout descriptor_layout = VK_NULL_HANDLE;
-  //  VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*_device, &descriptorLayout, nullptr, &descriptor_layout));
-  //  _descriptor_layout = descriptor_layout;
-  //}
+    VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = {};
+    pPipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pPipelineLayoutCreateInfo.pNext = nullptr;
+    pPipelineLayoutCreateInfo.setLayoutCount = 1;
+    pPipelineLayoutCreateInfo.pSetLayouts = &lay;
+    pPipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+    pPipelineLayoutCreateInfo.pPushConstantRanges = &transformConstants;
+
+    VkPipelineLayout pipe_layout = VK_NULL_HANDLE;
+    VK_CHECK_RESULT(vkCreatePipelineLayout(*_device, &pPipelineLayoutCreateInfo, nullptr, &pipe_layout));
+    _pipe_layout = pipe_layout;
+  }
+  return _pipe_layout;
 }

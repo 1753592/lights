@@ -1,5 +1,5 @@
 #include "TexturePipeline.h"
-
+#include "VulkanPass.h"
 #include "VulkanTools.h"
 
 #include "tvec.h"
@@ -12,7 +12,7 @@ using tg::vec4;
 
 #define SHADER_DIR ROOT_DIR##"/vulkan/baselib/shaders"
 
-TexturePipeline::TexturePipeline(const std::shared_ptr<VulkanDevice> &dev) : BasicPipeline(dev) 
+TexturePipeline::TexturePipeline(const std::shared_ptr<VulkanDevice> &dev) : VulkanPipeline(dev) 
 {
 }
 
@@ -46,14 +46,14 @@ VkDescriptorSetLayout TexturePipeline::texture_layout()
   return _texture_layout;
 }
 
-void TexturePipeline::realize(VkRenderPass render_pass, int subpass)
+void TexturePipeline::realize(VulkanPass *render_pass, int subpass)
 {
   auto pipe_lay = pipe_layout();
 
   VkGraphicsPipelineCreateInfo pipelineCreateInfo = {};
   pipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
   pipelineCreateInfo.layout = pipe_lay;
-  pipelineCreateInfo.renderPass = render_pass;
+  pipelineCreateInfo.renderPass = *render_pass;
 
   VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = {};
   inputAssemblyState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;

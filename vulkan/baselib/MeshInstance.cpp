@@ -114,6 +114,28 @@ void MeshInstance::realize(const std::shared_ptr<VulkanDevice> &dev, const std::
   vkUpdateDescriptorSets(*_device, 1, &writeDescriptorSet, 0, nullptr);
 }
 
+void MeshInstance::build_command_buffer(VkCommandBuffer cmd_buf, const std::shared_ptr<VulkanPipeline> &pipeline)
+{
+  if (!pipeline || !pipeline->valid())
+    return;
+
+  vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, *pipeline);
+
+  for (int i = 0; i < _pris.size(); i++) {
+    auto &pri = _pris[i];
+    auto m = _transform * pri->transform();
+    vkCmdPushConstants(cmd_buf, pipeline->pipe_layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(m), &m);
+
+    std::vector<VkBuffer> bufs(2);
+    bufs[0] = *pri->_vertex_buf;
+    bufs[1] = *pri->_normal_buf;
+    std::vector<VkDeviceSize> offset(bufs.size(), 0);
+    vkCmdBindVertexBuffers(cmd_buf, 0, bufs.size(), bufs.data(), offset.data());
+    vkCmdBindIndexBuffer(cmd_buf, *pri->_index_buf, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdDrawIndexed(cmd_buf, pri->index_count(), 1, 0, 0, 0);
+  }
+}
+
 void MeshInstance::build_command_buffer(VkCommandBuffer cmd_buf, const std::shared_ptr<TexturePipeline> &pipeline)
 {
   if (!pipeline || !pipeline->valid())

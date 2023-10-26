@@ -21,3 +21,13 @@ VulkanImage::~VulkanImage()
   }
 
 }
+
+void VulkanImage::setImage(int w, int h, VkFormat format, VkDeviceMemory imgmem, VkImage img, VkImageView imgview)
+{
+  _w = w;
+  _h = h;
+  _format = format;
+  _image = img;
+  _image_view = imgview;
+  _image_mem = imgmem;
+}

@@ -102,7 +102,10 @@ inline Tmat4<T> perspective(T fovy, T aspect, T n, T f)
 {
   T q = 1.0f / tan(radians(0.5f * fovy));
   T A = q / aspect;
-#ifdef USE_ZERO_NEAR 
+#ifdef DEPTH_REVERSE
+  T B = n / (f - n);
+  T C = n * f / (f - n);
+#elif defined DEPTH_NEAR_ZERO 
   T B = f / (n - f);
   T C = n * f / (n - f);
 #else
@@ -124,9 +127,12 @@ inline mat4 ortho(float left, float right, float bottom, float top, float n, flo
 {
   return mat4(vec4(2.0f / (right - left), 0.0f, 0.0f, 0.0f), 
 							vec4(0.0f, 2.0f / (top - bottom), 0.0f, 0.0f),
-#ifdef USE_ZERO_NEAR 
+#ifdef DEPTH_REVERSE
+              vec4(0.0f, 0.0f, 1.0f / (f - n), 0.0f), 
+							vec4((left + right) / (left - right), (bottom + top) / (bottom - top), f / (f - n), 1.0f)
+#elif defined DEPTH_NEAR_ZERO 
               vec4(0.0f, 0.0f, 1.0f / (n - f), 0.0f), 
-							vec4((left + right) / (left - right), (bottom + top) / (bottom - top), f / (n - f), 1.0f)
+							vec4((left + right) / (left - right), (bottom + top) / (bottom - top), n / (n - f), 1.0f)
 #else
               vec4(0.0f, 0.0f, 2.0f / (n - f), 0.0f), 
 							vec4((left + right) / (left - right), (bottom + top) / (bottom - top), (n + f) / (n - f), 1.0f)
@@ -209,8 +215,7 @@ template <typename T>
 inline Tmat4<T> lookat(const Tvec3<T>& eye, const Tvec3<T>& center = Tvec3<T>(), const Tvec3<T>& up = Tvec3<T>(0, 0, 1))
 {
 	const Tvec3<T> f = normalize(center - eye);
-	const Tvec3<T> upN = normalize(up);
-	const Tvec3<T> s = normalize(cross(f, upN));
+	const Tvec3<T> s = normalize(cross(f, up));
 	const Tvec3<T> u = normalize(cross(s, f));
 	const Tmat4<T> M = Tmat4<T>(Tvec4<T>(s[0], u[0], -f[0], T(0)),
 								Tvec4<T>(s[1], u[1], -f[1], T(0)),

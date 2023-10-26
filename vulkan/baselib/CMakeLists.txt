@@ -15,6 +15,7 @@ set(imgui_src
 set(hdr
 	VulkanInstance.h
 	VulkanSwapChain.h
+	VulkanPass.h
 	VulkanView.h
 	VulkanBuffer.h
 	VulkanDevice.h
@@ -23,14 +24,13 @@ set(hdr
 	VulkanDebug.h
 	VulkanTools.h
 	VulkanInitializers.hpp
+	VulkanPipeline.h
+	TexturePipeline.h
+	DepthPipeline.h
+	DepthPass.h
 
 	MeshInstance.h
 	MeshPrimitive.h
-
-	PipelineBase.h
-	BasicPipeline.h
-	TexturePipeline.h
-	DepthPipeline.h
 
 	VulkanImGUI.h
 
@@ -45,19 +45,21 @@ set(src
 	VulkanInstance.cpp
 	VulkanSwapChain.cpp
 	VulkanView.cpp
+	VulkanPass.cpp
 	VulkanBuffer.cpp
 	VulkanDevice.cpp
 	VulkanTexture.cpp
 	VulkanImage.cpp
 	VulkanDebug.cpp
 	VulkanTools.cpp
+	VulkanPipeline.cpp
+
+	TexturePipeline.cpp
+	DepthPipeline.cpp
+	DepthPass.cpp
 
 	MeshInstance.cpp
 	MeshPrimitive.cpp
-
-	BasicPipeline.cpp
-	TexturePipeline.cpp
-	DepthPipeline.cpp
 
 	VulkanImGUI.cpp
 
@@ -80,6 +82,8 @@ set(shaders
 	shaders/pbr_tex.vert
 	shaders/pbr_clr.frag
 	shaders/pbr_tex.frag
+	shaders/depth.vert
+	shaders/depth.frag
 )
 
 source_group(shaders FILES ${shaders})

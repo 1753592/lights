@@ -1,8 +1,8 @@
 #pragma once
 
-#include "BasicPipeline.h"
+#include "VulkanPipeline.h"
 
-class TexturePipeline : public BasicPipeline{
+class TexturePipeline : public VulkanPipeline{
 public:
   TexturePipeline(const std::shared_ptr<VulkanDevice> &dev);
   ~TexturePipeline();
@@ -10,11 +10,11 @@ public:
   VkDescriptorSetLayout texture_layout();
   void set_texture_layout(VkDescriptorSetLayout layout) { _texture_layout = layout; }
 
-  void realize(VkRenderPass render_pass, int subpass = 0);
+  void realize(VulkanPass *render_pass, int subpass = 0);
 
   VkDescriptorSetLayout pbr_layout();
 
-  VkPipelineLayout pipe_layout();
+  virtual VkPipelineLayout pipe_layout();
 
 protected:
 

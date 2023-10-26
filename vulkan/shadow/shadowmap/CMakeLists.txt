@@ -5,21 +5,21 @@ cmake_minimum_required(VERSION 3.8.0)
 set(prj_name shadowmap)
 
 set(hdr
-	shadow.h
+	ShadowView.h
+	ShadowPipeline.h
 )
 
 set(src
 	main.cpp
-	shadow.cpp
+	ShadowView.cpp
+	ShadowPipeline.cpp
 )
 
 add_executable(${prj_name} ${src} ${hdr})
 
 set(shaders
-	pbr.vert
-	pbr.frag
-	depth.vert
-	depth.frag
+	shadow.vert
+	shadow.frag
 )
 
 source_group(shaders FILES ${shaders})

@@ -14,6 +14,7 @@
 #include "VulkanDevice.h"
 #include "VulkanImage.h"
 #include "VulkanSwapChain.h"
+#include "VulkanPass.h"
 #include "VulkanImGUI.h"
 
 
@@ -44,8 +45,6 @@ VulkanView::~VulkanView()
 
   _device->destroy_command_buffers(_cmd_bufs);
 
-  vkDestroyRenderPass(*_device, _render_pass, nullptr);
-
   clear_frame();
 
   //auto surface = _swapchain->surface();
@@ -58,8 +57,6 @@ void VulkanView::set_surface(VkSurfaceKHR surface, int w, int h)
 {
   _swapchain->set_surface(surface);
   _swapchain->realize(w, h, true);
-
-  create_render_pass();
 
   if (_imgui) _imgui->create_pipeline(_swapchain->color_format());
 
@@ -140,11 +137,6 @@ void VulkanView::frame(bool continus)
 
 void VulkanView::set_render_pass(VkRenderPass render_pass)
 {
-  if(_render_pass) {
-    _device->destroy_render_pass(_render_pass);
-    _render_pass = VK_NULL_HANDLE;
-  }
-  _render_pass = render_pass;
 }
 
 void VulkanView::set_frame_buffers(const std::vector<VkFramebuffer>& frame_bufs)
@@ -178,11 +170,6 @@ void VulkanView::update_frame()
   }
 }
 
-void VulkanView::create_render_pass()
-{
-  _render_pass = _device->create_render_pass(_swapchain->color_format(), VK_FORMAT_D24_UNORM_S8_UINT);
-}
-
 void VulkanView::create_frame_buffers()
 {
   #if 0
@@ -194,7 +181,7 @@ void VulkanView::create_frame_buffers()
   }
   _frame_bufs = _swapchain->create_frame_buffer(_render_pass, imgs, _depth->image_view());
   #else
-  _frame_bufs = _swapchain->create_frame_buffer(_render_pass, _depth->image_view());
+  _frame_bufs = _swapchain->create_frame_buffer(*render_pass(), _depth->image_view());
   #endif
 
 }
@@ -226,7 +213,7 @@ void VulkanView::build_command_buffers()
   VkRenderPassBeginInfo renderPassBeginInfo = {};
   renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
   renderPassBeginInfo.pNext = nullptr;
-  renderPassBeginInfo.renderPass = renderPass;
+  renderPassBeginInfo.renderPass = *render_pass();
   renderPassBeginInfo.renderArea.offset.x = 0;
   renderPassBeginInfo.renderArea.offset.y = 0;
   renderPassBeginInfo.renderArea.extent.width = _w;
@@ -317,6 +304,8 @@ void VulkanView::initialize()
     _swapchain = std::make_shared<VulkanSwapChain>(_device);
 
     create_sync_objs();
+
+    _render_pass = std::make_unique<VulkanPass>(_device);
 }
 
 void VulkanView::check_frame()

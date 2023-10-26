@@ -13,6 +13,7 @@ class VulkanDevice;
 class VulkanSwapChain;
 class VulkanImGUI;
 class VulkanImage;
+class VulkanPass;
 
 class VulkanView {
 public:
@@ -30,7 +31,7 @@ public:
 
   VulkanSwapChain *swapchain() { return _swapchain.get(); }
 
-  const VkRenderPass& render_pass() { return _render_pass; }
+  VulkanPass* render_pass() { return _render_pass.get(); }
 
   void set_render_pass(VkRenderPass render_pass);
 
@@ -60,8 +61,6 @@ protected:
 
   void update_frame();
 
-  virtual void create_render_pass();
-
   virtual void create_frame_buffers();
 
   virtual void create_command_buffers();
@@ -82,6 +81,7 @@ private:
 protected:
   std::shared_ptr<VulkanDevice> _device;
   std::shared_ptr<VulkanSwapChain> _swapchain;
+  std::shared_ptr<VulkanPass> _render_pass;
 
   std::shared_ptr<VulkanImGUI> _imgui = 0;
 
@@ -96,7 +96,6 @@ protected:
   std::vector<std::shared_ptr<VulkanImage>> _images;
 
 private:
-  VkRenderPass _render_pass = VK_NULL_HANDLE;
   std::vector<VkFramebuffer> _frame_bufs;
 
   VkSemaphore _presentSemaphore = VK_NULL_HANDLE;
