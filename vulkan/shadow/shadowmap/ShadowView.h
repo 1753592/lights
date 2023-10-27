@@ -73,7 +73,7 @@ private:
   uint32_t _vert_count = 0;
   uint32_t _index_count = 0;
 
-  std::shared_ptr<MeshInstance> _tree;
+  std::shared_ptr<MeshInstance> _tree, _deer;
 
   std::shared_ptr<VulkanTexture> _basic_texture;
 };

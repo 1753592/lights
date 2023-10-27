@@ -45,6 +45,9 @@ ShadowView::ShadowView(const std::shared_ptr<VulkanDevice> &dev) : VulkanView(de
   _tree = loader.load_file(ROOT_DIR "/data/oaktree.gltf");
   _tree->set_transform(tg::translate(tg::vec3(0, 0, 1)) * tg::scale(4));
 
+  _deer = loader.load_file(ROOT_DIR "/data/deer.gltf");
+  _deer->set_transform(tg::translate(tg::vec3(3, 3, 1)) * tg::rotate(tg::radians(30.f), tg::vec3(0, 0, 1)) * tg::scale(1));
+
   _basic_pipeline = std::make_shared<VulkanPipeline>(dev);
   //_texture_pipeline = std::make_shared<TexturePipeline>(dev);
   _shadow_pipeline = std::make_shared<ShadowPipeline>(dev);
@@ -326,6 +329,8 @@ void ShadowView::build_depth_command_buffer(VkCommandBuffer cmd_buf)
     vkCmdDrawIndexed(cmd_buf, _index_count, 1, 0, 0, 0);
 
     _tree->build_command_buffer(cmd_buf, _depth_pipeline);
+
+    _deer->build_command_buffer(cmd_buf, _depth_pipeline);
   }
 }
 
@@ -420,8 +425,6 @@ void ShadowView::build_command_buffer(VkCommandBuffer cmd_buf)
     VkDescriptorSet dessets[3] = {_matrix_set, _light_set, _pbr_set};
     vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _shadow_pipeline->pipe_layout(), 0, 3, dessets, 1, offset);
 
-    vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _shadow_pipeline->pipe_layout(), 4, 1, &_shadow_set, 0, 0);
-
     VkWriteDescriptorSet texture_set = {};
     texture_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     texture_set.dstSet = 0;
@@ -431,6 +434,8 @@ void ShadowView::build_command_buffer(VkCommandBuffer cmd_buf)
     auto descriptor = _basic_texture->descriptor();
     texture_set.pImageInfo = &descriptor;
     _device->vkCmdPushDescriptorSetKHR(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _shadow_pipeline->pipe_layout(), 3, 1, &texture_set);
+
+    vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _shadow_pipeline->pipe_layout(), 4, 1, &_shadow_set, 0, 0);
 
     vkCmdPushConstants(cmd_buf, _shadow_pipeline->pipe_layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Transform), &mt);
 
@@ -448,6 +453,8 @@ void ShadowView::build_command_buffer(VkCommandBuffer cmd_buf)
   }
 
   _tree->build_command_buffer(cmd_buf, std::static_pointer_cast<TexturePipeline>(_shadow_pipeline));
+
+  _deer->build_command_buffer(cmd_buf, std::static_pointer_cast<TexturePipeline>(_shadow_pipeline));
 }
 
 void ShadowView::create_pipe_layout()
@@ -636,6 +643,8 @@ void ShadowView::create_pipeline()
 
   _tree->realize(_device, _shadow_pipeline);
 
+  _deer->realize(_device, _shadow_pipeline);
+
   {
     auto slayout = _shadow_pipeline->shadow_layout();
     VkDescriptorSetAllocateInfo allocInfo = {};
@@ -666,7 +675,7 @@ void ShadowView::create_pipeline()
 
     VkDescriptorImageInfo depthDescriptor = _shadow_texture->descriptor();
 
-    writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     writeDescriptorSet.dstBinding = 1;
     writeDescriptorSet.pBufferInfo = 0;
     writeDescriptorSet.pImageInfo = &depthDescriptor;

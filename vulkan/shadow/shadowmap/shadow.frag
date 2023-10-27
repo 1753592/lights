@@ -3,6 +3,7 @@
 layout(location = 0) in vec3 vp_pos;
 layout(location = 1) in vec3 vp_norm;
 layout(location = 2) in vec2 vp_uv;
+layout(location = 3) in vec3 vp_suv; 
 
 layout(location = 0) out vec4 frag_color;
 
@@ -121,6 +122,18 @@ void main(void)
 
   color = color / (color + vec3(1.0));
   //color = pow(color, vec3(1.0 / 2.2));
+
+  if(vp_suv.x > -1 && vp_suv.x < 1 && vp_suv.y > -1 && vp_suv.y < 1)
+  {
+    vec2 suv = vp_suv.xy;
+    suv = (suv + vec2(1)) / 2.0;
+    suv.y = 1 - suv.y;
+    float dep = texture(shadow_tex, suv).r;
+    if(vp_suv.z > dep)
+    {
+      color = color * dep;
+    }
+  }
 
   frag_color = vec4(color, 1.0);
 }

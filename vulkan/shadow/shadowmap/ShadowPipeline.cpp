@@ -179,11 +179,11 @@ VkDescriptorSetLayout ShadowPipeline::shadow_layout()
     VkDescriptorSetLayoutBinding layoutBinding[2] = {};
     layoutBinding[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     layoutBinding[0].descriptorCount = 1;
-    layoutBinding[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutBinding[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT;
     layoutBinding[0].pImmutableSamplers = nullptr;
     layoutBinding[0].binding = 0;
 
-    layoutBinding[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    layoutBinding[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     layoutBinding[1].descriptorCount = 1;
     layoutBinding[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     layoutBinding[1].pImmutableSamplers = nullptr;
