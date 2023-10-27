@@ -11,12 +11,10 @@ public:
 
   virtual VkPipelineLayout pipe_layout();
 
-protected:
-
   VkDescriptorSetLayout shadow_layout();
 
-
 private:
+
   VkDescriptorSetLayout _shadow_layout = VK_NULL_HANDLE;
 
 };

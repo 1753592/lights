@@ -32,7 +32,7 @@
 
 constexpr float fov = 60;
 
-PBRData pbr;
+PBRBase pbr;
 ParallelLight light;
 
 VulkanInstance &inst = VulkanInstance::instance();
@@ -238,13 +238,24 @@ void ShadowView::set_uniforms()
   VK_CHECK_RESULT(vkMapMemory(*device(), _material->memory(), 0, sizeof(pbr), 0, (void **)&data));
   memcpy(data, &pbr, sizeof(pbr));
 
-  _depth_matrix_buf =
-      device()->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sizeof(MVP));
+  _depth_matrix_buf = device()->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sizeof(MVP));
   _depth_matrix.view = tg::lookat(tg::vec3(100));
   _depth_matrix.prj = tg::ortho(-40, 40, -40, 40, 10, 300);
 
   VK_CHECK_RESULT(vkMapMemory(*device(), _depth_matrix_buf->memory(), 0, sizeof(MVP), 0, (void **)&data));
   memcpy(data, &_depth_matrix, sizeof(MVP));
+
+  {
+    _shadow_buf = device()->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                                          sizeof(ShadowMatrix));
+    ShadowMatrix sm;
+    sm.view = _depth_matrix.view;
+    sm.prj = _depth_matrix.prj;
+    sm.mvp = _depth_matrix.prj * _depth_matrix.view;
+    
+    VK_CHECK_RESULT(vkMapMemory(*device(), _shadow_buf->memory(), 0, sizeof(ShadowMatrix), 0, (void **)&data));
+    memcpy(data, &sm, sizeof(ShadowMatrix));
+  }
 }
 
 void ShadowView::update_ubo()
@@ -314,7 +325,7 @@ void ShadowView::build_depth_command_buffer(VkCommandBuffer cmd_buf)
     vkCmdBindIndexBuffer(cmd_buf, _index_buf, 0, VK_INDEX_TYPE_UINT16);
     vkCmdDrawIndexed(cmd_buf, _index_count, 1, 0, 0, 0);
 
-    //_tree->build_command_buffer(cmd_buf, _depth_pipeline);
+    _tree->build_command_buffer(cmd_buf, _depth_pipeline);
   }
 }
 
@@ -408,6 +419,8 @@ void ShadowView::build_command_buffer(VkCommandBuffer cmd_buf)
     uint32_t offset[1] = {};
     VkDescriptorSet dessets[3] = {_matrix_set, _light_set, _pbr_set};
     vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _shadow_pipeline->pipe_layout(), 0, 3, dessets, 1, offset);
+
+    vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _shadow_pipeline->pipe_layout(), 4, 1, &_shadow_set, 0, 0);
 
     VkWriteDescriptorSet texture_set = {};
     texture_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -517,31 +530,31 @@ void ShadowView::create_pipe_layout()
 
 
   //----------------------------------------------------------------------------------------------------
-  {
-    auto clayout = _shadow_pipeline->texture_layout();
-    VkDescriptorSetAllocateInfo allocInfo = {};
-    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocInfo.descriptorPool = desPool;
-    allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &clayout;
+  //{
+  //  auto clayout = _shadow_pipeline->texture_layout();
+  //  VkDescriptorSetAllocateInfo allocInfo = {};
+  //  allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+  //  allocInfo.descriptorPool = desPool;
+  //  allocInfo.descriptorSetCount = 1;
+  //  allocInfo.pSetLayouts = &clayout;
 
-    VK_CHECK_RESULT(vkAllocateDescriptorSets(*device(), &allocInfo, &_basic_tex_set));
+  //  VK_CHECK_RESULT(vkAllocateDescriptorSets(*device(), &allocInfo, &_basic_tex_set));
 
-    VkDescriptorImageInfo texDescriptor = {};
-    texDescriptor.imageView = _basic_texture->image_view();
-    texDescriptor.sampler = _basic_texture->sampler();
-    texDescriptor.imageLayout = _basic_texture->image_layout();
+  //  VkDescriptorImageInfo texDescriptor = {};
+  //  texDescriptor.imageView = _basic_texture->image_view();
+  //  texDescriptor.sampler = _basic_texture->sampler();
+  //  texDescriptor.imageLayout = _basic_texture->image_layout();
 
-    VkWriteDescriptorSet wd_set = {};
-    wd_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    wd_set.dstBinding = 0;
-    wd_set.descriptorCount = 1;
-    wd_set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    wd_set.pImageInfo = &_basic_texture->descriptor(); 
-    wd_set.dstSet = _basic_tex_set;
+  //  VkWriteDescriptorSet wd_set = {};
+  //  wd_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+  //  wd_set.dstBinding = 0;
+  //  wd_set.descriptorCount = 1;
+  //  wd_set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  //  wd_set.pImageInfo = &_basic_texture->descriptor(); 
+  //  wd_set.dstSet = _basic_tex_set;
 
-    vkUpdateDescriptorSets(*device(), 1, &wd_set, 0, nullptr);
-  }
+  //  vkUpdateDescriptorSets(*device(), 1, &wd_set, 0, nullptr);
+  //}
 }
 
 void ShadowView::create_frame_buffers()
@@ -622,6 +635,44 @@ void ShadowView::create_pipeline()
   _shadow_pipeline->realize(render_pass());
 
   _tree->realize(_device, _shadow_pipeline);
+
+  {
+    auto slayout = _shadow_pipeline->shadow_layout();
+    VkDescriptorSetAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = _descript_pool;
+    allocInfo.descriptorSetCount = 1;
+    allocInfo.pSetLayouts = &slayout;
+
+    VK_CHECK_RESULT(vkAllocateDescriptorSets(*device(), &allocInfo, &_shadow_set));
+
+    int sz = sizeof(ShadowMatrix);
+    VkDescriptorBufferInfo descriptor = {};
+    descriptor.buffer = *_shadow_buf;
+    descriptor.offset = 0;
+    descriptor.range = sz;
+
+    VkWriteDescriptorSet writeDescriptorSet = {};
+    writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writeDescriptorSet.dstSet = _shadow_set;
+    writeDescriptorSet.descriptorCount = 1;
+    writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    writeDescriptorSet.pBufferInfo = &descriptor;
+    writeDescriptorSet.dstBinding = 0;
+    vkUpdateDescriptorSets(*device(), 1, &writeDescriptorSet, 0, nullptr);
+
+    _shadow_texture = std::make_shared<VulkanTexture>();
+    _shadow_texture->realize(_depth_image);
+
+    VkDescriptorImageInfo depthDescriptor = _shadow_texture->descriptor();
+
+    writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    writeDescriptorSet.dstBinding = 1;
+    writeDescriptorSet.pBufferInfo = 0;
+    writeDescriptorSet.pImageInfo = &depthDescriptor;
+
+    vkUpdateDescriptorSets(*device(), 1, &writeDescriptorSet, 0, nullptr);
+  }
 
   build_command_buffers();
 }

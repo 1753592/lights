@@ -78,13 +78,13 @@ void MeshInstance::realize(const std::shared_ptr<VulkanDevice> &dev, const std::
 {
   realize(dev);
 
-  std::vector<PBRData> pbrdata(_pris.size());
+  std::vector<PBRBase> pbrdata(_pris.size());
   for (int i = 0; i < _pris.size(); i++) {
     auto &pbr = pbrdata[i];
     auto &m = _pris[i]->material();
-    memcpy(&pbr, &m.pbrdata, sizeof(PBRData));
+    memcpy(&pbr, &m.pbrdata, sizeof(PBRBase));
   }
-  uint32_t sz = pbrdata.size() * sizeof(PBRData);
+  uint32_t sz = pbrdata.size() * sizeof(PBRBase);
   auto ori_buf = dev->create_buffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, sz, pbrdata.data());
   auto dst_buf = dev->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, sz, 0);
   dev->copy_buffer(ori_buf.get(), dst_buf.get(), dev->transfer_queue());
@@ -102,7 +102,7 @@ void MeshInstance::realize(const std::shared_ptr<VulkanDevice> &dev, const std::
   VkDescriptorBufferInfo descriptor = {};
   descriptor.buffer = *_pbr_buf;
   descriptor.offset = 0;
-  descriptor.range = sizeof(PBRData);
+  descriptor.range = sizeof(PBRBase);
 
   VkWriteDescriptorSet writeDescriptorSet = {};
   writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -149,7 +149,7 @@ void MeshInstance::build_command_buffer(VkCommandBuffer cmd_buf, const std::shar
     auto m = _transform * pri->transform();
     vkCmdPushConstants(cmd_buf, pipeline->pipe_layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(m), &m);
 
-    uint32_t uoffset = i * sizeof(PBRData);
+    uint32_t uoffset = i * sizeof(PBRBase);
     vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipe_layout(), 2, 1, &_pbr_set, 1, &uoffset);
 
     VkWriteDescriptorSet texture_set = {};

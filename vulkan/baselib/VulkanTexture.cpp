@@ -3,6 +3,7 @@
 #include "VulkanBuffer.h"
 #include "VulkanInitializers.hpp"
 #include "VulkanTools.h"
+#include "VulkanImage.h"
 
 #include "stb_image.h"
 
@@ -22,12 +23,25 @@ VulkanTexture::~VulkanTexture()
     vkDestroySampler(*_device, _sampler, nullptr);
 }
 
+VkImageView VulkanTexture::image_view()
+{
+  if (_vimage)
+    return _vimage->image_view();
+
+  return _image_view;
+}
+
+VkImageLayout VulkanTexture::image_layout()
+{
+  return _image_layout;
+}
+
 VkDescriptorImageInfo VulkanTexture::descriptor()
 {
   VkDescriptorImageInfo descriptor;
-  descriptor.imageLayout = _image_layout;
-  descriptor.imageView = _image_view;
-  descriptor.sampler = _sampler;
+  descriptor.imageLayout = image_layout();
+  descriptor.imageView = image_view();
+  descriptor.sampler = sampler();
   return descriptor;
 }
 
@@ -117,4 +131,16 @@ void VulkanTexture::realize(const std::shared_ptr<VulkanDevice>& dev)
 
   auto view = _device->create_image_view(img);
   _image_view = view;
+}
+
+void VulkanTexture::realize(const std::shared_ptr<VulkanImage> &img)
+{
+  _vimage = img;
+  _device = _vimage->device();
+
+  auto samplerinfo = vks::initializers::samplerCreateInfo();
+  samplerinfo.maxLod = 1;
+  VkSampler sampler;
+  VK_CHECK_RESULT(vkCreateSampler(*_device, &samplerinfo, nullptr, &sampler));
+  _sampler = sampler;
 }

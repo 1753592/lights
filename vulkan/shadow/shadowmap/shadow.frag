@@ -30,7 +30,6 @@ layout(set = 2, binding = 0) uniform Material
 layout(set = 3, binding = 0) uniform sampler2D tex;
 
 layout(set = 4, binding = 0) uniform ShadowMatrix{
-  vec4 eye;
   mat4 proj;
   mat4 view;
   mat4 mvp;

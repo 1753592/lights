@@ -8,6 +8,7 @@
 #include "tvec.h"
 
 class VulkanDevice;
+class VulkanImage;
 
 class VulkanTexture {
 public:
@@ -15,9 +16,9 @@ public:
 
   ~VulkanTexture();
 
-  VkImageView image_view() { return _image_view; }
+  VkImageView image_view();
 
-  VkImageLayout image_layout() { return _image_layout; }
+  VkImageLayout image_layout();
 
   VkSampler sampler() { return _sampler; }
 
@@ -30,6 +31,8 @@ public:
   void set_image(int w, int h, const tg::Tvec4<uint8_t> &clr);
 
   void realize(const std::shared_ptr<VulkanDevice> &dev);
+
+  void realize(const std::shared_ptr<VulkanImage> &img);
 
 private:
   std::shared_ptr<VulkanDevice> _device;
@@ -45,4 +48,6 @@ private:
   VkDeviceMemory _image_mem = VK_NULL_HANDLE;
 
   VkSampler _sampler = VK_NULL_HANDLE;
+
+  std::shared_ptr<VulkanImage> _vimage;
 };

@@ -382,7 +382,7 @@ std::shared_ptr<VulkanImage> VulkanDevice::create_depth_image(uint32_t width, ui
   image.arrayLayers = 1;
   image.samples = VK_SAMPLE_COUNT_1_BIT;
   image.tiling = VK_IMAGE_TILING_OPTIMAL;
-  image.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+  image.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
   image.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
   VK_CHECK_RESULT(vkCreateImage(_logical_device, &image, nullptr, &img));
 

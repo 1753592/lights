@@ -23,7 +23,7 @@ struct PointLight{
   tg::vec4 light_color;
 };
 
-struct alignas(64) PBRData {
+struct alignas(64) PBRBase {
   float   ao;
   float   metallic;
   float   roughness;
@@ -33,7 +33,12 @@ struct alignas(64) PBRData {
 
 struct Material{
   bool          cull; 
-  PBRData       pbrdata;
+  PBRBase       pbrdata;
   std::shared_ptr<VulkanTexture> albedo_tex;
 };
 
+struct ShadowMatrix {
+  tg::mat4 prj;
+  tg::mat4 view;
+  tg::mat4 mvp;
+};

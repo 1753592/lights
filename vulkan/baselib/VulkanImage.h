@@ -14,6 +14,8 @@ public:
   uint16_t width() { return _w; }
   uint16_t height() { return _h; }
 
+  std::shared_ptr<VulkanDevice> device() { return _device; }
+
   const VkImage& image() const { return _image; }
   const VkImageView& image_view() const { return _image_view; }
   const VkDeviceMemory& image_mem() const { return _image_mem; }
