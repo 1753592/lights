@@ -37,7 +37,7 @@ add_definitions(-D DEPTH_NEAR_ZERO)
 
 add_subdirectory(baselib)
 add_subdirectory(basic_pbr)
-add_subdirectory(TBDR)
-add_subdirectory(CBFR)
+add_subdirectory(tbdr)
+add_subdirectory(cbfr)
 
 add_subdirectory(shadow)

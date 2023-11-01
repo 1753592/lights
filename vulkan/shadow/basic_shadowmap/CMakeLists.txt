@@ -2,22 +2,24 @@ cmake_minimum_required(VERSION 3.8.0)
 
 
 
-set(target_name tbdr)
+set(target_name basic_shadowmap)
 
 set(hdr
+	ShadowView.h
+	ShadowPipeline.h
 )
 
 set(src
 	main.cpp
+	ShadowView.cpp
+	ShadowPipeline.cpp
 )
 
 add_executable(${target_name} ${src} ${hdr})
 
 set(shaders
-	pbr.vert
-	pbr.frag
-	#test.vert
-	#test.frag
+	shadow.vert
+	shadow.frag
 )
 
 source_group(shaders FILES ${shaders})
@@ -41,6 +43,6 @@ target_link_libraries(${target_name} SDL2::SDL2 SDL2::SDL2main)
 target_link_libraries(${target_name} baselib)
 
 
-set_target_properties(${target_name} PROPERTIES FOLDER "v")
+set_target_properties(${target_name} PROPERTIES FOLDER "v/shadow")
 
 compile_shader(${target_name} ENV opengl FORMAT bin SOURCES ${shaders})

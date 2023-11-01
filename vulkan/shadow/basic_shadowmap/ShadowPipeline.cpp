@@ -1,4 +1,4 @@
-#include "ShadowTexPipeline.h"
+#include "ShadowPipeline.h"
 #include "VulkanPass.h"
 #include "VulkanTools.h"
 #include "RenderData.h"
@@ -10,19 +10,19 @@
 using tg::vec3;
 using tg::vec2;
 
-#define SHADER_DIR ROOT_DIR##"/vulkan/shadow/shadowmap"
+#define SHADER_DIR ROOT_DIR##"/vulkan/shadow/basic_shadowmap"
 
-ShadowTexPipeline::ShadowTexPipeline(const std::shared_ptr<VulkanDevice> &dev) : ShadowPipeline(dev)
+ShadowPipeline::ShadowPipeline(const std::shared_ptr<VulkanDevice> &dev) : TexturePipeline(dev)
 {
 }
 
-ShadowTexPipeline::~ShadowTexPipeline()
+ShadowPipeline::~ShadowPipeline()
 {
   if (_shadow_layout)
     vkDestroyDescriptorSetLayout(*_device, _shadow_layout, 0);
 }
 
-void ShadowTexPipeline::realize(VulkanPass *render_pass, int subpass)
+void ShadowPipeline::realize(VulkanPass *render_pass, int subpass)
 {
   auto pipe_lay = pipe_layout();
 
@@ -147,7 +147,7 @@ void ShadowTexPipeline::realize(VulkanPass *render_pass, int subpass)
   vkDestroyShaderModule(*_device, shaderStages[1].module, nullptr);
 }
 
-VkPipelineLayout ShadowTexPipeline::pipe_layout()
+VkPipelineLayout ShadowPipeline::pipe_layout()
 {
   if (!_pipe_layout) {
     VkDescriptorSetLayout layouts[5] = {matrix_layout(), light_layout(), pbr_layout(), texture_layout(), shadow_layout()};
@@ -173,17 +173,17 @@ VkPipelineLayout ShadowTexPipeline::pipe_layout()
   return _pipe_layout;
 }
 
-VkDescriptorSetLayout ShadowTexPipeline::shadow_layout()
+VkDescriptorSetLayout ShadowPipeline::shadow_layout()
 {
   if (!_shadow_layout) {
     VkDescriptorSetLayoutBinding layoutBinding[2] = {};
     layoutBinding[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     layoutBinding[0].descriptorCount = 1;
-    layoutBinding[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutBinding[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT;
     layoutBinding[0].pImmutableSamplers = nullptr;
     layoutBinding[0].binding = 0;
 
-    layoutBinding[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    layoutBinding[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     layoutBinding[1].descriptorCount = 1;
     layoutBinding[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     layoutBinding[1].pImmutableSamplers = nullptr;

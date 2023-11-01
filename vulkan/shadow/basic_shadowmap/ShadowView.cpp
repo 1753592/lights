@@ -28,7 +28,6 @@
 #include "imgui/imgui.h"
 
 #define WM_PAINT 1
-#define SHADER_DIR ROOT_DIR##"/vulkan/shadow/shadowmap"
 
 constexpr float fov = 60;
 
@@ -241,9 +240,10 @@ void ShadowView::set_uniforms()
   VK_CHECK_RESULT(vkMapMemory(*device(), _material->memory(), 0, sizeof(pbr), 0, (void **)&data));
   memcpy(data, &pbr, sizeof(pbr));
 
+  auto vp = tg::vec3(100);
   _depth_matrix_buf = device()->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sizeof(MVP));
-  _depth_matrix.view = tg::lookat(tg::vec3(100));
-  _depth_matrix.prj = tg::ortho(-40, 40, -40, 40, 10, 300);
+  _depth_matrix.view = tg::lookat(vp);
+  _depth_matrix.prj = tg::ortho(-25, 25, -25, 25, 10, 300);
 
   VK_CHECK_RESULT(vkMapMemory(*device(), _depth_matrix_buf->memory(), 0, sizeof(MVP), 0, (void **)&data));
   memcpy(data, &_depth_matrix, sizeof(MVP));
@@ -252,6 +252,7 @@ void ShadowView::set_uniforms()
     _shadow_buf = device()->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                                           sizeof(ShadowMatrix));
     ShadowMatrix sm;
+    sm.light = tg::normalize(vp); 
     sm.view = _depth_matrix.view;
     sm.prj = _depth_matrix.prj;
     sm.mvp = _depth_matrix.prj * _depth_matrix.view;

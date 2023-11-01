@@ -38,6 +38,7 @@ struct Material{
 };
 
 struct ShadowMatrix {
+  tg::vec4 light;
   tg::mat4 prj;
   tg::mat4 view;
   tg::mat4 mvp;

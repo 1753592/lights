@@ -31,6 +31,7 @@ layout(set = 2, binding = 0) uniform Material
 layout(set = 3, binding = 0) uniform sampler2D tex;
 
 layout(set = 4, binding = 0) uniform ShadowMatrix{
+  vec4 light;
   mat4 proj;
   mat4 view;
   mat4 mvp;
@@ -129,7 +130,8 @@ void main(void)
     suv = (suv + vec2(1)) / 2.0;
     suv.y = 1 - suv.y;
     float dep = texture(shadow_tex, suv).r;
-    if(vp_suv.z > dep)
+    float depbias = tan(acos(dot(n, shadow_matrix.light.xyz))) * 0.0001;
+    if(vp_suv.z > dep + depbias)
     {
       color = color * dep;
     }

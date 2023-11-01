@@ -10,7 +10,7 @@
 using tg::vec3;
 using tg::vec2;
 
-#define SHADER_DIR ROOT_DIR##"/vulkan/shadow/shadowmap"
+#define SHADER_DIR ROOT_DIR##"/vulkan/shadow/perspective_shadowmap"
 
 ShadowPipeline::ShadowPipeline(const std::shared_ptr<VulkanDevice> &dev) : TexturePipeline(dev)
 {
