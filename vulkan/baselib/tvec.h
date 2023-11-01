@@ -420,8 +420,6 @@ public:
     return *this;
   }
 
-  inline Tvec4(const base& v) : base(v) {}
-
   // vec4(x, y, z, w);
   inline Tvec4(T x, T y, T z, T w)
   {

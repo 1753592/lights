@@ -348,21 +348,6 @@ static inline vecN<T, S> refract(const vecN<T, S>& I, const vecN<T, S>& N, T eta
 }
 
 template <typename T, const int N, const int M>
-static inline matNM<T, N, M> matMultiply(const matNM<T, N, M>& x, const matNM<T, N, M>& y)
-{
-	matNM<T, N, M> result;
-	int i, j;
-
-	for(j = 0; j < M; ++j){
-		for(i = 0; i < N; ++i){
-			result[i][j] = x[i][j] * y[i][j];
-		}
-	}
-
-	return result;
-}
-
-template <typename T, const int N, const int M>
 static inline vecN<T, M> operator*(const vecN<T, N>& vec, const matNM<T, N, M>& mat)
 {
 	vecN<T, M> result(T(0));
@@ -378,6 +363,21 @@ static inline vecN<T, M> operator*(const vecN<T, N>& vec, const matNM<T, N, M>& 
 }
 
 template <typename T, const int N, const int M>
+static inline matNM<T, N, M> operator^(const matNM<T, N, M>& x, const matNM<T, N, M>& y)
+{
+  matNM<T, N, M> result;
+  int i, j;
+
+  for (j = 0; j < M; ++j) {
+    for (i = 0; i < N; ++i) {
+      result[i][j] = x[i][j] * y[i][j];
+    }
+  }
+
+  return result;
+}
+
+template <typename T, const int N, const int M>
 static inline vecN<T, M> operator*(const matNM<T, N, M>& mat, const vecN<T, N>& vec)
 {
 	vecN<T, M> result(T(0));
@@ -390,6 +390,14 @@ static inline vecN<T, M> operator*(const matNM<T, N, M>& mat, const vecN<T, N>& 
 		result[m] = sum;
 	}
 	return result;
+}
+
+template<typename T>
+static inline Tvec3<T> operator*(const matNM<T, 4, 4>& mat, const Tvec3<T>& vec)
+{
+  Tvec4<T> tmp(vec, 1);
+  vecN<T, 4> ret = operator*<T, 4, 4>(mat, tmp);
+  return Tvec3<T>(ret[0] / ret[3], ret[1] / ret[3], ret[2] / ret[3]);
 }
 
 template <typename T, const int N>

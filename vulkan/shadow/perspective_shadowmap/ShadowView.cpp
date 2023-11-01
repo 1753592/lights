@@ -239,27 +239,6 @@ void ShadowView::set_uniforms()
   pbr.roughness = 0.7;
   VK_CHECK_RESULT(vkMapMemory(*device(), _material->memory(), 0, sizeof(pbr), 0, (void **)&data));
   memcpy(data, &pbr, sizeof(pbr));
-
-  auto vp = tg::vec3(100);
-  _depth_matrix_buf = device()->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sizeof(MVP));
-  _depth_matrix.view = tg::lookat(vp);
-  _depth_matrix.prj = tg::ortho(-25, 25, -25, 25, 10, 300);
-
-  VK_CHECK_RESULT(vkMapMemory(*device(), _depth_matrix_buf->memory(), 0, sizeof(MVP), 0, (void **)&data));
-  memcpy(data, &_depth_matrix, sizeof(MVP));
-
-  {
-    _shadow_buf = device()->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                          sizeof(ShadowMatrix));
-    ShadowMatrix sm;
-    sm.light = tg::normalize(vp); 
-    sm.view = _depth_matrix.view;
-    sm.prj = _depth_matrix.prj;
-    sm.mvp = _depth_matrix.prj * _depth_matrix.view;
-    
-    VK_CHECK_RESULT(vkMapMemory(*device(), _shadow_buf->memory(), 0, sizeof(ShadowMatrix), 0, (void **)&data));
-    memcpy(data, &sm, sizeof(ShadowMatrix));
-  }
 }
 
 void ShadowView::update_ubo()
@@ -273,10 +252,37 @@ void ShadowView::update_ubo()
   // auto xx = _matrix.view * tg::vec4(0, 0, 100, 1);
   // xx = _matrix.prj * xx;
 
+  auto mat = _matrix.prj * _matrix.view;
+  auto xx = mat * tg::vec4(0);
+
+  //auto vp = tg::vec3(10);
+  //_depth_matrix_buf = device()->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
+  //  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sizeof(MVP));
+  //_depth_matrix.view = tg::lookat(mat * vp, mat * tg::vec3(0, 0, 0), mat);
+  //_depth_matrix.prj = tg::ortho(-1, 1, -1, -1, -1, 1);
+
+  //VK_CHECK_RESULT(vkMapMemory(*device(), _depth_matrix_buf->memory(), 0, sizeof(MVP), 0, (void **)&data));
+  //memcpy(data, &_depth_matrix, sizeof(MVP));
+
+
   uint8_t *data = 0;
   VK_CHECK_RESULT(vkMapMemory(*device(), _ubo_buf->memory(), 0, sizeof(_matrix), 0, (void **)&data));
   memcpy(data, &_matrix, sizeof(_matrix));
   vkUnmapMemory(*device(), _ubo_buf->memory());
+
+  _shadow_matrix.prj = tg::ortho(-1, 1, -1, 1, 0.1, 10);
+  //_shadow_matrix.light = tg::normalize(vp); 
+  _shadow_matrix.view = mat * _depth_matrix.view;
+  _shadow_matrix.prj = _depth_matrix.prj;
+  _shadow_matrix.mvp = _depth_matrix.prj * _depth_matrix.view;
+
+  {
+    _shadow_buf = device()->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sizeof(ShadowMatrix));
+    
+    VK_CHECK_RESULT(vkMapMemory(*device(), _shadow_buf->memory(), 0, sizeof(ShadowMatrix), 0, (void **)&data));
+    memcpy(data, &_shadow_matrix, sizeof(ShadowMatrix));
+  }
 }
 
 void ShadowView::resize(int w, int h)

@@ -4,7 +4,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(app_name fxaa)
+set(target_name fxaa)
 
 set(hdr
 	testNode.h
@@ -23,25 +23,25 @@ set(libs
 	OSGGA_LIBRARY
 )
 
-add_executable(${app_name} ${src} ${hdr})
+add_executable(${target_name} ${src} ${hdr})
 
-set_target_properties(${app_name} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:${app_name}>"
-                                               VS_DEBUGGER_COMMAND           "$<TARGET_FILE:${app_name}>"
+set_target_properties(${target_name} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:${target_name}>"
+                                               VS_DEBUGGER_COMMAND           "$<TARGET_FILE:${target_name}>"
                                                VS_DEBUGGER_ENVIRONMENT       "PATH=%PATH%;${osg_build_dir}/bin")
 
-target_include_directories(${app_name} PRIVATE ${OSG_INCLUDE_DIR})
-#target_include_directories(${app_name} PRIVATE ${Boost_INCLUDE_DIR})
+target_include_directories(${target_name} PRIVATE ${OSG_INCLUDE_DIR})
+#target_include_directories(${target_name} PRIVATE ${Boost_INCLUDE_DIR})
 
 foreach(lib ${libs})
-	target_link_libraries(${app_name} debug ${${lib}_DEBUG} optimized ${${lib}_RELEASE})
+	target_link_libraries(${target_name} debug ${${lib}_DEBUG} optimized ${${lib}_RELEASE})
 endforeach()
 
-set_target_properties(${app_name} PROPERTIES FOLDER "o/anti_alias")
+set_target_properties(${target_name} PROPERTIES FOLDER "o/anti_alias")
 
 #set(SHADERS
 #	../glsl/noise.glsl
 #)
 #
 #source_group(shaders FILES ${SHADERS})
-#target_sources(${app_name} PRIVATE ${SHADERS})
+#target_sources(${target_name} PRIVATE ${SHADERS})
 

@@ -62,6 +62,7 @@ private:
   VkDescriptorSet _depth_matrix_set = VK_NULL_HANDLE;
   std::shared_ptr<VulkanBuffer> _depth_matrix_buf;
 
+  ShadowMatrix _shadow_matrix;
   VkDescriptorSet _shadow_set = VK_NULL_HANDLE;
   std::shared_ptr<VulkanBuffer> _shadow_buf;
   std::shared_ptr<VulkanTexture> _shadow_texture;
