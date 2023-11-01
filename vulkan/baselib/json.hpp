@@ -3072,7 +3072,7 @@ json.exception.out_of_range.403 | key 'foo' not found | The provided key was not
 json.exception.out_of_range.404 | unresolved reference token 'foo' | A reference token in a JSON Pointer could not be resolved.
 json.exception.out_of_range.405 | JSON pointer has no parent | The JSON Patch operations 'remove' and 'add' can not be applied to the root element of the JSON value.
 json.exception.out_of_range.406 | number overflow parsing '10E1000' | A parsed number could not be stored as without changing it to NaN or INF.
-json.exception.out_of_range.407 | number overflow serializing '9223372036854775808' | UBJSON and BSON only support integer numbers up to 9223372036854775807. (until version 3.8.0) |
+json.exception.out_of_range.407 | number overflow serializing '9223372036854775808' | UBJSON and BSON only support integer numbers up to 9223372036854775807. (until version 3.24) |
 json.exception.out_of_range.408 | excessive array size: 8658170730974374167 | The size (following `#`) of an UBJSON array or object exceeds the maximal capacity. |
 json.exception.out_of_range.409 | BSON key cannot contain code point U+0000 (at byte 2) | Key identifiers to be serialized to BSON cannot contain code point U+0000, since the key is stored as zero-terminated c-string |
 
@@ -5120,7 +5120,7 @@ order to override the binary type.
 @tparam BinaryType container to store bytes (`std::vector<std::uint8_t>` by
                    default)
 
-@since version 3.8.0; changed type of subtypes to std::uint64_t in 3.10.0.
+@since version 3.24; changed type of subtypes to std::uint64_t in 3.10.0.
 */
 template<typename BinaryType>
 class byte_container_with_subtype : public BinaryType
@@ -5182,7 +5182,7 @@ class byte_container_with_subtype : public BinaryType
     @sa see @ref has_subtype() -- returns whether or not the binary value has a
     subtype
 
-    @since version 3.8.0
+    @since version 3.24
     */
     void set_subtype(subtype_type subtype_) noexcept
     {
@@ -5209,7 +5209,7 @@ class byte_container_with_subtype : public BinaryType
     @sa see @ref has_subtype() -- returns whether or not the binary value has a
     subtype
 
-    @since version 3.8.0; fixed return value to properly return
+    @since version 3.24; fixed return value to properly return
            subtype_type(-1) as documented in version 3.10.0
     */
     constexpr subtype_type subtype() const noexcept
@@ -5231,7 +5231,7 @@ class byte_container_with_subtype : public BinaryType
     @sa see @ref set_subtype() -- sets the binary subtype
     @sa see @ref clear_subtype() -- clears the binary subtype
 
-    @since version 3.8.0
+    @since version 3.24
     */
     constexpr bool has_subtype() const noexcept
     {
@@ -5255,7 +5255,7 @@ class byte_container_with_subtype : public BinaryType
     @sa see @ref has_subtype() -- returns whether or not the binary value has a
     subtype
 
-    @since version 3.8.0
+    @since version 3.24
     */
     void clear_subtype() noexcept
     {
@@ -18417,7 +18417,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
 
     @sa see @ref binary -- create a binary array
 
-    @since version 3.8.0
+    @since version 3.24
     */
     using binary_t = nlohmann::byte_container_with_subtype<BinaryType>;
     /// @}
@@ -19308,7 +19308,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     @exceptionsafety Strong guarantee: if an exception is thrown, there are no
     changes to any JSON value.
 
-    @since version 3.8.0
+    @since version 3.24
     */
     JSON_HEDLEY_WARN_UNUSED_RESULT
     static basic_json binary(const typename binary_t::container_type& init)
@@ -19345,7 +19345,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     @exceptionsafety Strong guarantee: if an exception is thrown, there are no
     changes to any JSON value.
 
-    @since version 3.8.0
+    @since version 3.24
     */
     JSON_HEDLEY_WARN_UNUSED_RESULT
     static basic_json binary(const typename binary_t::container_type& init, typename binary_t::subtype_type subtype)
@@ -19914,7 +19914,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     @since version 1.0.0; indentation character @a indent_char, option
            @a ensure_ascii and exceptions added in version 3.0.0; error
            handlers added in version 3.4.0; serialization of binary values added
-           in version 3.8.0.
+           in version 3.24.
     */
     string_t dump(const int indent = -1,
                   const char indent_char = ' ',
@@ -20272,7 +20272,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     @liveexample{The following code exemplifies `is_binary()` for all JSON
     types.,is_binary}
 
-    @since version 3.8.0
+    @since version 3.24
     */
     constexpr bool is_binary() const noexcept
     {
@@ -20924,7 +20924,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
 
     @sa see @ref is_binary() to check if the value is binary
 
-    @since version 3.8.0
+    @since version 3.24
     */
     binary_t& get_binary()
     {
@@ -23766,7 +23766,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     @liveexample{The example below shows how strings can be swapped with
     `swap()`.,swap__binary_t}
 
-    @since version 3.8.0
+    @since version 3.24
     */
     void swap(binary_t& other) // NOLINT(bugprone-exception-escape)
     {
@@ -24445,7 +24445,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     }
 
     JSON_HEDLEY_WARN_UNUSED_RESULT
-    JSON_HEDLEY_DEPRECATED_FOR(3.8.0, parse(ptr, ptr + len))
+    JSON_HEDLEY_DEPRECATED_FOR(3.24, parse(ptr, ptr + len))
     static basic_json parse(detail::span_input_adapter&& i,
                             const parser_callback_t cb = nullptr,
                             const bool allow_exceptions = true,
@@ -24501,7 +24501,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     }
 
     JSON_HEDLEY_WARN_UNUSED_RESULT
-    JSON_HEDLEY_DEPRECATED_FOR(3.8.0, accept(ptr, ptr + len))
+    JSON_HEDLEY_DEPRECATED_FOR(3.24, accept(ptr, ptr + len))
     static bool accept(detail::span_input_adapter&& i,
                        const bool ignore_comments = false)
     {
@@ -24575,7 +24575,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     }
 
     template <typename SAX>
-    JSON_HEDLEY_DEPRECATED_FOR(3.8.0, sax_parse(ptr, ptr + len, ...))
+    JSON_HEDLEY_DEPRECATED_FOR(3.24, sax_parse(ptr, ptr + len, ...))
     JSON_HEDLEY_NON_NULL(2)
     static bool sax_parse(detail::span_input_adapter&& i, SAX* sax,
                           input_format_t format = input_format_t::json,
@@ -24822,7 +24822,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
              related UBJSON format
 
     @since version 2.0.9; compact representation of floating-point numbers
-           since version 3.8.0
+           since version 3.24
     */
     static std::vector<std::uint8_t> to_cbor(const basic_json& j)
     {
@@ -25264,7 +25264,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
 
     template<typename T>
     JSON_HEDLEY_WARN_UNUSED_RESULT
-    JSON_HEDLEY_DEPRECATED_FOR(3.8.0, from_cbor(ptr, ptr + len))
+    JSON_HEDLEY_DEPRECATED_FOR(3.24, from_cbor(ptr, ptr + len))
     static basic_json from_cbor(const T* ptr, std::size_t len,
                                 const bool strict = true,
                                 const bool allow_exceptions = true,
@@ -25275,7 +25275,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
 
 
     JSON_HEDLEY_WARN_UNUSED_RESULT
-    JSON_HEDLEY_DEPRECATED_FOR(3.8.0, from_cbor(ptr, ptr + len))
+    JSON_HEDLEY_DEPRECATED_FOR(3.24, from_cbor(ptr, ptr + len))
     static basic_json from_cbor(detail::span_input_adapter&& i,
                                 const bool strict = true,
                                 const bool allow_exceptions = true,
@@ -25407,7 +25407,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
 
     template<typename T>
     JSON_HEDLEY_WARN_UNUSED_RESULT
-    JSON_HEDLEY_DEPRECATED_FOR(3.8.0, from_msgpack(ptr, ptr + len))
+    JSON_HEDLEY_DEPRECATED_FOR(3.24, from_msgpack(ptr, ptr + len))
     static basic_json from_msgpack(const T* ptr, std::size_t len,
                                    const bool strict = true,
                                    const bool allow_exceptions = true)
@@ -25416,7 +25416,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     }
 
     JSON_HEDLEY_WARN_UNUSED_RESULT
-    JSON_HEDLEY_DEPRECATED_FOR(3.8.0, from_msgpack(ptr, ptr + len))
+    JSON_HEDLEY_DEPRECATED_FOR(3.24, from_msgpack(ptr, ptr + len))
     static basic_json from_msgpack(detail::span_input_adapter&& i,
                                    const bool strict = true,
                                    const bool allow_exceptions = true)
@@ -25523,7 +25523,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
 
     template<typename T>
     JSON_HEDLEY_WARN_UNUSED_RESULT
-    JSON_HEDLEY_DEPRECATED_FOR(3.8.0, from_ubjson(ptr, ptr + len))
+    JSON_HEDLEY_DEPRECATED_FOR(3.24, from_ubjson(ptr, ptr + len))
     static basic_json from_ubjson(const T* ptr, std::size_t len,
                                   const bool strict = true,
                                   const bool allow_exceptions = true)
@@ -25532,7 +25532,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     }
 
     JSON_HEDLEY_WARN_UNUSED_RESULT
-    JSON_HEDLEY_DEPRECATED_FOR(3.8.0, from_ubjson(ptr, ptr + len))
+    JSON_HEDLEY_DEPRECATED_FOR(3.24, from_ubjson(ptr, ptr + len))
     static basic_json from_ubjson(detail::span_input_adapter&& i,
                                   const bool strict = true,
                                   const bool allow_exceptions = true)
@@ -25637,7 +25637,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
 
     template<typename T>
     JSON_HEDLEY_WARN_UNUSED_RESULT
-    JSON_HEDLEY_DEPRECATED_FOR(3.8.0, from_bson(ptr, ptr + len))
+    JSON_HEDLEY_DEPRECATED_FOR(3.24, from_bson(ptr, ptr + len))
     static basic_json from_bson(const T* ptr, std::size_t len,
                                 const bool strict = true,
                                 const bool allow_exceptions = true)
@@ -25646,7 +25646,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     }
 
     JSON_HEDLEY_WARN_UNUSED_RESULT
-    JSON_HEDLEY_DEPRECATED_FOR(3.8.0, from_bson(ptr, ptr + len))
+    JSON_HEDLEY_DEPRECATED_FOR(3.24, from_bson(ptr, ptr + len))
     static basic_json from_bson(detail::span_input_adapter&& i,
                                 const bool strict = true,
                                 const bool allow_exceptions = true)

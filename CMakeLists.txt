@@ -1,9 +1,13 @@
+cmake_minimum_required(VERSION 3.24)
 
-cmake_minimum_required(VERSION 3.8.0)
+cmake_policy(SET CMP0091 OLD)
 
 project(lights)
 
 SET_PROPERTY(GLOBAL PROPERTY USE_FOLDERS ON)
+
+set(CMAKE_C_FLAGS_DEBUG "/Zi /Ob0 /Od /MD")
+set(CMAKE_CXX_FLAGS_DEBUG "/Zi /Ob0 /Od /MD")
 
 option(build_opengl "" ON)
 option(build_vulkan "" ON)

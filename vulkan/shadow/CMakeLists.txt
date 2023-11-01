@@ -1,8 +1,8 @@
 
-cmake_minimum_required(VERSION 3.8.0)
+cmake_minimum_required(VERSION 3.24)
 
 
-set(CMAKE_PREFIX_PATH)
+set(osg_build_dir)
 
 option(build_shadowmap "build_shadowmap" ON)
 

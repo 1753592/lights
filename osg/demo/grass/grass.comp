@@ -110,18 +110,18 @@ void main()
 
 	drop = drop || v0OutFrustum;
 
-	// Distance culling
-	const float far1 = 0.99;
-	drop = drop || (v0ClipSpace.z > far1&& rand(index) > (v0ClipSpace.z / 1.5));
+	//// Distance culling
+	//const float far1 = 0.99;
+	//drop = drop || (v0ClipSpace.z > far1&& rand(index) > (v0ClipSpace.z / 1.5));
 	
-	const float far2 = 0.995;
-	drop = drop || (v0ClipSpace.z > far2 && rand(index) > (v0ClipSpace.z / 2));
+	//const float far2 = 0.995;
+	//drop = drop || (v0ClipSpace.z > far2 && rand(index) > (v0ClipSpace.z / 2));
 
-	const float far3 = 0.999;
-	drop = drop || (v0ClipSpace.z > far3 && rand(index) > (v0ClipSpace.z / 5));
+	//const float far3 = 0.999;
+	//drop = drop || (v0ClipSpace.z > far3 && rand(index) > (v0ClipSpace.z / 5));
 
-	if (drop)
-		return;
+	//if (drop)
+	//	return;
 
 	// Apply forces {
 	//  Gravities

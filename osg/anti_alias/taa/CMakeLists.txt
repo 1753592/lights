@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8.0)
+cmake_minimum_required(VERSION 3.24)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -32,7 +32,7 @@ target_compile_definitions(${app_name} PRIVATE RS_DIR="${CMAKE_CURRENT_SOURCE_DI
 
 set_target_properties(${app_name} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:${app_name}>"
                                                VS_DEBUGGER_COMMAND           "$<TARGET_FILE:${app_name}>"
-                                               VS_DEBUGGER_ENVIRONMENT       "PATH=%PATH%;${CMAKE_PREFIX_PATH}/bin")
+                                               VS_DEBUGGER_ENVIRONMENT       "PATH=%PATH%;${osg_build_dir}/bin")
 
 target_include_directories(${app_name} PRIVATE ${OSG_INCLUDE_DIR})
 

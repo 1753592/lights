@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8.0)
+cmake_minimum_required(VERSION 3.24)
 
 
 
@@ -26,7 +26,7 @@ target_sources(${target_name} PRIVATE ${shaders})
 
 set_target_properties(${target_name} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
                                                VS_DEBUGGER_COMMAND           "$<TARGET_FILE:${target_name}>"
-                                               VS_DEBUGGER_ENVIRONMENT       "PATH=%PATH%;${CMAKE_PREFIX_PATH}/bin"
+                                               VS_DEBUGGER_ENVIRONMENT       "PATH=%PATH%;${osg_build_dir}/bin"
 											   VS_DEBUGGER_COMMAND_ARGUMENTS "")
 
 foreach(lib ${libs})

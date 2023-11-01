@@ -39,8 +39,8 @@ public:
 	void traverse(NodeVisitor&);
 	void drawImplementation(RenderInfo& /*renderInfo*/) const;
 
-
 	BoundingSphere computeBound() const;
+
 private:
 	osg::ref_ptr<osg::Node> _cmpNode;
 

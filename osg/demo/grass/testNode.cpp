@@ -218,5 +218,5 @@ void TestNode::drawImplementation(RenderInfo& renderInfo) const
 
 BoundingSphere TestNode::computeBound() const
 {
-	return BoundingSphere({ 0, 0, 0 }, grasssz);
+	return BoundingSphere({ 0, 0, 0 }, grasssz * sqrt(2));
 }
