@@ -52,7 +52,6 @@ public:
   inline vecN()
   {
     // Uninitialized variable
-    assign(0);
   }
 
   // Copy constructor
@@ -75,10 +74,17 @@ public:
   }
 
   template<typename U>
-  inline void reset(U *ptr)
+  inline void assign(U *ptr)
   {
     for(int n = 0; n < len; n++) {
       data_[n] = ptr[n];
+    }
+  }
+
+  inline void set(T t)
+  {
+    for (int n = 0; n < len; n++) {
+      data_[n] = t;
     }
   }
 
@@ -353,7 +359,7 @@ public:
   inline Tvec3(const Tvec3<U>& that) : base(that) { }
 
   template<typename U>
-  inline Tvec3(const U* ptr) { reset(ptr); }
+  inline Tvec3(const U* ptr) { assign(ptr); }
 
   template<typename U, int n>
   inline self_type operator=(vecN<U, n> vec)
@@ -402,7 +408,7 @@ public:
   inline Tvec4(const Tvec4<U>& that) : base(that) {}
 
   template <typename U>
-  inline Tvec4(const U* ptr) { reset(ptr); }
+  inline Tvec4(const U* ptr) { assign(ptr); }
 
   template <typename U, int n>
   inline self_type operator=(vecN<U, n> vec)
@@ -806,7 +812,7 @@ public:
   explicit inline matNM(T f)
   {
     for (int n = 0; n < w; n++) {
-      data[n] = f;
+      data_[n] = f;
     }
   }
 
@@ -814,7 +820,7 @@ public:
   matNM(const matNM<U, w, h>& that)
   {
     for (int n = 0; n < w; n++) {
-      data[n] = that[n];
+      data_[n] = that[n];
     }
   }
 
@@ -825,14 +831,14 @@ public:
     constexpr int row = n < h ? n : h;
     for (int i = 0; i < col; i++)
       for (int j = 0; j < row; j++)
-        data[i][j] = that[i][j];
+        data_[i][j] = that[i][j];
   }
 
   // Construction from vector
   inline matNM(const vector_type& v)
   {
     for (int n = 0; n < w; n++) {
-      data[n] = v;
+      data_[n] = v;
     }
   }
 
@@ -847,7 +853,7 @@ public:
   matNM& operator=(const matNM<U, w, h>& that)
   {
     for (int n = 0; n < w; n++) {
-      data[n] = that[n];
+      data_[n] = that[n];
     }
     return *this;
   }
@@ -857,7 +863,7 @@ public:
     self_type result;
     int n;
     for (n = 0; n < w; n++)
-      result.data[n] = data[n] + that.data[n];
+      result.data_[n] = data_[n] + that.data_[n];
     return result;
   }
 
@@ -868,7 +874,7 @@ public:
     self_type result;
     int n;
     for (n = 0; n < w; n++)
-      result.data[n] = data[n] - that.data[n];
+      result.data_[n] = data_[n] - that.data_[n];
     return result;
   }
 
@@ -879,7 +885,7 @@ public:
     self_type result;
     int n;
     for (n = 0; n < w; n++)
-      result.data[n] = data[n] * that;
+      result.data_[n] = data_[n] * that;
     return result;
   }
 
@@ -887,7 +893,7 @@ public:
   {
     int n;
     for (n = 0; n < w; n++)
-      data[n] = data[n] * that;
+      data_[n] = data_[n] * that;
     return *this;
   }
 
@@ -902,7 +908,7 @@ public:
         T sum(0);
 
         for (int n = 0; n < w; n++) {
-          sum += data[n][i] * that[j][n];
+          sum += data_[n][i] * that[j][n];
         }
 
         result[j][i] = sum;
@@ -919,7 +925,7 @@ public:
   // 		for(int i = 0; i < h; i++){
   // 			sum = 0;
   // 			for(int j = 0; j < w; j++){
-  // 				sum += data[j][i] * that[j];
+  // 				sum += data_[j][i] * that[j];
   // 			}
   // 			vec[i] = sum;
   // 		}
@@ -928,10 +934,10 @@ public:
 
   inline self_type& operator*=(const self_type& that) { return (*this = *this * that); }
 
-  inline vector_type& operator[](int n) { return data[n]; }
-  inline const vector_type& operator[](int n) const { return data[n]; }
-  inline operator T*() { return &data[0][0]; }
-  inline operator const T*() const { return &data[0][0]; }
+  inline vector_type& operator[](int n) { return data_[n]; }
+  inline const vector_type& operator[](int n) const { return data_[n]; }
+  inline operator T*() { return &data_[0][0]; }
+  inline operator const T*() const { return &data_[0][0]; }
 
   inline matNM<T, h, w> transpose(void) const
   {
@@ -940,38 +946,41 @@ public:
 
     for (y = 0; y < w; y++) {
       for (x = 0; x < h; x++) {
-        result[x][y] = data[y][x];
+        result[x][y] = data_[y][x];
       }
     }
 
     return result;
   }
 
-  static inline self_type identity()
+  inline void identity()
   {
-    self_type result(0);
-
+    set(0);
     for (int i = 0; i < w; i++) {
-      result[i][i] = 1;
+      data_[i][i] = 1;
     }
-
-    return result;
   }
 
   static inline int width(void) { return w; }
   static inline int height(void) { return h; }
 
   template<typename U>
-  inline void reset(const U* ele)
+  inline void assign(const U* ele)
   {
     std::size_t off = 0;
     for(int i =0; i < w; i++) {
-      data[i].reset(ele + off);
+      data_[i].assign(ele + off);
       off += sizeof(U) * h;
     }
   }
 
-  inline void reset(const T* ele) { memcpy(data, ele, sizeof(T) * w * h); }
+  inline void assign(const T* ele) { memcpy(data_, ele, sizeof(T) * w * h); }
+
+  inline void set(T v)
+  {
+    for (int i = 0; i < w; i++)
+      data_[i].set(v);
+  }
 
   inline bool reduce()
   {
@@ -980,7 +989,7 @@ public:
     vecN<T, w>* rarr[h];
     for (int i = 0; i < h; i++) {
       for (int j = 0; j < w; j++) {
-        arr[i][j] = data[j][i];
+        arr[i][j] = data_[j][i];
       }
       rarr[i] = (arr + i);
     }
@@ -1017,15 +1026,15 @@ public:
   }
 
 protected:
-  // Column primary data (essentially, array of vectors)
-  vecN<T, h> data[w];
+  // Column primary data_ (essentially, array of vectors)
+  vecN<T, h> data_[w];
 
   // Assignment function - called from assignment operator and copy constructor.
   inline void assign(const matNM& that)
   {
     int n;
     for (n = 0; n < w; n++)
-      data[n] = that.data[n];
+      data_[n] = that.data_[n];
   }
 };
 
@@ -1108,7 +1117,7 @@ public:
     const T yw = v.y() * v.w();
     const T zw = v.z() * v.w();
 
-    auto& m = base::data;
+    auto& m = base::data_;
 
     m[0][0] = T(1) - T(2) * (yy + zz);
     m[0][1] = T(2) * (xy + zw);
@@ -1140,22 +1149,22 @@ public:
   inline Tmat4(const vecN<T, 4>& v) : base(v) {}
   inline Tmat4(const vecN<T, 4>& v0, const vecN<T, 4>& v1, const vecN<T, 4>& v2, const vecN<T, 4>& v3)
   {
-    base::data[0] = v0;
-    base::data[1] = v1;
-    base::data[2] = v2;
-    base::data[3] = v3;
+    base::data_[0] = v0;
+    base::data_[1] = v1;
+    base::data_[2] = v2;
+    base::data_[3] = v3;
   }
 
   inline Tmat4(const Tmat3<T>& that) : base(that)
   {
-    base::data[0][3] = T(0);
-    base::data[1][3] = T(0);
-    base::data[2][3] = T(0);
+    base::data_[0][3] = T(0);
+    base::data_[1][3] = T(0);
+    base::data_[2][3] = T(0);
 
-    base::data[3][0] = T(0);
-    base::data[3][1] = T(0);
-    base::data[3][2] = T(0);
-    base::data[3][3] = T(1);
+    base::data_[3][0] = T(0);
+    base::data_[3][1] = T(0);
+    base::data_[3][2] = T(0);
+    base::data_[3][3] = T(1);
   }
 };
 

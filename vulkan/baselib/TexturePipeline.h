@@ -1,8 +1,8 @@
 #pragma once
 
-#include "VulkanPipeline.h"
+#include "PBRPipeline.h"
 
-class TexturePipeline : public VulkanPipeline{
+class TexturePipeline : public PBRPipeline{
 public:
   TexturePipeline(const std::shared_ptr<VulkanDevice> &dev);
   ~TexturePipeline();

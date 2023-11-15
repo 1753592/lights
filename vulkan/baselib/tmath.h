@@ -73,8 +73,8 @@ struct EPSTraits<double> {
 
 inline mat4 frustum(float left, float right, float bottom, float top, float n, float f)
 {
-	mat4 result(mat4::identity());
-
+  mat4 result;
+  result.identity();
 	if((right == left) ||
 		(top == bottom) ||
 	   (n == f) ||

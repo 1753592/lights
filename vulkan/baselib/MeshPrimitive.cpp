@@ -72,7 +72,7 @@ void MeshPrimitive::realize(const std::shared_ptr<VulkanDevice>& dev)
   };
   _vertex_buf = fun((uint8_t *)_vertexs.data(), _vertexs.size() * sizeof(vec3));
   _normal_buf = fun((uint8_t *)_normals.data(), _normals.size() * sizeof(vec3));
-  _uv_buf = fun((uint8_t *)_uvs.data(), _uvs.size() * sizeof(vec3));
+  _uv_buf = fun((uint8_t *)_uvs.data(), _uvs.size() * sizeof(vec2));
 
   auto index_sz = _indexs.size() * sizeof(uint16_t);
   auto index_ori_buf = dev->create_buffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, index_sz, (uint8_t *)_indexs.data());

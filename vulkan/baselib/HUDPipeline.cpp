@@ -1,4 +1,4 @@
-#include "DepthPipeline.h"
+#include "HUDPipeline.h"
 #include "VulkanPass.h"
 #include "VulkanTools.h"
 
@@ -11,20 +11,27 @@ using tg::vec3;
 #define SHADER_DIR ROOT_DIR##"/vulkan/baselib/shaders"
 
 
-DepthPipeline::DepthPipeline(const std::shared_ptr<VulkanDevice>& dev, int w, int h) : Base(dev), _w(w), _h(h)
+HUDPipeline::HUDPipeline(const std::shared_ptr<VulkanDevice>& dev) : Base(dev){
+}
+
+HUDPipeline::~HUDPipeline()
 {
 }
 
-DepthPipeline::~DepthPipeline()
-{
-}
-
-void DepthPipeline::realize(VulkanPass *render_pass, int subpass)
+void HUDPipeline::realize(VulkanPass *render_pass)
 {
   VkGraphicsPipelineCreateInfo pipelineCreateInfo = {};
   pipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
   pipelineCreateInfo.layout = pipe_layout();
   pipelineCreateInfo.renderPass = *render_pass;
+
+  std::vector<VkDynamicState> dynamicStateEnables;
+  dynamicStateEnables.push_back(VK_DYNAMIC_STATE_VIEWPORT);
+  dynamicStateEnables.push_back(VK_DYNAMIC_STATE_SCISSOR);
+  VkPipelineDynamicStateCreateInfo dynamicState = {};
+  dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+  dynamicState.pDynamicStates = dynamicStateEnables.data();
+  dynamicState.dynamicStateCount = dynamicStateEnables.size();
 
   VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = {};
   inputAssemblyState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -42,28 +49,17 @@ void DepthPipeline::realize(VulkanPass *render_pass, int subpass)
 
   VkPipelineColorBlendAttachmentState blendAttachmentState[1] = {};
   blendAttachmentState[0].colorWriteMask = 0xf;
-  blendAttachmentState[0].blendEnable = VK_FALSE;
+  blendAttachmentState[0].blendEnable = VK_TRUE;
+
   VkPipelineColorBlendStateCreateInfo colorBlendState = {};
   colorBlendState.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
   colorBlendState.attachmentCount = 1;
   colorBlendState.pAttachments = blendAttachmentState;
 
-  VkViewport vp; 
-  vp.x = 0; vp.y = _h;
-  vp.width = _w; vp.height = -_h;
-  vp.minDepth = 0; vp.maxDepth = 1;
-  VkRect2D rt = {0}; rt.extent.width = _w; rt.extent.height = _h;
-  VkPipelineViewportStateCreateInfo viewportState = {};
-  viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-  viewportState.viewportCount = 1;
-  viewportState.scissorCount = 1;
-  viewportState.pViewports = &vp;
-  viewportState.pScissors = &rt;
-
   VkPipelineDepthStencilStateCreateInfo depthStencilState = {};
   depthStencilState.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-  depthStencilState.depthTestEnable = VK_TRUE;
-  depthStencilState.depthWriteEnable = VK_TRUE;
+  depthStencilState.depthTestEnable = VK_FALSE;
+  depthStencilState.depthWriteEnable = VK_FALSE;
   depthStencilState.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
   depthStencilState.depthBoundsTestEnable = VK_FALSE;
   depthStencilState.back.failOp = VK_STENCIL_OP_KEEP;
@@ -98,13 +94,13 @@ void DepthPipeline::realize(VulkanPass *render_pass, int subpass)
   VkPipelineShaderStageCreateInfo shaderStages[2] = {};
   shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-  shaderStages[0].module = _device->create_shader(SHADER_DIR "/depth.vert.spv");
+  shaderStages[0].module = _device->create_shader(SHADER_DIR "/hud.vert.spv");
   shaderStages[0].pName = "main";
   assert(shaderStages[0].module != VK_NULL_HANDLE);
 
   shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-  shaderStages[1].module = _device->create_shader(SHADER_DIR "/depth.frag.spv");
+  shaderStages[1].module = _device->create_shader(SHADER_DIR "/hud.frag.spv");
   shaderStages[1].pName = "main";
   assert(shaderStages[1].module != VK_NULL_HANDLE);
 
@@ -116,10 +112,9 @@ void DepthPipeline::realize(VulkanPass *render_pass, int subpass)
   pipelineCreateInfo.pRasterizationState = &rasterizationState;
   pipelineCreateInfo.pColorBlendState = &colorBlendState;
   pipelineCreateInfo.pMultisampleState = &multisampleState;
-  pipelineCreateInfo.pViewportState = &viewportState;
   pipelineCreateInfo.pDepthStencilState = &depthStencilState;
-  pipelineCreateInfo.pDynamicState = 0;
-  pipelineCreateInfo.subpass = subpass;
+  pipelineCreateInfo.pDynamicState = &dynamicState;
+  pipelineCreateInfo.subpass = 0;
 
   VK_CHECK_RESULT(vkCreateGraphicsPipelines(*_device, _device->get_or_create_pipecache(), 1, &pipelineCreateInfo, nullptr, &_pipeline));
 
@@ -127,7 +122,7 @@ void DepthPipeline::realize(VulkanPass *render_pass, int subpass)
   vkDestroyShaderModule(*_device, shaderStages[1].module, nullptr);
 }
 
-VkPipelineLayout DepthPipeline::pipe_layout()
+VkPipelineLayout HUDPipeline::pipe_layout()
 {
   if (!_pipe_layout) {
     auto lay = matrix_layout();
@@ -150,27 +145,4 @@ VkPipelineLayout DepthPipeline::pipe_layout()
     _pipe_layout = pipe_layout;
   }
   return _pipe_layout;
-}
-
-VkPipelineLayout DepthPipeline::create_pipe_layout()
-{
-  VkDescriptorSetLayout layout = matrix_layout();
-
-  VkPushConstantRange transformConstants;
-  transformConstants.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-  transformConstants.offset = 0;
-  transformConstants.size = sizeof(Transform);
-
-  VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = {};
-  pPipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  pPipelineLayoutCreateInfo.pNext = nullptr;
-  pPipelineLayoutCreateInfo.setLayoutCount = 1;
-  pPipelineLayoutCreateInfo.pSetLayouts = &layout;
-  pPipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-  pPipelineLayoutCreateInfo.pPushConstantRanges = &transformConstants;
-
-  VkPipelineLayout pipe_layout = VK_NULL_HANDLE;
-  VK_CHECK_RESULT(vkCreatePipelineLayout(*_device, &pPipelineLayoutCreateInfo, nullptr, &pipe_layout));
-
-  return pipe_layout;
 }

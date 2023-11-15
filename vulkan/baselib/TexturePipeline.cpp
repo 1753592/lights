@@ -12,7 +12,7 @@ using tg::vec4;
 
 #define SHADER_DIR ROOT_DIR##"/vulkan/baselib/shaders"
 
-TexturePipeline::TexturePipeline(const std::shared_ptr<VulkanDevice> &dev) : VulkanPipeline(dev) 
+TexturePipeline::TexturePipeline(const std::shared_ptr<VulkanDevice> &dev) : PBRPipeline(dev) 
 {
 }
 

@@ -1,4 +1,4 @@
-#include "DepthPipeline.h"
+#include "PBRPipeline.h"
 #include "VulkanPass.h"
 #include "VulkanTools.h"
 
@@ -7,23 +7,34 @@
 #include "RenderData.h"
 
 using tg::vec3;
+using tg::vec4;
 
 #define SHADER_DIR ROOT_DIR##"/vulkan/baselib/shaders"
 
-
-DepthPipeline::DepthPipeline(const std::shared_ptr<VulkanDevice>& dev, int w, int h) : Base(dev), _w(w), _h(h)
+PBRPipeline::PBRPipeline(const std::shared_ptr<VulkanDevice>& dev) : VulkanPipeline(dev)
 {
 }
 
-DepthPipeline::~DepthPipeline()
+PBRPipeline::~PBRPipeline()
 {
+  if(_light_layout) {
+    vkDestroyDescriptorSetLayout(*_device, _light_layout, nullptr);
+    _light_layout = VK_NULL_HANDLE;
+  }
+
+  if (_pbr_layout) {
+    vkDestroyDescriptorSetLayout(*_device, _pbr_layout, nullptr);
+    _pbr_layout = VK_NULL_HANDLE;
+  }
 }
 
-void DepthPipeline::realize(VulkanPass *render_pass, int subpass)
+void PBRPipeline::realize(VulkanPass *render_pass, int subpass)
 {
+  auto pipelay = pipe_layout();
+
   VkGraphicsPipelineCreateInfo pipelineCreateInfo = {};
   pipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-  pipelineCreateInfo.layout = pipe_layout();
+  pipelineCreateInfo.layout = pipelay;
   pipelineCreateInfo.renderPass = *render_pass;
 
   VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = {};
@@ -48,17 +59,18 @@ void DepthPipeline::realize(VulkanPass *render_pass, int subpass)
   colorBlendState.attachmentCount = 1;
   colorBlendState.pAttachments = blendAttachmentState;
 
-  VkViewport vp; 
-  vp.x = 0; vp.y = _h;
-  vp.width = _w; vp.height = -_h;
-  vp.minDepth = 0; vp.maxDepth = 1;
-  VkRect2D rt = {0}; rt.extent.width = _w; rt.extent.height = _h;
   VkPipelineViewportStateCreateInfo viewportState = {};
   viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
   viewportState.viewportCount = 1;
   viewportState.scissorCount = 1;
-  viewportState.pViewports = &vp;
-  viewportState.pScissors = &rt;
+
+  std::vector<VkDynamicState> dynamicStateEnables;
+  dynamicStateEnables.push_back(VK_DYNAMIC_STATE_VIEWPORT);
+  dynamicStateEnables.push_back(VK_DYNAMIC_STATE_SCISSOR);
+  VkPipelineDynamicStateCreateInfo dynamicState = {};
+  dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+  dynamicState.pDynamicStates = dynamicStateEnables.data();
+  dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStateEnables.size());
 
   VkPipelineDepthStencilStateCreateInfo depthStencilState = {};
   depthStencilState.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
@@ -77,34 +89,41 @@ void DepthPipeline::realize(VulkanPass *render_pass, int subpass)
   multisampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
   multisampleState.pSampleMask = nullptr;
 
-  VkVertexInputBindingDescription vertexInputBinding = {};
-  vertexInputBinding.binding = 0;  
-  vertexInputBinding.stride = sizeof(vec3);
-  vertexInputBinding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+  VkVertexInputBindingDescription vertexInputBindings[2] = {};
+  vertexInputBindings[0].binding = 0;  // vkCmdBindVertexBuffers
+  vertexInputBindings[0].stride = sizeof(vec3);
+  vertexInputBindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+  vertexInputBindings[1].binding = 1;  // vkCmdBindVertexBuffers
+  vertexInputBindings[1].stride = sizeof(vec3);
+  vertexInputBindings[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-  VkVertexInputAttributeDescription vertexInputAttribut = {};
-  vertexInputAttribut.binding = 0;
-  vertexInputAttribut.location = 0;
-  vertexInputAttribut.format = VK_FORMAT_R32G32B32_SFLOAT;
-  vertexInputAttribut.offset = 0;
+  VkVertexInputAttributeDescription vertexInputAttributs[2] = {};
+  vertexInputAttributs[0].binding = 0;
+  vertexInputAttributs[0].location = 0;
+  vertexInputAttributs[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+  vertexInputAttributs[0].offset = 0;
+  vertexInputAttributs[1].binding = 1;
+  vertexInputAttributs[1].location = 1;
+  vertexInputAttributs[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+  vertexInputAttributs[1].offset = 0;
 
   VkPipelineVertexInputStateCreateInfo vertexInputState = {};
   vertexInputState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-  vertexInputState.vertexBindingDescriptionCount = 1;
-  vertexInputState.pVertexBindingDescriptions = &vertexInputBinding;
-  vertexInputState.vertexAttributeDescriptionCount = 1;
-  vertexInputState.pVertexAttributeDescriptions = &vertexInputAttribut;
+  vertexInputState.vertexBindingDescriptionCount = 2;
+  vertexInputState.pVertexBindingDescriptions = vertexInputBindings;
+  vertexInputState.vertexAttributeDescriptionCount = 2;
+  vertexInputState.pVertexAttributeDescriptions = vertexInputAttributs;
 
   VkPipelineShaderStageCreateInfo shaderStages[2] = {};
   shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-  shaderStages[0].module = _device->create_shader(SHADER_DIR "/depth.vert.spv");
+  shaderStages[0].module = _device->create_shader(SHADER_DIR "/pbr_clr.vert.spv");
   shaderStages[0].pName = "main";
   assert(shaderStages[0].module != VK_NULL_HANDLE);
 
   shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-  shaderStages[1].module = _device->create_shader(SHADER_DIR "/depth.frag.spv");
+  shaderStages[1].module = _device->create_shader(SHADER_DIR "/pbr_clr.frag.spv");
   shaderStages[1].pName = "main";
   assert(shaderStages[1].module != VK_NULL_HANDLE);
 
@@ -118,43 +137,66 @@ void DepthPipeline::realize(VulkanPass *render_pass, int subpass)
   pipelineCreateInfo.pMultisampleState = &multisampleState;
   pipelineCreateInfo.pViewportState = &viewportState;
   pipelineCreateInfo.pDepthStencilState = &depthStencilState;
-  pipelineCreateInfo.pDynamicState = 0;
+  pipelineCreateInfo.pDynamicState = &dynamicState;
   pipelineCreateInfo.subpass = subpass;
 
   VK_CHECK_RESULT(vkCreateGraphicsPipelines(*_device, _device->get_or_create_pipecache(), 1, &pipelineCreateInfo, nullptr, &_pipeline));
 
   vkDestroyShaderModule(*_device, shaderStages[0].module, nullptr);
   vkDestroyShaderModule(*_device, shaderStages[1].module, nullptr);
+
 }
 
-VkPipelineLayout DepthPipeline::pipe_layout()
+VkDescriptorSetLayout PBRPipeline::light_layout()
 {
-  if (!_pipe_layout) {
-    auto lay = matrix_layout();
+  if (!_light_layout) {
+    VkDescriptorSetLayoutBinding layoutBinding = {};
+    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    layoutBinding.descriptorCount = 1;
+    layoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutBinding.pImmutableSamplers = nullptr;
+    layoutBinding.binding = 0;
 
-    VkPushConstantRange transformConstants;
-    transformConstants.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    transformConstants.offset = 0;
-    transformConstants.size = sizeof(Transform);
+    VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
+    descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    descriptorLayout.pNext = nullptr;
+    descriptorLayout.bindingCount = 1;
+    descriptorLayout.pBindings = &layoutBinding;
 
-    VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = {};
-    pPipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pPipelineLayoutCreateInfo.pNext = nullptr;
-    pPipelineLayoutCreateInfo.setLayoutCount = 1;
-    pPipelineLayoutCreateInfo.pSetLayouts = &lay;
-    pPipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-    pPipelineLayoutCreateInfo.pPushConstantRanges = &transformConstants;
-
-    VkPipelineLayout pipe_layout = VK_NULL_HANDLE;
-    VK_CHECK_RESULT(vkCreatePipelineLayout(*_device, &pPipelineLayoutCreateInfo, nullptr, &pipe_layout));
-    _pipe_layout = pipe_layout;
+    VkDescriptorSetLayout deslay = VK_NULL_HANDLE;
+    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*_device, &descriptorLayout, nullptr, &deslay));
+    _light_layout = deslay;
   }
-  return _pipe_layout;
+
+  return _light_layout;
 }
 
-VkPipelineLayout DepthPipeline::create_pipe_layout()
+VkDescriptorSetLayout PBRPipeline::pbr_layout()
 {
-  VkDescriptorSetLayout layout = matrix_layout();
+  if(!_pbr_layout) {
+    VkDescriptorSetLayoutBinding layoutBinding = {};
+    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    layoutBinding.descriptorCount = 1;
+    layoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutBinding.pImmutableSamplers = nullptr;
+    layoutBinding.binding = 0;
+
+    VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
+    descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    descriptorLayout.pNext = nullptr;
+    descriptorLayout.bindingCount = 1;
+    descriptorLayout.pBindings = &layoutBinding;
+
+    VkDescriptorSetLayout deslay = VK_NULL_HANDLE;
+    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*_device, &descriptorLayout, nullptr, &deslay));
+    _pbr_layout = deslay;
+  }
+  return _pbr_layout;
+}
+
+VkPipelineLayout PBRPipeline::create_pipe_layout()
+{
+  VkDescriptorSetLayout layouts[3] = {matrix_layout(), light_layout(), pbr_layout()};
 
   VkPushConstantRange transformConstants;
   transformConstants.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
@@ -164,8 +206,8 @@ VkPipelineLayout DepthPipeline::create_pipe_layout()
   VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = {};
   pPipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pPipelineLayoutCreateInfo.pNext = nullptr;
-  pPipelineLayoutCreateInfo.setLayoutCount = 1;
-  pPipelineLayoutCreateInfo.pSetLayouts = &layout;
+  pPipelineLayoutCreateInfo.setLayoutCount = 3;
+  pPipelineLayoutCreateInfo.pSetLayouts = layouts;
   pPipelineLayoutCreateInfo.pushConstantRangeCount = 1;
   pPipelineLayoutCreateInfo.pPushConstantRanges = &transformConstants;
 

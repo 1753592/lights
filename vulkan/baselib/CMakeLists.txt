@@ -25,10 +25,14 @@ set(hdr
 	VulkanTools.h
 	VulkanInitializers.hpp
 	VulkanPipeline.h
+	PBRPipeline.h
 	TexturePipeline.h
 	DepthPipeline.h
 	DepthPass.h
+	HUDPipeline.h
+	HUDPass.h
 
+	HUDRect.h
 	MeshInstance.h
 	MeshPrimitive.h
 
@@ -54,10 +58,14 @@ set(src
 	VulkanTools.cpp
 	VulkanPipeline.cpp
 
+	PBRPipeline.cpp
 	TexturePipeline.cpp
 	DepthPipeline.cpp
 	DepthPass.cpp
+	HUDPipeline.cpp
+	HUDPass.cpp
 
+	HUDRect.cpp
 	MeshInstance.cpp
 	MeshPrimitive.cpp
 
@@ -84,6 +92,8 @@ set(shaders
 	shaders/pbr_tex.frag
 	shaders/depth.vert
 	shaders/depth.frag
+	shaders/hud.vert
+	shaders/hud.frag
 )
 
 source_group(shaders FILES ${shaders})

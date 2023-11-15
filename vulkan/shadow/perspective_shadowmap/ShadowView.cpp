@@ -47,7 +47,7 @@ ShadowView::ShadowView(const std::shared_ptr<VulkanDevice> &dev) : VulkanView(de
   _deer = loader.load_file(ROOT_DIR "/data/deer.gltf");
   _deer->set_transform(tg::translate(tg::vec3(3, 3, 1)) * tg::rotate(tg::radians(30.f), tg::vec3(0, 0, 1)) * tg::scale(1));
 
-  _basic_pipeline = std::make_shared<VulkanPipeline>(dev);
+  _basic_pipeline = std::make_shared<PBRPipeline>(dev);
   //_texture_pipeline = std::make_shared<TexturePipeline>(dev);
   _shadow_pipeline = std::make_shared<ShadowPipeline>(dev);
 
@@ -60,6 +60,13 @@ ShadowView::ShadowView(const std::shared_ptr<VulkanDevice> &dev) : VulkanView(de
     _basic_texture = std::make_shared<VulkanTexture>();
     _basic_texture->set_image(32, 32, tg::Tvec4<uint8_t>(128, 128, 128, 255));
     _basic_texture->realize(_device);
+  }
+
+  {
+    _hud_pass = std::make_shared<HUDPass>(dev);
+    _hud_pipeline = std::make_shared<HUDPipeline>(dev);
+    _hud_rect = std::make_shared<HUDRect>(dev);
+    _hud_rect->setGeometry(0, 0, 80, 60);
   }
 
   create_pipe_layout();
@@ -100,6 +107,12 @@ ShadowView::~ShadowView()
     vkDestroyFramebuffer(*_device, _depth_frames[i], 0);
   }
   _depth_frames.clear();
+
+  for (int i = 0; i < _hud_frames.size(); i++)
+  {
+    vkDestroyFramebuffer(*_device, _hud_frames[i], 0);
+  }
+  _hud_frames.clear();
 }
 
 void ShadowView::create_sphere()
@@ -239,6 +252,12 @@ void ShadowView::set_uniforms()
   pbr.roughness = 0.7;
   VK_CHECK_RESULT(vkMapMemory(*device(), _material->memory(), 0, sizeof(pbr), 0, (void **)&data));
   memcpy(data, &pbr, sizeof(pbr));
+
+  _depth_matrix_buf = device()->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
+    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sizeof(MVP));
+
+  _shadow_buf = device()->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
+    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sizeof(ShadowMatrix));
 }
 
 void ShadowView::update_ubo()
@@ -252,36 +271,42 @@ void ShadowView::update_ubo()
   // auto xx = _matrix.view * tg::vec4(0, 0, 100, 1);
   // xx = _matrix.prj * xx;
 
-  auto mat = _matrix.prj * _matrix.view;
-  auto xx = mat * tg::vec4(0);
-
-  //auto vp = tg::vec3(10);
-  //_depth_matrix_buf = device()->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
-  //  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sizeof(MVP));
-  //_depth_matrix.view = tg::lookat(mat * vp, mat * tg::vec3(0, 0, 0), mat);
-  //_depth_matrix.prj = tg::ortho(-1, 1, -1, -1, -1, 1);
-
-  //VK_CHECK_RESULT(vkMapMemory(*device(), _depth_matrix_buf->memory(), 0, sizeof(MVP), 0, (void **)&data));
-  //memcpy(data, &_depth_matrix, sizeof(MVP));
-
-
   uint8_t *data = 0;
-  VK_CHECK_RESULT(vkMapMemory(*device(), _ubo_buf->memory(), 0, sizeof(_matrix), 0, (void **)&data));
-  memcpy(data, &_matrix, sizeof(_matrix));
-  vkUnmapMemory(*device(), _ubo_buf->memory());
+  {
+    VK_CHECK_RESULT(vkMapMemory(*device(), _ubo_buf->memory(), 0, sizeof(_matrix), 0, (void **)&data));
+    memcpy(data, &_matrix, sizeof(_matrix));
+    vkUnmapMemory(*device(), _ubo_buf->memory());
+  }
 
-  _shadow_matrix.prj = tg::ortho(-1, 1, -1, 1, 0.1, 10);
-  //_shadow_matrix.light = tg::normalize(vp); 
-  _shadow_matrix.view = mat * _depth_matrix.view;
-  _shadow_matrix.prj = _depth_matrix.prj;
-  _shadow_matrix.mvp = _depth_matrix.prj * _depth_matrix.view;
+  auto mat = _matrix.prj * _matrix.view;
+
+  auto vp = tg::vec3(10);
+  _depth_matrix.view = tg::lookat(mat * vp, mat * tg::vec3(0, 0, 0), mat * vec3(0, 0, 1)) * mat;
+  _depth_matrix.prj = tg::ortho(-1, 1, -1, 1, 0.5, 100);
 
   {
-    _shadow_buf = device()->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sizeof(ShadowMatrix));
-    
+    auto yy1 = _depth_matrix.view *tg::vec3(-20, -20, 0);
+    auto yy2 = _depth_matrix.view *tg::vec3(-20, 20, 0);
+    auto yy3 = _depth_matrix.view *tg::vec3(20, 20, 0);
+    auto yy4 = _depth_matrix.view *tg::vec3(20, -20, 0);
+    auto xx = _depth_matrix.prj *_depth_matrix.view *tg::vec3(-20, 0, 0);
+    printf("");
+  }
+
+  VK_CHECK_RESULT(vkMapMemory(*device(), _depth_matrix_buf->memory(), 0, sizeof(MVP), 0, (void **)&data));
+  memcpy(data, &_depth_matrix, sizeof(MVP));
+  vkUnmapMemory(*device(), _depth_matrix_buf->memory());
+
+  //_shadow_matrix.prj = tg::ortho(-1, 1, -1, 1, 0.1, 10);
+  ////_shadow_matrix.light = tg::normalize(vp); 
+  //_shadow_matrix.view = mat * _depth_matrix.view;
+  //_shadow_matrix.prj = _depth_matrix.prj;
+  //_shadow_matrix.mvp = _depth_matrix.prj * _depth_matrix.view;
+
+  {
     VK_CHECK_RESULT(vkMapMemory(*device(), _shadow_buf->memory(), 0, sizeof(ShadowMatrix), 0, (void **)&data));
     memcpy(data, &_shadow_matrix, sizeof(ShadowMatrix));
+    vkUnmapMemory(*device(), _shadow_buf->memory());
   }
 }
 
@@ -323,7 +348,8 @@ void ShadowView::create_command_buffers()
 
 void ShadowView::build_depth_command_buffer(VkCommandBuffer cmd_buf)
 {
-  auto mt = tg::mat4::identity();
+  tg::mat4 mt;
+  mt.identity();
   if (_depth_pipeline && _depth_pipeline->valid()) {
     vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, *_depth_pipeline);
     vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_pipeline->pipe_layout(), 0, 1, &_depth_matrix_set, 0, nullptr);
@@ -399,13 +425,50 @@ void ShadowView::build_command_buffers()
 
     vkCmdEndRenderPass(cmd_buf);
 
+    {
+      renderPassBeginInfo.renderPass = *_hud_pass;
+      renderPassBeginInfo.framebuffer = _hud_frames[i];
+      renderPassBeginInfo.clearValueCount = 0;
+      vkCmdBeginRenderPass(cmd_buf, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+      {
+        VkViewport viewport = {};
+        viewport.y = _h;
+        viewport.width = _w;
+        viewport.height = -_h;
+        viewport.minDepth = 0;
+        viewport.maxDepth = 1;
+        vkCmdSetViewport(cmd_buf, 0, 1, &viewport);
+      }
+
+      {
+        VkRect2D scissor = {};
+        scissor.extent.width = _w;
+        scissor.extent.height = _h;
+        scissor.offset.x = 0;
+        scissor.offset.y = 0;
+        vkCmdSetScissor(cmd_buf, 0, 1, &scissor);
+      }
+
+      vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, *_hud_pipeline);
+      tg::mat4 mat;
+      mat.identity();
+      mat[0][0] = 2.0 / width();
+      mat[1][1] = 2.0 / height();
+      mat = tg::translate(1.f, 1.f, 0.f) * mat;
+      vkCmdPushConstants(cmd_buf, _hud_pipeline->pipe_layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat), &mat);
+      _hud_rect->fill_command(cmd_buf, _hud_pipeline.get());
+      vkCmdEndRenderPass(cmd_buf);
+    }
+
     VK_CHECK_RESULT(vkEndCommandBuffer(cmd_buf));
   }
 }
 
 void ShadowView::build_command_buffer(VkCommandBuffer cmd_buf) 
 {
-  auto mt = tg::mat4::identity();
+  tg::mat4 mt;
+  mt.identity();
   {
     VkViewport viewport = {};
     viewport.y = _h;
@@ -612,6 +675,26 @@ void ShadowView::create_frame_buffers()
   }
 
   set_frame_buffers(frameBuffers);
+
+  {
+    VkFramebufferCreateInfo frameBufferCreateInfo = {};
+    frameBufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    frameBufferCreateInfo.pNext = NULL;
+    frameBufferCreateInfo.renderPass = *_hud_pass;
+    frameBufferCreateInfo.attachmentCount = 1;
+    frameBufferCreateInfo.width = _w;
+    frameBufferCreateInfo.height = _h;
+    frameBufferCreateInfo.layers = 1;
+
+    std::vector<VkFramebuffer> frameBuffers;
+    frameBuffers.resize(_swapchain->image_count());
+    for (uint32_t i = 0; i < frameBuffers.size(); i++) {
+      VkImageView img = _swapchain->image_view(i);
+      frameBufferCreateInfo.pAttachments = &img; 
+      VK_CHECK_RESULT(vkCreateFramebuffer(*_device, &frameBufferCreateInfo, nullptr, &frameBuffers[i]));
+    }
+    _hud_frames = std::move(frameBuffers);
+  }
 }
 
 void ShadowView::create_pipeline()
@@ -688,6 +771,11 @@ void ShadowView::create_pipeline()
     writeDescriptorSet.pImageInfo = &depthDescriptor;
 
     vkUpdateDescriptorSets(*device(), 1, &writeDescriptorSet, 0, nullptr);
+  }
+
+  {
+    _hud_pipeline->realize(_hud_pass.get());
+    _hud_rect->setTexture(_hud_pipeline.get(), _shadow_texture.get(), _descript_pool);
   }
 
   build_command_buffers();

@@ -626,7 +626,7 @@ public:
   {
     matrix_ubo.cam = _manip.eye();
     matrix_ubo.view = _manip.view_matrix();
-    matrix_ubo.model = tg::mat4::identity();
+    matrix_ubo.model.identity();
     matrix_ubo.prj = tg::perspective<float>(fov, float(_w) / _h, 0.1, 1000);
     // tg::near_clip(matrix_ubo.prj, tg::vec4(0, 0, -1, 0.5));
     uint8_t *data = 0;

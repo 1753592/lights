@@ -46,10 +46,7 @@ private:
 
   std::shared_ptr<DepthPass> _depth_pass;
 
-  std::shared_ptr<VulkanPipeline> _basic_pipeline;
-  //std::shared_ptr<TexturePipeline> _texture_pipeline;
   std::shared_ptr<ShadowPipeline> _shadow_pipeline;
-
   std::shared_ptr<DepthPipeline> _depth_pipeline;
 
   std::shared_ptr<VulkanImage> _depth_image;

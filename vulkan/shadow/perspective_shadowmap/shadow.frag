@@ -124,18 +124,18 @@ void main(void)
   color = color / (color + vec3(1.0));
   //color = pow(color, vec3(1.0 / 2.2));
 
-  if(vp_suv.x > -1 && vp_suv.x < 1 && vp_suv.y > -1 && vp_suv.y < 1)
-  {
-    vec2 suv = vp_suv.xy;
-    suv = (suv + vec2(1)) / 2.0;
-    suv.y = 1 - suv.y;
-    float dep = texture(shadow_tex, suv).r;
-    float depbias = tan(acos(dot(n, shadow_matrix.light.xyz))) * 0.0001;
-    if(vp_suv.z > dep + depbias)
-    {
-      color = color * dep;
-    }
-  }
+  //if(vp_suv.x > -1 && vp_suv.x < 1 && vp_suv.y > -1 && vp_suv.y < 1)
+  //{
+  //  vec2 suv = vp_suv.xy;
+  //  suv = (suv + vec2(1)) / 2.0;
+  //  suv.y = 1 - suv.y;
+  //  float dep = texture(shadow_tex, suv).r;
+  //  float depbias = tan(acos(dot(n, shadow_matrix.light.xyz))) * 0.0001;
+  //  if(vp_suv.z > dep + depbias)
+  //  {
+  //    color = color * dep;
+  //  }
+  //}
 
   frag_color = vec4(color, 1.0);
 }

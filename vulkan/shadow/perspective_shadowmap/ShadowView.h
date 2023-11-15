@@ -6,6 +6,9 @@
 #include "MeshInstance.h"
 #include "DepthPipeline.h"
 #include "DepthPass.h"
+#include "HUDPass.h"
+#include "HUDPipeline.h"
+#include "HUDRect.h"
 
 class ShadowView : public VulkanView {
 public:
@@ -43,10 +46,9 @@ private:
   VkDescriptorPool _descript_pool = VK_NULL_HANDLE;
 
   std::vector<VkFramebuffer> _depth_frames;
-
   std::shared_ptr<DepthPass> _depth_pass;
 
-  std::shared_ptr<VulkanPipeline> _basic_pipeline;
+  std::shared_ptr<PBRPipeline> _basic_pipeline;
   //std::shared_ptr<TexturePipeline> _texture_pipeline;
   std::shared_ptr<ShadowPipeline> _shadow_pipeline;
 
@@ -77,4 +79,9 @@ private:
   std::shared_ptr<MeshInstance> _tree, _deer;
 
   std::shared_ptr<VulkanTexture> _basic_texture;
+
+  std::vector<VkFramebuffer> _hud_frames;
+  std::shared_ptr<HUDPass> _hud_pass;
+  std::shared_ptr<HUDPipeline> _hud_pipeline;
+  std::shared_ptr<HUDRect> _hud_rect;
 };

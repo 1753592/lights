@@ -67,10 +67,10 @@ std::shared_ptr<MeshInstance> GLTFLoader::load_file(const std::string& file)
   auto m = tg::rotate<float>(M_PI_2, tg::vec3(1, 0, 0));
 
   for (auto &node : _m->nodes) {
-    auto t = tg::mat4d::identity();
+    tg::mat4d t, r, s; t.identity();
     if (!node.translation.empty()) t = tg::translate(tg::vec3d(node.translation.data())); 
-    auto r = tg::mat4d::identity(); if(!node.rotation.empty()) r = tg::mat4d(tg::dmat3(tg::quatd(tg::vec4d(node.rotation.data()))));
-    auto s = tg::mat4d::identity(); if(!node.scale.empty()) s = tg::scale(tg::vec3d(node.scale.data()));
+    r.identity(); if(!node.rotation.empty()) r = tg::mat4d(tg::dmat3(tg::quatd(tg::vec4d(node.rotation.data()))));
+    s.identity(); if(!node.scale.empty()) s = tg::scale(tg::vec3d(node.scale.data()));
 
     auto mesh = _m->meshes[node.mesh];
     for (auto &pri : mesh.primitives) {

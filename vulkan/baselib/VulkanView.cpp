@@ -93,26 +93,26 @@ void VulkanView::frame(bool continus)
             render();
           break;
         case SDL_MOUSEBUTTONDOWN:
-          if (_imgui) _imgui->mouse_down(event.button);
-          //mouse_down(event.button);
-          update_frame();
+          if (_imgui && _imgui->mouse_down(event.button))
+            // mouse_down(event.button);
+            update_frame();
           break;
         case SDL_MOUSEBUTTONUP:
-          if (_imgui) _imgui->mouse_up(event.button);
-          //mouse_up(event.button);
+          if (_imgui && _imgui->mouse_up(event.button)) {}
+          // mouse_up(event.button);
           update_frame();
           break;
         case SDL_MOUSEMOTION:
-          if (event.motion.state & SDL_BUTTON_LMASK) {
-            _manip.rotate(event.motion.xrel, event.motion.yrel);
-            left_drag(event.motion.x, event.motion.y, event.motion.xrel, event.motion.yrel);
-          } else if (event.motion.state & SDL_BUTTON_MMASK) {
-          } else if (event.motion.state & SDL_BUTTON_RMASK) {
-            _manip.translate(event.motion.xrel, -event.motion.yrel);
-            right_drag(event.motion.x, event.motion.y, event.motion.xrel, event.motion.yrel);
-          }            
-          if (_imgui) {
-            _imgui->mouse_move(event.motion);
+          if (_imgui && _imgui->mouse_move(event.motion)) {
+          } else {
+            if (event.motion.state & SDL_BUTTON_LMASK) {
+              _manip.rotate(event.motion.xrel, event.motion.yrel);
+              left_drag(event.motion.x, event.motion.y, event.motion.xrel, event.motion.yrel);
+            } else if (event.motion.state & SDL_BUTTON_MMASK) {
+            } else if (event.motion.state & SDL_BUTTON_RMASK) {
+              _manip.translate(event.motion.xrel, -event.motion.yrel);
+              right_drag(event.motion.x, event.motion.y, event.motion.xrel, event.motion.yrel);
+            }
           }
           update_frame();
           break;

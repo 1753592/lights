@@ -14,5 +14,9 @@ public:
 
 private:
 
+  VkPipelineLayout  create_pipe_layout();
+
+private:
+
   int _w = 0, _h = 0;
 }; 

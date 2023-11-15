@@ -16,7 +16,7 @@
 
 MeshInstance::MeshInstance()
 {
-  _transform = tg::mat4::identity();
+  _transform.identity();
 }
 
 MeshInstance::~MeshInstance()
