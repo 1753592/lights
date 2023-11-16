@@ -47,8 +47,6 @@ ShadowView::ShadowView(const std::shared_ptr<VulkanDevice> &dev) : VulkanView(de
   _deer = loader.load_file(ROOT_DIR "/data/deer.gltf");
   _deer->set_transform(tg::translate(tg::vec3(3, 3, 1)) * tg::rotate(tg::radians(30.f), tg::vec3(0, 0, 1)) * tg::scale(1));
 
-  _basic_pipeline = std::make_shared<PBRPipeline>(dev);
-  //_texture_pipeline = std::make_shared<TexturePipeline>(dev);
   _shadow_pipeline = std::make_shared<ShadowPipeline>(dev);
 
   _depth_pipeline = std::make_shared<DepthPipeline>(dev, 2048, 2048);
@@ -66,7 +64,7 @@ ShadowView::ShadowView(const std::shared_ptr<VulkanDevice> &dev) : VulkanView(de
     _hud_pass = std::make_shared<HUDPass>(dev);
     _hud_pipeline = std::make_shared<HUDPipeline>(dev);
     _hud_rect = std::make_shared<HUDRect>(dev);
-    _hud_rect->setGeometry(0, 0, 80, 60);
+    _hud_rect->setGeometry(50, 50, 400, 400);
   }
 
   create_pipe_layout();
@@ -354,7 +352,7 @@ void ShadowView::build_depth_command_buffer(VkCommandBuffer cmd_buf)
     vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, *_depth_pipeline);
     vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_pipeline->pipe_layout(), 0, 1, &_depth_matrix_set, 0, nullptr);
 
-    vkCmdPushConstants(cmd_buf, _basic_pipeline->pipe_layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Transform), &mt);
+    vkCmdPushConstants(cmd_buf, _depth_pipeline->pipe_layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Transform), &mt);
 
     VkDeviceSize oft = 0;
     vkCmdBindVertexBuffers(cmd_buf, 0, 1, &_vert_buf, &oft);
@@ -369,7 +367,7 @@ void ShadowView::build_depth_command_buffer(VkCommandBuffer cmd_buf)
 
 void ShadowView::build_command_buffers()
 {
-  if (!_depth_pipeline->valid() || !_basic_pipeline->valid() || !_shadow_pipeline->valid())
+  if (!_depth_pipeline->valid() || !_shadow_pipeline->valid())
     return;
 
   vkDeviceWaitIdle(*_device);
@@ -433,9 +431,8 @@ void ShadowView::build_command_buffers()
 
       {
         VkViewport viewport = {};
-        viewport.y = _h;
         viewport.width = _w;
-        viewport.height = -_h;
+        viewport.height = _h;
         viewport.minDepth = 0;
         viewport.maxDepth = 1;
         vkCmdSetViewport(cmd_buf, 0, 1, &viewport);
@@ -455,7 +452,7 @@ void ShadowView::build_command_buffers()
       mat.identity();
       mat[0][0] = 2.0 / width();
       mat[1][1] = 2.0 / height();
-      mat = tg::translate(1.f, 1.f, 0.f) * mat;
+      mat = tg::translate(-1.f, -1.f, 0.f) * mat;
       vkCmdPushConstants(cmd_buf, _hud_pipeline->pipe_layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat), &mat);
       _hud_rect->fill_command(cmd_buf, _hud_pipeline.get());
       vkCmdEndRenderPass(cmd_buf);
@@ -545,9 +542,9 @@ void ShadowView::create_pipe_layout()
   _descript_pool = desPool;
 
   //----------------------------------------------------------------------------------------------------
-  auto mlayout = _basic_pipeline->matrix_layout();
-  auto llayout = _basic_pipeline->light_layout();
-  auto playout = _basic_pipeline->pbr_layout();
+  auto mlayout = _shadow_pipeline->matrix_layout();
+  auto llayout = _shadow_pipeline->light_layout();
+  auto playout = _shadow_pipeline->pbr_layout();
 
   VkDescriptorSetAllocateInfo allocInfo = {};
   allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -727,8 +724,6 @@ void ShadowView::create_pipeline()
     vkUpdateDescriptorSets(*device(), 1, &writeDescriptorSet, 0, nullptr);
   }
 
-  _basic_pipeline->realize(render_pass());
-  //_texture_pipeline->realize(render_pass());
   _shadow_pipeline->realize(render_pass());
 
   _tree->realize(_device, _shadow_pipeline);

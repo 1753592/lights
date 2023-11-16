@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 #include <iostream>
+#include <cstring>
 
 #include <vulkan/vulkan.h> 
 #include <vulkan/vulkan_win32.h>
@@ -57,6 +58,11 @@ VulkanInstance::create_device(const std::string &devStr)
   if (!devStr.empty()) {
     for (int i = 0; i < gpuCount; i++) {
       vkGetPhysicalDeviceProperties(physicalDevices[i], &deviceProperties);
+      if (strstr(deviceProperties.deviceName, devStr.c_str()))
+      {
+        selectedDevice = i;
+        break;
+      }
     }
   }
 

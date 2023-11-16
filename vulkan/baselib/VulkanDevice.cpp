@@ -166,6 +166,7 @@ VkResult VulkanDevice::realize(VkPhysicalDeviceFeatures enabledFeatures, std::ve
     // If the device will be used for presenting to a display via a swapchain we need to request the swapchain extension
     deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
   }
+  deviceExtensions.push_back(VK_EXT_LOAD_STORE_OP_NONE_EXTENSION_NAME);
 
   VkDeviceCreateInfo deviceCreateInfo = {};
   deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;

@@ -29,7 +29,7 @@ int main(int argc, char **argv)
       throw std::runtime_error("could not create vk surface.");
 
     inst.enable_debug();
-    auto dev = inst.create_device();
+    auto dev = inst.create_device("NVIDIA");
 
     view = std::make_shared<ShadowView>(dev);
     view->set_surface(surface, w, h);
