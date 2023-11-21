@@ -4,7 +4,7 @@
 #include "ShadowPipeline.h"
 #include "RenderData.h"
 #include "MeshInstance.h"
-#include "DepthPipeline.h"
+#include "DepthPersPipeline.h"
 #include "DepthPass.h"
 #include "HUDPass.h"
 #include "HUDPipeline.h"
@@ -49,7 +49,7 @@ private:
   std::shared_ptr<DepthPass> _depth_pass;
 
   std::shared_ptr<ShadowPipeline> _shadow_pipeline;
-  std::shared_ptr<DepthPipeline> _depth_pipeline;
+  std::shared_ptr<DepthPersPipeline> _depth_pipeline;
 
   std::shared_ptr<VulkanImage> _depth_image;
 
@@ -68,7 +68,8 @@ private:
 
   std::shared_ptr<VulkanBuffer> _ubo_buf, _light, _material;
 
-  MVP _matrix, _depth_matrix;
+  MVP _matrix;
+  PERSMVP _depth_matrix;
 
   uint32_t _vert_count = 0;
   uint32_t _index_count = 0;

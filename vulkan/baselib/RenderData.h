@@ -43,3 +43,19 @@ struct ShadowMatrix {
   tg::mat4 view;
   tg::mat4 mvp;
 };
+
+struct PERSMVP {
+  tg::vec4 eye;
+  tg::mat4 prj;
+  tg::mat4 view;
+  tg::mat4 pers;
+};
+
+struct PERSMatrix {
+  tg::vec4 light;
+  tg::mat4 prj;
+  tg::mat4 view;
+  tg::mat4 mvp;
+  tg::mat4 pers;
+};
+

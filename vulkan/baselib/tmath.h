@@ -3,6 +3,7 @@
 
 #include "tvec.h"
 #include <algorithm>
+#include <optional>
 
 namespace tg
 {
@@ -59,16 +60,6 @@ struct random<unsigned int>{
 
 		return res;
 	}
-};
-
-template<typename T>
-struct EPSTraits {
-	static constexpr T eps = feps;
-};
-
-template<>
-struct EPSTraits<double> {
-	static constexpr double eps = deps;
 };
 
 inline mat4 frustum(float left, float right, float bottom, float top, float n, float f)
@@ -214,268 +205,270 @@ inline Tmat4<T> translate(const Tvec3<T>& v)
 template <typename T>
 inline Tmat4<T> lookat(const Tvec3<T>& eye, const Tvec3<T>& center = Tvec3<T>(), const Tvec3<T>& up = Tvec3<T>(0, 0, 1))
 {
-	const Tvec3<T> f = normalize(center - eye);
-	const Tvec3<T> s = normalize(cross(f, up));
-	const Tvec3<T> u = normalize(cross(s, f));
-	const Tmat4<T> M = Tmat4<T>(Tvec4<T>(s[0], u[0], -f[0], T(0)),
-								Tvec4<T>(s[1], u[1], -f[1], T(0)),
-								Tvec4<T>(s[2], u[2], -f[2], T(0)),
-								Tvec4<T>(T(0), T(0), T(0), T(1)));
+  const Tvec3<T> f = normalize(center - eye);
+  const Tvec3<T> s = normalize(cross(f, up));
+  const Tvec3<T> u = normalize(cross(s, f));
+  const Tmat4<T> M = Tmat4<T>(
+		Tvec4<T>(s[0], u[0], -f[0], T(0)), 
+		Tvec4<T>(s[1], u[1], -f[1], T(0)), 
+		Tvec4<T>(s[2], u[2], -f[2], T(0)), 
+		Tvec4<T>(T(0), T(0), T(0), T(1)));
 
-	return M * translate<T>(-eye);
+  return M * translate<T>(-eye);
 }
 
 template <typename T>
 inline Tmat4<T> scale(T x, T y, T z)
 {
-	return Tmat4<T>(Tvec4<T>(x, 0.0f, 0.0f, 0.0f),
-					Tvec4<T>(0.0f, y, 0.0f, 0.0f),
-					Tvec4<T>(0.0f, 0.0f, z, 0.0f),
-					Tvec4<T>(0.0f, 0.0f, 0.0f, 1.0f));
+  return Tmat4<T>(
+		Tvec4<T>(x, 0.0f, 0.0f, 0.0f), 
+		Tvec4<T>(0.0f, y, 0.0f, 0.0f), 
+		Tvec4<T>(0.0f, 0.0f, z, 0.0f), 
+		Tvec4<T>(0.0f, 0.0f, 0.0f, 1.0f)
+	);
 }
 
 template <typename T>
 inline Tmat4<T> scale(const Tvec3<T>& v)
 {
-	return scale(v[0], v[1], v[2]);
+  return scale(v[0], v[1], v[2]);
 }
 
 template <typename T>
 inline Tmat4<T> scale(T x)
 {
-	return Tmat4<T>(Tvec4<T>(x, 0.0f, 0.0f, 0.0f),
-					Tvec4<T>(0.0f, x, 0.0f, 0.0f),
-					Tvec4<T>(0.0f, 0.0f, x, 0.0f),
-					Tvec4<T>(0.0f, 0.0f, 0.0f, 1.0f));
+  return Tmat4<T>(
+    Tvec4<T>(x, 0.0f, 0.0f, 0.0f), 
+    Tvec4<T>(0.0f, x, 0.0f, 0.0f), 
+    Tvec4<T>(0.0f, 0.0f, x, 0.0f), 
+    Tvec4<T>(0.0f, 0.0f, 0.0f, 1.0f)
+  );
 }
-
 
 template <typename T>
 inline Tmat4<T> rotate(T rads, T x, T y, T z)
 {
-	Tmat4<T> result;
+  Tmat4<T> result;
 
-	const T x2 = x * x;
-	const T y2 = y * y;
-	const T z2 = z * z;
-	const double c = cos(rads);
-	const double s = sin(rads);
-	const double omc = 1.0f - c;
+  const T x2 = x * x;
+  const T y2 = y * y;
+  const T z2 = z * z;
+  const double c = cos(rads);
+  const double s = sin(rads);
+  const double omc = 1.0f - c;
 
-	result[0] = Tvec4<T>(T(x2 * omc + c), T(y * x * omc + z * s), T(x * z * omc - y * s), T(0));
-	result[1] = Tvec4<T>(T(x * y * omc - z * s), T(y2 * omc + c), T(y * z * omc + x * s), T(0));
-	result[2] = Tvec4<T>(T(x * z * omc + y * s), T(y * z * omc - x * s), T(z2 * omc + c), T(0));
-	result[3] = Tvec4<T>(T(0), T(0), T(0), T(1));
+  result[0] = Tvec4<T>(T(x2 * omc + c), T(y * x * omc + z * s), T(x * z * omc - y * s), T(0));
+  result[1] = Tvec4<T>(T(x * y * omc - z * s), T(y2 * omc + c), T(y * z * omc + x * s), T(0));
+  result[2] = Tvec4<T>(T(x * z * omc + y * s), T(y * z * omc - x * s), T(z2 * omc + c), T(0));
+  result[3] = Tvec4<T>(T(0), T(0), T(0), T(1));
 
-	return result;
+  return result;
 }
 
 template <typename T>
 inline Tmat4<T> rotate(T angle, const vecN<T, 3>& v)
 {
-	return rotate<T>(angle, v[0], v[1], v[2]);
+  return rotate<T>(angle, v[0], v[1], v[2]);
 }
 
 template <typename T>
 inline Tmat4<T> rotate(T angle_x, T angle_y, T angle_z)
 {
-	return rotate(angle_z, 0.0f, 0.0f, 1.0f) *
-		rotate(angle_y, 0.0f, 1.0f, 0.0f) *
-		rotate(angle_x, 1.0f, 0.0f, 0.0f);
+  return rotate(angle_z, 0.0f, 0.0f, 1.0f) * rotate(angle_y, 0.0f, 1.0f, 0.0f) * rotate(angle_x, 1.0f, 0.0f, 0.0f);
 }
 
-template <typename T, int N>
-static inline vecN<T, N> min(const vecN<T, N>& x, const vecN<T, N>& y)
+template <typename T, int n>
+inline vecN<T, n> min(const vecN<T, n>& x, const vecN<T, n>& y)
 {
-	vecN<T, N> t;
-	int n;
-
-	for(n = 0; n < N; n++){
-		t[n] = std::min(x[n], y[n]);
-	}
-
-	return t;
-}
-template<typename T>
-static inline T clamp(T t, T min = 0, T max = 1)
-{
-	return t > max ? max : t < min ? min : t;
-}
-
-template <typename T, const int N>
-static inline vecN<T, N> max(const vecN<T, N>& x, const vecN<T, N>& y)
-{
-	vecN<T, N> t;
-	int n;
-
-	for(n = 0; n < N; n++){
-		t[n] = std::max<T>(x[n], y[n]);
-	}
-
-	return t;
-}
-
-template <typename T, const int N>
-static inline vecN<T, N> clamp(const vecN<T, N>& x, const vecN<T, N>& minVal, const vecN<T, N>& maxVal)
-{
-	return std::min<T>(std::max<T>(x, minVal), maxVal);
-}
-
-template <typename T, const int N>
-static inline vecN<T, N> smoothstep(const vecN<T, N>& edge0, const vecN<T, N>& edge1, const vecN<T, N>& x)
-{
-	vecN<T, N> t;
-	t = clamp((x - edge0) / (edge1 - edge0), vecN<T, N>(T(0)), vecN<T, N>(T(1)));
-	return t * t * (vecN<T, N>(T(3)) - vecN<T, N>(T(2)) * t);
-}
-
-template <typename T, const int S>
-static inline vecN<T, S> reflect(const vecN<T, S>& I, const vecN<T, S>& N)
-{
-	return I - 2 * dot(N, I) * N;
-}
-
-template <typename T, const int S>
-static inline vecN<T, S> refract(const vecN<T, S>& I, const vecN<T, S>& N, T eta)
-{
-	T d = dot(N, I);
-	T k = T(1) - eta * eta * (T(1) - d * d);
-	if(k < 0.0){
-		return vecN<T, N>(0);
-	} else{
-		return eta * I - (eta * d + sqrt(k)) * N;
-	}
-}
-
-template <typename T, const int N, const int M>
-static inline vecN<T, M> operator*(const vecN<T, N>& vec, const matNM<T, N, M>& mat)
-{
-	vecN<T, M> result(T(0));
-	T sum;
-	for(int m = 0; m < M; m++){
-		sum = 0;
-		for(int n = 0; n < N; n++){
-			sum += vec[n] * mat[n][m];
-		}
-		result[m] = sum;
-	}
-	return result;
-}
-
-template <typename T, const int N, const int M>
-static inline matNM<T, N, M> operator^(const matNM<T, N, M>& x, const matNM<T, N, M>& y)
-{
-  matNM<T, N, M> result;
-  int i, j;
-
-  for (j = 0; j < M; ++j) {
-    for (i = 0; i < N; ++i) {
-      result[i][j] = x[i][j] * y[i][j];
-    }
+  vecN<T, n> t;
+  for (int i = 0; i < n; i++) {
+    t[i] = std::min(x[i], y[i]);
   }
+  return t;
+}
 
+template <typename T>
+inline T clamp(T t, T min = 0, T max = 1)
+{
+  return t > max ? max : t < min ? min : t;
+}
+
+template <typename T, const int n>
+inline vecN<T, n> max(const vecN<T, n>& x, const vecN<T, n>& y)
+{
+  vecN<T, n> t;
+  for (int i = 0; i < n; i++) {
+    t[i] = std::max<T>(x[i], y[i]);
+  }
+  return t;
+}
+
+template <typename T, const int n>
+inline vecN<T, n> clamp(const vecN<T, n>& x, const vecN<T, n>& minv, const vecN<T, n>& maxv)
+{
+  return std::min<T>(std::max<T>(x, minv), maxv);
+}
+
+template <typename T, const int n>
+inline vecN<T, n> smoothstep(const vecN<T, n>& edge0, const vecN<T, n>& edge1, const vecN<T, n>& x)
+{
+  vecN<T, n> t;
+  t = clamp((x - edge0) / (edge1 - edge0), vecN<T, n>(T(0)), vecN<T, n>(T(1)));
+  return t * t * (vecN<T, n>(T(3)) - vecN<T, n>(T(2)) * t);
+}
+
+template <typename T, const int n>
+inline vecN<T, n> reflect(const vecN<T, n>& vi, const vecN<T, n>& vn)
+{
+  return vi - 2 * dot(vn, vi) * vn;
+}
+
+template <typename T, const int n>
+inline vecN<T, n> refract(const vecN<T, n>& vi, const vecN<T, n>& vn, T eta)
+{
+  T d = dot(vn, vi);
+  T k = T(1) - eta * eta * (T(1) - d * d);
+  if (k < 0.0) {
+    return vecN<T, n>(0);
+  } else {
+    return eta * vi - (eta * d + sqrt(k)) * vn;
+  }
+}
+
+template <typename T, const int w, const int h>
+inline vecN<T, w> operator*(const vecN<T, h>& vec, const matNM<T, w, h>& mat)
+{
+  vecN<T, w> result(T(0));
+  for (int i = 0; i < w; i++) {
+    T sum = 0;
+    for (int j = 0; j < h; j++) {
+      sum += vec[j] * mat[i][j];
+    }
+    result[i] = sum;
+  }
   return result;
 }
 
-template <typename T, const int N, const int M>
-static inline vecN<T, M> operator*(const matNM<T, N, M>& mat, const vecN<T, N>& vec)
+template <typename T, const int w, const int h>
+inline matNM<T, w, h> operator^(const matNM<T, w, h>& x, const matNM<T, w, h>& y)
 {
-	vecN<T, M> result(T(0));
-	T sum;
-	for(int m = 0; m < M; m++){
-		sum = 0;
-		for(int n = 0; n < N; n++){
-			sum += vec[n] * mat[n][m];
-		}
-		result[m] = sum;
-	}
-	return result;
+  matNM<T, w, h> result;
+  for (int i = 0; i < w; ++i) {
+    for (int j = 0; j < h; ++j) {
+      result[j][i] = x[j][i] * y[j][i];
+    }
+  }
+  return result;
 }
 
-template<typename T>
-static inline Tvec3<T> operator*(const matNM<T, 4, 4>& mat, const Tvec3<T>& vec)
+template <typename T, const int w, const int h>
+inline vecN<T, h> operator*(const matNM<T, w, h>& mat, const vecN<T, w>& vec)
+{
+  vecN<T, h> result(T(0));
+  for (int i = 0; i < h; i++) {
+    T sum = 0;
+    for (int j = 0; j < w; j++) {
+      sum += vec[j] * mat[i][j];
+    }
+    result[i] = sum;
+  }
+  return result;
+}
+
+template <typename T>
+inline Tvec3<T> operator*(const matNM<T, 4, 4>& mat, const Tvec3<T>& vec)
 {
   Tvec4<T> tmp(vec, 1);
   vecN<T, 4> ret = operator*<T, 4, 4>(mat, tmp);
   return Tvec3<T>(ret[0] / ret[3], ret[1] / ret[3], ret[2] / ret[3]);
 }
 
-template <typename T, const int N>
-static inline vecN<T, N> operator/(const T s, const vecN<T, N>& v)
+template <typename T, const int n>
+inline vecN<T, n> operator/(const T s, const vecN<T, n>& v)
 {
-	int n;
-	vecN<T, N> result;
+  vecN<T, n> result;
 
-	for(n = 0; n < N; n++){
-		result[n] = s / v[n];
-	}
+  for (int i = 0; i < n; i++) {
+    result[i] = s / v[i];
+  }
 
-	return result;
+  return result;
 }
 
 template <typename T>
-static inline T mix(const T& A, const T& B, typename T::ele_type t)
+inline T mix(const T& a, const T& b, typename T::ele_type c)
 {
-	return B + t * (B - A);
+  return b + c * (b - a);
 }
 
 template <typename T>
-static inline T mix(const T& A, const T& B, const T& t)
+inline T mix(const T& a, const T& b, const T& t)
 {
-	return B + t * (B - A);
+  return b + t * (b - a);
 }
 
-template <typename T, const int N>
-static inline bool inverse(matNM<T, N, N> &des, const matNM<T, N, N>& ori)
+template <typename T, int n>
+std::optional<matNM<T, n, n>> inverse(const matNM<T, n, n>& ori)
 {
-	const int width = 2 * N;
-	T mat[N][width];
-	memset(&mat, 0, sizeof(T) * N * width);
-	T* cidx[N];
-	for (int i = 0; i < N; i++) {
-		for (int j = 0; j < N; j++) {
-			mat[i][j] = ori[j][i];
-		}
-		mat[i][N + i] = 1;
-		cidx[i] = (T*)&mat[i];
-	}
-	for (int i = 0; i < N; i++) {
-		if (fabs(cidx[i][i]) < EPSTraits<T>::eps) {
-			int k = i + 1;
-			while (k < N) {
-				if (fabs(cidx[k][i]) > EPSTraits<T>::eps)
-					break;
-				k++;
-			}
-			if (k == N)
-				return false;
-			else {
-				T* tmp = cidx[i];
-				cidx[i] = cidx[k];
-				cidx[k] = tmp;
-			}
-		}
-		T tmp = cidx[i][i];
-		for (int j = 0; j < N; j++) {
-			if (j == i)
-				continue;
-			T temp = cidx[j][i];
-			for (int k = 0; k < width; k++) {
-				cidx[j][k] = cidx[j][k] * tmp - temp * cidx[i][k];
-			}
-		}
-	}
-	for (int i = 0; i < N; i++) {
-		for (int j = N; j < width; j++) {
-			cidx[i][j] /= cidx[i][i];
-		}
-	}
-	for (int i = 0; i < N; i++) {
-		for (int j = 0; j < N; j++) {
-			des[j][i] = cidx[i][j + N];
-		}
-	}
-	return true;
+  const int width = 2 * n;
+  T mat[n][width];
+  memset(&mat, 0, sizeof(T) * n * width);
+  T* cidx[n];
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < n; j++) {
+      mat[i][j] = ori[j][i];
+    }
+    mat[i][n + i] = 1;
+    cidx[i] = (T*)&mat[i];
+  }
+  for (int i = 0; i < n; i++) {
+    if (fabs(cidx[i][i]) < teps<T>::eps) {
+      int k = i + 1;
+      while (k < n) {
+        if (fabs(cidx[k][i]) > teps<T>::eps)
+          break;
+        k++;
+      }
+      if (k == n)
+        return std::optional<matNM<T, n, n>>();
+      else {
+        T* tmp = cidx[i];
+        cidx[i] = cidx[k];
+        cidx[k] = tmp;
+      }
+    }
+    T tmp = cidx[i][i];
+    for (int j = 0; j < n; j++) {
+      if (j == i)
+        continue;
+      T temp = cidx[j][i];
+      for (int k = 0; k < width; k++) {
+        cidx[j][k] = cidx[j][k] * tmp - temp * cidx[i][k];
+      }
+    }
+  }
+  for (int i = 0; i < n; i++) {
+    for (int j = n; j < width; j++) {
+      cidx[i][j] /= cidx[i][i];
+    }
+  }
+
+  matNM<T, n, n> des;
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < n; j++) {
+      des[j][i] = cidx[i][j + n];
+    }
+  }
+  return des;
+}
+
+// translate, rotate, scale, scaleo
+template <typename T>
+std::tuple<vec3d, Tquat<T>, vec3d, Tquat<T>> decompose(const Tmat4<T>& m)
+{
+  vec3d trans, scale;
+  Tquat<T> rotate, scale_o;
+  return std::make_tuple(trans, rotate, scale, scale_o);
 }
 
 };

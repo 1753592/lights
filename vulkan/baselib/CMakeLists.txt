@@ -28,6 +28,7 @@ set(hdr
 	PBRPipeline.h
 	TexturePipeline.h
 	DepthPipeline.h
+	DepthPersPipeline.h
 	DepthPass.h
 	HUDPipeline.h
 	HUDPass.h
@@ -61,6 +62,7 @@ set(src
 	PBRPipeline.cpp
 	TexturePipeline.cpp
 	DepthPipeline.cpp
+	DepthPersPipeline.cpp
 	DepthPass.cpp
 	HUDPipeline.cpp
 	HUDPass.cpp
@@ -91,6 +93,7 @@ set(shaders
 	shaders/pbr_clr.frag
 	shaders/pbr_tex.frag
 	shaders/depth.vert
+	shaders/depth_pers.vert
 	shaders/depth.frag
 	shaders/hud.vert
 	shaders/hud.frag

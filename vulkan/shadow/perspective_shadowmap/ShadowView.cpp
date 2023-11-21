@@ -15,6 +15,7 @@
 #include "VulkanPipeline.h"
 #include "TexturePipeline.h"
 #include "DepthPipeline.h"
+#include "DepthPersPipeline.h"
 
 #include "SimpleShape.h"
 #include "RenderData.h"
@@ -42,14 +43,14 @@ ShadowView::ShadowView(const std::shared_ptr<VulkanDevice> &dev) : VulkanView(de
 
   GLTFLoader loader;
   _tree = loader.load_file(ROOT_DIR "/data/oaktree.gltf");
-  _tree->set_transform(tg::translate(tg::vec3(0, 0, 1)) * tg::scale(4));
+  _tree->set_transform(tg::translate(tg::vec3(0, 0, 1)) * tg::scale(4.0f));
 
   _deer = loader.load_file(ROOT_DIR "/data/deer.gltf");
-  _deer->set_transform(tg::translate(tg::vec3(3, 3, 1)) * tg::rotate(tg::radians(30.f), tg::vec3(0, 0, 1)) * tg::scale(1));
+  _deer->set_transform(tg::translate(tg::vec3(3, 3, 1)) * tg::rotate(tg::radians(30.f), tg::vec3(0, 0, 1)) * tg::scale(1.f));
 
   _shadow_pipeline = std::make_shared<ShadowPipeline>(dev);
 
-  _depth_pipeline = std::make_shared<DepthPipeline>(dev, 2048, 2048);
+  _depth_pipeline = std::make_shared<DepthPersPipeline>(dev, 2048, 2048);
   _depth_image = _device->create_depth_image(2048, 2048, VK_FORMAT_D32_SFLOAT);
 
   _depth_pass = std::make_shared<DepthPass>(dev);
@@ -70,6 +71,9 @@ ShadowView::ShadowView(const std::shared_ptr<VulkanDevice> &dev) : VulkanView(de
   create_pipe_layout();
 
   set_uniforms();
+
+  //manipulator().set_home({0, -30, 0}, {0, 0, 0}, {0, 0, 1});
+  manipulator().set_home({0, 0, 30}, {0, 0, 0}, {0, 1, 0});
 }
 
 ShadowView::~ShadowView()
@@ -252,7 +256,7 @@ void ShadowView::set_uniforms()
   memcpy(data, &pbr, sizeof(pbr));
 
   _depth_matrix_buf = device()->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
-    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sizeof(MVP));
+    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sizeof(PERSMVP));
 
   _shadow_buf = device()->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sizeof(ShadowMatrix));
@@ -276,23 +280,37 @@ void ShadowView::update_ubo()
     vkUnmapMemory(*device(), _ubo_buf->memory());
   }
 
-  auto mat = _matrix.prj * _matrix.view;
+  tg::mat4 mat = _matrix.prj * _matrix.view;
+  _depth_matrix.pers = mat;
 
-  auto vp = tg::vec3(10);
-  _depth_matrix.view = tg::lookat(mat * vp, mat * tg::vec3(0, 0, 0), mat * vec3(0, 0, 1)) * mat;
-  _depth_matrix.prj = tg::ortho(-1, 1, -1, 1, 0.5, 100);
+  auto vp = tg::vec3(0, 0, 5);
+  {
+    auto neye = mat * vp;
+    auto npos = mat *tg::vec3(0, 0, 0);
+    auto nup = mat * tg::vec3(vp + tg::vec3(0, 1, 0));
+    nup = nup - neye;
+    _depth_matrix.view = tg::lookat(neye, npos, nup);
+    _depth_matrix.prj = tg::ortho(-1, 1, -1, 1, 0.001, 2);
+  }
 
   {
-    auto yy1 = _depth_matrix.view *tg::vec3(-20, -20, 0);
-    auto yy2 = _depth_matrix.view *tg::vec3(-20, 20, 0);
-    auto yy3 = _depth_matrix.view *tg::vec3(20, 20, 0);
-    auto yy4 = _depth_matrix.view *tg::vec3(20, -20, 0);
-    auto xx = _depth_matrix.prj *_depth_matrix.view *tg::vec3(-20, 0, 0);
+    auto yy1 = mat * tg::vec3(-20, -20, 0);
+    auto yy2 = mat * tg::vec3(-20, 20, 0);
+    auto yy3 = mat * tg::vec3(20, 20, 0);
+    auto yy4 = mat * tg::vec3(20, -20, 0);
+    yy1 = _depth_matrix.view * yy1;
+    yy2 = _depth_matrix.view * yy2;
+    yy3 = _depth_matrix.view * yy3;
+    yy4 = _depth_matrix.view * yy4;
+    auto xx1 = _depth_matrix.prj * yy1;
+    auto xx2 = _depth_matrix.prj * yy2;
+    auto xx3 = _depth_matrix.prj * yy3;
+    auto xx4 = _depth_matrix.prj * yy4;
     printf("");
   }
 
-  VK_CHECK_RESULT(vkMapMemory(*device(), _depth_matrix_buf->memory(), 0, sizeof(MVP), 0, (void **)&data));
-  memcpy(data, &_depth_matrix, sizeof(MVP));
+  VK_CHECK_RESULT(vkMapMemory(*device(), _depth_matrix_buf->memory(), 0, sizeof(PERSMVP), 0, (void **)&data));
+  memcpy(data, &_depth_matrix, sizeof(PERSMVP));
   vkUnmapMemory(*device(), _depth_matrix_buf->memory());
 
   //_shadow_matrix.prj = tg::ortho(-1, 1, -1, 1, 0.1, 10);
@@ -359,7 +377,7 @@ void ShadowView::build_depth_command_buffer(VkCommandBuffer cmd_buf)
     vkCmdBindIndexBuffer(cmd_buf, _index_buf, 0, VK_INDEX_TYPE_UINT16);
     vkCmdDrawIndexed(cmd_buf, _index_count, 1, 0, 0, 0);
 
-    _tree->build_command_buffer(cmd_buf, _depth_pipeline);
+    //_tree->build_command_buffer(cmd_buf, _depth_pipeline);
 
     _deer->build_command_buffer(cmd_buf, _depth_pipeline);
   }
@@ -519,7 +537,7 @@ void ShadowView::build_command_buffer(VkCommandBuffer cmd_buf)
     }
   }
 
-  _tree->build_command_buffer(cmd_buf, std::static_pointer_cast<TexturePipeline>(_shadow_pipeline));
+  //_tree->build_command_buffer(cmd_buf, std::static_pointer_cast<TexturePipeline>(_shadow_pipeline));
 
   _deer->build_command_buffer(cmd_buf, std::static_pointer_cast<TexturePipeline>(_shadow_pipeline));
 }
