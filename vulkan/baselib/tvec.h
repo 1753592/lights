@@ -63,20 +63,17 @@ public:
   using ele_type = T;
   using this_type = vecN<T, n>;
 
-  // Default constructor does nothing, just like built-in types
-  inline vecN()
-  {
-    // Uninitialized variable
-  }
+  inline vecN() {}
 
   explicit inline vecN(const this_type& that) { assign(that); }
 
   explicit inline vecN(T s) { set(s); }
 
-  template <typename U>
-  vecN(const vecN<U, n>& that)
+  template <typename U, int m>
+  vecN(const vecN<U, m>& that)
   {
-    for (int32_t i = 0; i < n; i++) {
+    constexpr int s = n < m ? n : m;
+    for (int32_t i = 0; i < s; i++) {
       data_[i] = that[i];
     }
   }
@@ -250,12 +247,15 @@ public:
 		base::data_[1] = y;
 	}
 
-  inline this_type& operator=(const this_type &t)
-	{
-		base::data_[0] = t[0];
-		base::data_[1] = t[1];
-		return *this;
-	}
+  template<typename U>
+  inline Tvec2(const vecN<U, 2>& that) : base(that) {}
+
+  template<typename U, int32_t n>
+  inline this_type operator=(const vecN<U, n> &that)
+  {
+    base::operator=(that); 
+    return *this;
+  }
 
 	inline void operator=(const T& t)
 	{
@@ -341,11 +341,11 @@ public:
     return *this;
   }
 
-  template <typename U>
-  inline Tvec3(const Tvec3<U>& that) : base(that) { }
-
   template<typename U>
   inline Tvec3(const U* ptr) { assign(ptr); }
+
+  template <typename U>
+  inline Tvec3(const vecN<U, 3>& that) : base(that) { }
 
   template<typename U, int32_t n>
   inline this_type operator=(vecN<U, n> vec)
@@ -1006,6 +1006,16 @@ public:
     base::data[0] = v0;
     base::data[1] = v1;
   }
+
+  template <typename U>
+  Tmat2(const matNM<U, 2, 2>& that) : base(that) {}
+
+  template<typename U>
+  this_type& operator=(const matNM<U, 2, 2>& that)
+  {
+    base::operator=(that);
+    return *this;
+  }
 };
 typedef Tmat2<float> mat2;
 
@@ -1053,6 +1063,16 @@ public:
     m[2][1] = T(2) * (yz - xw);
     m[2][2] = T(1) - T(2) * (xx + yy);
   }
+
+  template <typename U>
+  Tmat3(const matNM<U, 3, 3>& that) : base(that) {}
+
+  template<typename U>
+  this_type& operator=(const matNM<U, 3, 3>& that)
+  {
+    base::operator=(that);
+    return *this;
+  }
 };
 typedef Tmat3<float> mat3;
 typedef Tmat3<int32_t> imat3;
@@ -1067,8 +1087,7 @@ public:
 
   inline Tmat4() {}
   inline Tmat4(const this_type& that) : base(that) {}
-  inline Tmat4(const base& that) : base(that) {}
-  inline Tmat4(const vecN<T, 4>& v) : base(v) {}
+  explicit inline Tmat4(const vecN<T, 4>& v) : base(v) {}
   inline Tmat4(const vecN<T, 4>& v0, const vecN<T, 4>& v1, const vecN<T, 4>& v2, const vecN<T, 4>& v3)
   {
     base::data_[0] = v0;
@@ -1087,6 +1106,16 @@ public:
     base::data_[3][1] = T(0);
     base::data_[3][2] = T(0);
     base::data_[3][3] = T(1);
+  }
+
+  template <typename U>
+  Tmat4(const matNM<U, 4, 4>& that) : base(that) {}
+
+  template <typename U>
+  this_type& operator=(const matNM<U, 4, 4>& that)
+  {
+    base::operator=(that);
+    return *this;
   }
 };
 

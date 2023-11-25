@@ -66,25 +66,21 @@ inline mat4 frustum(float left, float right, float bottom, float top, float n, f
 {
   mat4 result;
   result.identity();
-	if((right == left) ||
-		(top == bottom) ||
-	   (n == f) ||
-	   (n < 0.0) ||
-	   (f < 0.0))
-		return result;
+  if ((right == left) || (top == bottom) || (n == f) || (n < 0.0) || (f < 0.0))
+    return result;
 
-	result[0][0] = (2.0f * n) / (right - left);
-	result[1][1] = (2.0f * n) / (top - bottom);
+  result[0][0] = (2.0f * n) / (right - left);
+  result[1][1] = (2.0f * n) / (top - bottom);
 
-	result[2][0] = (right + left) / (right - left);
-	result[2][1] = (top + bottom) / (top - bottom);
-	result[2][2] = -(f + n) / (f - n);
-	result[2][3] = -1.0f;
+  result[2][0] = (right + left) / (right - left);
+  result[2][1] = (top + bottom) / (top - bottom);
+  result[2][2] = -(f + n) / (f - n);
+  result[2][3] = -1.0f;
 
-	result[3][2] = -(2.0f * f * n) / (f - n);
-	result[3][3] = 0.0f;
+  result[3][2] = -(2.0f * f * n) / (f - n);
+  result[3][3] = 0.0f;
 
-	return result;
+  return result;
 }
 
 //aspect = width/height
@@ -182,7 +178,7 @@ inline Tmat3<T> translate(T x, T y)
 }
 
 template<typename T>
-inline Tmat3<T> translate(const vecN<T, 2> &v)
+inline Tmat3<T> translate(const Tvec2<T> &v)
 {
 	return translate(v[0], v[1]);
 }
@@ -470,6 +466,43 @@ std::tuple<vec3d, Tquat<T>, vec3d, Tquat<T>> decompose(const Tmat4<T>& m)
   Tquat<T> rotate, scale_o;
   return std::make_tuple(trans, rotate, scale, scale_o);
 }
+
+template<typename T>
+class Tboundingbox {
+public:
+  Tboundingbox() : _min(std::numeric_limits<T>::max()), _max(-_min) {}
+
+  Tvec3<T>& min() { return _min; }
+  const Tvec3<T>& min() const { return _min; }
+
+  Tvec3<T>& max() { return _max; }
+  const Tvec3<T>& max() const { return _max; }
+
+  template <typename U>
+  inline void expand(const Tvec3<U>& v)
+  {
+    if (v.x() < _min.x()) _min.x() = v.x();
+    if (v.x() > _max.x()) _max.x() = v.x();
+    if (v.y() < _min.y()) _min.y() = v.y();
+    if (v.y() > _max.y()) _max.y() = v.y();
+    if (v.z() < _min.z()) _min.z() = v.z();
+    if (v.z() > _max.z()) _max.z() = v.z();
+  }
+
+  inline const Tvec3<T> corner(uint32_t pos) const
+  {
+    return Tvec3<T>(pos & 1 ? _max.x() : _min.x(), pos & 2 ? _max.y() : _min.y(), pos & 4 ? _max.z() : _min.z());
+  }
+
+  inline T radius() const { return static_cast<T>(length(_max - _min) * 0.5); }
+
+  inline bool valid() const { return _max.x() > _min.x() && _max.y() > _min.y() && _max.z() > _min.z(); }
+
+private:
+  Tvec3<T> _min, _max;
+};
+
+using boundingbox = Tboundingbox<float>; 
 
 };
 
