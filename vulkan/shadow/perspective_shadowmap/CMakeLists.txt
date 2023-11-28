@@ -40,7 +40,6 @@ target_include_directories(${target_name} PRIVATE ${Vulkan_INCLUDE_DIR})
 target_include_directories(${target_name} PRIVATE ${CMAKE_SOURCE_DIR}/vulkan/baselib)
 
 target_link_libraries(${target_name} ${Vulkan_LIBRARY})
-target_link_libraries(${target_name} SDL2::SDL2 SDL2::SDL2main)
 target_link_libraries(${target_name} baselib)
 
 
