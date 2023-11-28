@@ -7,6 +7,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(Vulkan)
 #find_package(SDL2)
 
+get_filename_component(VK_BIN_DIR ${Vulkan_GLSLC_EXECUTABLE} DIRECTORY)
+get_filename_component(SDL2_LIB_DIR ${Vulkan_LIBRARY} DIRECTORY)
+link_directories(${SDL2_LIB_DIR})
+
 #find_program(glslc_executable NAMES glslc HINTS Vulkan::glslc)
 function(compile_shader target)
     cmake_parse_arguments(PARSE_ARGV 1 arg "" "ENV;FORMAT" "SOURCES")
