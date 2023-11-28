@@ -6,55 +6,53 @@
 #include <cmath>
 #include <cstdint>
 
-namespace tg
-{
-//template <typename T, const int32_t w, const int32_t h> class matNM;
-//template <typename T, const int32_t len> class vecN;
-//template <typename T> class Tquat;
+namespace tg {
+// template <typename T, const int32_t w, const int32_t h> class matNM;
+// template <typename T, const int32_t len> class vecN;
+// template <typename T> class Tquat;
 
 #ifndef _USE_MATH_DEFINES
 #define _USE_MATH_DEFIENS
-#define M_E        2.71828182845904523536   // e
-#define M_LOG2E    1.44269504088896340736   // log2(e)
-#define M_LOG10E   0.434294481903251827651  // log10(e)
-#define M_LN2      0.693147180559945309417  // ln(2)
-#define M_LN10     2.30258509299404568402   // ln(10)
-#define M_PI       3.14159265358979323846   // pi
-#define M_PI_2     1.57079632679489661923   // pi/2
-#define M_PI_4     0.785398163397448309616  // pi/4
-#define M_1_PI     0.318309886183790671538  // 1/pi
-#define M_2_PI     0.636619772367581343076  // 2/pi
-#define M_2_SQRTPI 1.12837916709551257390   // 2/sqrt(pi)
-#define M_SQRT2    1.41421356237309504880   // sqrt(2)
-#define M_SQRT1_2  0.707106781186547524401  // 1/sqrt(2)
+#define M_E 2.71828182845904523536         // e
+#define M_LOG2E 1.44269504088896340736     // log2(e)
+#define M_LOG10E 0.434294481903251827651   // log10(e)
+#define M_LN2 0.693147180559945309417      // ln(2)
+#define M_LN10 2.30258509299404568402      // ln(10)
+#define M_PI 3.14159265358979323846        // pi
+#define M_PI_2 1.57079632679489661923      // pi/2
+#define M_PI_4 0.785398163397448309616     // pi/4
+#define M_1_PI 0.318309886183790671538     // 1/pi
+#define M_2_PI 0.636619772367581343076     // 2/pi
+#define M_2_SQRTPI 1.12837916709551257390  // 2/sqrt(pi)
+#define M_SQRT2 1.41421356237309504880     // sqrt(2)
+#define M_SQRT1_2 0.707106781186547524401  // 1/sqrt(2)
 #endif
 
-template<typename T>
-struct teps{
-	static constexpr T eps = 0;
+template <typename T>
+struct teps {
+  static constexpr T eps = 0;
 };
 
-template<>
+template <>
 struct teps<float> {
   static constexpr float eps = 1e-6;
 };
 
-template<>
+template <>
 struct teps<double> {
-	static constexpr double eps = 1e-15;
+  static constexpr double eps = 1e-15;
 };
-
 
 template <typename T>
 inline T degrees(T angleInRadians)
 {
-	return angleInRadians * static_cast<T>(180.0 / M_PI);
+  return angleInRadians * static_cast<T>(180.0 / M_PI);
 }
 
 template <typename T>
 inline T radians(T angleInDegrees)
 {
-	return angleInDegrees * static_cast<T>(M_PI / 180.0);
+  return angleInDegrees * static_cast<T>(M_PI / 180.0);
 }
 
 template <typename T, int32_t n>
@@ -78,8 +76,11 @@ public:
     }
   }
 
-  template<typename U>
-  inline void set(U* ptr) { assign(ptr); }
+  template <typename U>
+  inline void set(U* ptr)
+  {
+    assign(ptr);
+  }
 
   inline void set(T t)
   {
@@ -96,14 +97,14 @@ public:
 
   inline vecN<T, n>& operator=(const T& that)
   {
-    for (int32_t n = 0; n < n; n++)
-      data_[n] = that;
-
+    for (int32_t i = 0; i < n; i++) {
+      data_[i] = that;
+    }
     return *this;
   }
 
-  template<typename U, const int32_t m>
-  inline vecN<T, n>& operator=(const vecN<U, m> &that)
+  template <typename U, const int32_t m>
+  inline vecN<T, n>& operator=(const vecN<U, m>& that)
   {
     constexpr int32_t sz = n < m ? n : m;
     for (int32_t i = 0; i < sz; i++)
@@ -204,70 +205,69 @@ protected:
 
   inline void assign(const vecN& that) { memcpy(data_, that.data_, sizeof(T) * n); }
 
-  template<typename U>
-  inline void assign(U *ptr)
+  template <typename U>
+  inline void assign(U* ptr)
   {
-    for(int32_t i = 0; i < n; i++) {
+    for (int32_t i = 0; i < n; i++) {
       data_[i] = ptr[i];
     }
   }
 };
 
-template<typename T, int32_t n>
-inline bool operator==(const vecN<T, n> &v1, const vecN<T, n> &v2)
+template <typename T, int32_t n>
+inline bool operator==(const vecN<T, n>& v1, const vecN<T, n>& v2)
 {
-	for (int32_t i = 0; i < n; i++) {
-		if (fabs(v1[i] - v2[i]) > teps<T>::eps)
-			return false;
-	}
-	return true;
+  for (int32_t i = 0; i < n; i++) {
+    if (fabs(v1[i] - v2[i]) > teps<T>::eps)
+      return false;
+  }
+  return true;
 }
 
 template <typename T>
-class Tvec2 : public vecN<T, 2>{
+class Tvec2 : public vecN<T, 2> {
 public:
-	typedef vecN<T, 2> base;
-	typedef Tvec2<T> this_type;
+  typedef vecN<T, 2> base;
+  typedef Tvec2<T> this_type;
 
-	inline Tvec2(){}
+  inline Tvec2() {}
 
   explicit inline Tvec2(const this_type& v)
-	{
-		base::data_[0] = v[0];
-		base::data_[1] = v[1];
-	}
-
- 	explicit inline Tvec2(const base& v)
-		: base(v)
-	{}
-
-	inline Tvec2(T x, T y)
-	{
-		base::data_[0] = x;
-		base::data_[1] = y;
-	}
-
-  template<typename U>
-  inline Tvec2(const vecN<U, 2>& that) : base(that) {}
-
-  template<typename U, int32_t n>
-  inline this_type operator=(const vecN<U, n> &that)
   {
-    base::operator=(that); 
+    base::data_[0] = v[0];
+    base::data_[1] = v[1];
+  }
+
+  explicit inline Tvec2(const base& v) : base(v) {}
+
+  inline Tvec2(T x, T y)
+  {
+    base::data_[0] = x;
+    base::data_[1] = y;
+  }
+
+  template <typename U>
+  inline Tvec2(const vecN<U, 2>& that) : base(that)
+  {}
+
+  template <typename U, int32_t n>
+  inline this_type operator=(const vecN<U, n>& that)
+  {
+    base::operator=(that);
     return *this;
   }
 
-	inline void operator=(const T& t)
-	{
-		base::data_[0] = t;
-		base::data_[1] = t;
-	}
+  inline void operator=(const T& t)
+  {
+    base::data_[0] = t;
+    base::data_[1] = t;
+  }
 
-	inline T& x() { return base::data_[0]; }
-	inline T& y() { return base::data_[1]; }
+  inline T& x() { return base::data_[0]; }
+  inline T& y() { return base::data_[1]; }
 
-	inline const T& x() const { return base::data_[0]; }
-	inline const T& y() const { return base::data_[1]; }
+  inline const T& x() const { return base::data_[0]; }
+  inline const T& y() const { return base::data_[1]; }
 };
 
 template <typename T>
@@ -280,49 +280,36 @@ public:
 
   explicit inline Tvec3(T t) : base(t) {}
 
-  explicit inline Tvec3(const this_type& v)
-  {
-    base::data_[0] = v[0];
-    base::data_[1] = v[1];
-    base::data_[2] = v[2];
-  }
+  explicit inline Tvec3(const this_type& v) : base(v) { }
 
   inline Tvec3(const base& v) : base(v) {}
 
-  inline Tvec3(T x, T y, T z)
+  inline Tvec3(T x, T y, T z) : base()
   {
     base::data_[0] = x;
     base::data_[1] = y;
     base::data_[2] = z;
   }
 
-  inline Tvec3(const Tvec2<T>& v, T z)
+  inline Tvec3(const Tvec2<T>& v, T z) : base()
   {
     base::data_[0] = v[0];
     base::data_[1] = v[1];
     base::data_[2] = z;
   }
 
-  inline Tvec3(T x, const Tvec2<T>& v)
+  inline Tvec3(T x, const Tvec2<T>& v) : base()
   {
     base::data_[0] = x;
     base::data_[1] = v[0];
     base::data_[2] = v[1];
   }
 
-  inline Tvec3(const vecN<T, 4>& v)
+  inline Tvec3(const vecN<T, 4>& v) : base()
   {
     base::data_[0] = v[0];
     base::data_[1] = v[1];
     base::data_[2] = v[2];
-  }
-
-  inline this_type& operator=(const this_type& v)
-  {
-    base::data_[0] = v[0];
-    base::data_[1] = v[1];
-    base::data_[2] = v[2];
-    return *this;
   }
 
   inline this_type operator=(const T& t)
@@ -333,24 +320,21 @@ public:
     return *this;
   }
 
-  inline this_type operator=(const vecN<T, 4> &vec)
+  template <typename U>
+  inline Tvec3(const U* ptr)
   {
-    base::data_[0] = vec[0];
-    base::data_[1] = vec[1];
-    base::data_[2] = vec[2];
-    return *this;
+    assign(ptr);
   }
 
-  template<typename U>
-  inline Tvec3(const U* ptr) { assign(ptr); }
-
   template <typename U>
-  inline Tvec3(const vecN<U, 3>& that) : base(that) { }
+  inline Tvec3(const vecN<U, 3>& that) : base(that)
+  {
+  }
 
-  template<typename U, int32_t n>
+  template <typename U, int32_t n>
   inline this_type operator=(vecN<U, n> vec)
   {
-    base::operator=(vec); 
+    base::operator=(vec);
     return *this;
   }
 
@@ -361,8 +345,6 @@ public:
   inline const T& x() const { return base::data_[0]; }
   inline const T& y() const { return base::data_[1]; }
   inline const T& z() const { return base::data_[2]; }
-
-  inline void set(const T& v) { set(v, v, v); }
 
   inline void set(const T& x, const T& y, const T& z)
   {
@@ -389,10 +371,15 @@ public:
   }
 
   template <typename U>
-  inline Tvec4(const Tvec4<U>& that) : base(that) {}
+  inline Tvec4(const Tvec4<U>& that) : base(that)
+  {
+  }
 
   template <typename U>
-  inline Tvec4(const U* ptr) { assign(ptr); }
+  inline Tvec4(const U* ptr)
+  {
+    assign(ptr);
+  }
 
   inline Tvec4(T x, T y, T z, T w)
   {
@@ -524,59 +511,57 @@ typedef Tvec4<uint32_t> vec4u;
 typedef Tvec4<double> vec4d;
 
 template <typename T, int32_t n>
-static inline const vecN<T, n> operator * (T x, const vecN<T, n>& v)
+static inline const vecN<T, n> operator*(T x, const vecN<T, n>& v)
 {
-	return v * x;
+  return v * x;
 }
 
 template <typename T>
-static inline const Tvec2<T> operator / (T x, const Tvec2<T>& v)
+static inline const Tvec2<T> operator/(T x, const Tvec2<T>& v)
 {
-	return Tvec2<T>(x / v[0], x / v[1]);
+  return Tvec2<T>(x / v[0], x / v[1]);
 }
 
 template <typename T>
-static inline const Tvec3<T> operator / (T x, const Tvec3<T>& v)
+static inline const Tvec3<T> operator/(T x, const Tvec3<T>& v)
 {
-	return Tvec3<T>(x / v[0], x / v[1], x / v[2]);
+  return Tvec3<T>(x / v[0], x / v[1], x / v[2]);
 }
 
 template <typename T>
-static inline const Tvec4<T> operator / (T x, const Tvec4<T>& v)
+static inline const Tvec4<T> operator/(T x, const Tvec4<T>& v)
 {
-	return Tvec4<T>(x / v[0], x / v[1], x / v[2], x / v[3]);
+  return Tvec4<T>(x / v[0], x / v[1], x / v[2], x / v[3]);
 }
 
 template <typename T, int32_t len>
 static inline T dot(const vecN<T, len>& a, const vecN<T, len>& b)
 {
-	int32_t n;
-	T total = T(0);
-	for(n = 0; n < len; n++){
-		total += a[n] * b[n];
-	}
-	return total;
+  int32_t n;
+  T total = T(0);
+  for (n = 0; n < len; n++) {
+    total += a[n] * b[n];
+  }
+  return total;
 }
 
 template <typename T>
 static inline vecN<T, 3> cross(const vecN<T, 3>& a, const vecN<T, 3>& b)
 {
-	return Tvec3<T>(a[1] * b[2] - b[1] * a[2],
-					a[2] * b[0] - b[2] * a[0],
-					a[0] * b[1] - b[0] * a[1]);
+  return Tvec3<T>(a[1] * b[2] - b[1] * a[2], a[2] * b[0] - b[2] * a[0], a[0] * b[1] - b[0] * a[1]);
 }
 
 template <typename T, int32_t len>
 static inline T pow(const vecN<T, len>& v, int32_t num)
 {
-	T result(0);
-	for(int32_t i = 0; i < v.size(); i++){
-		T res = v[i];
-		for(int32_t j = 1; j < num; j++)
-			res *= v[i];
-		result += res;
-	}
-	return result;
+  T result(0);
+  for (int32_t i = 0; i < v.size(); i++) {
+    T res = v[i];
+    for (int32_t j = 1; j < num; j++)
+      res *= v[i];
+    result += res;
+  }
+  return result;
 }
 
 template <typename T, int32_t n>
@@ -593,42 +578,42 @@ static inline T length(const vecN<T, n>& v)
 template <typename T, int32_t n>
 static inline T square(const vecN<T, n>& v)
 {
-	T result(0);
-	for(int32_t i = 0; i < v.size(); ++i){
-		result += v[i] * v[i];
-	}
-	return result;
+  T result(0);
+  for (int32_t i = 0; i < v.size(); ++i) {
+    result += v[i] * v[i];
+  }
+  return result;
 }
 
 template <typename T, int32_t n>
 static inline vecN<T, n> normalize(const vecN<T, n>& v)
 {
-	return v / length(v);
+  return v / length(v);
 }
 
 template <typename T, int32_t n>
 static inline T distance(const vecN<T, n>& a, const vecN<T, n>& b)
 {
-	return length(b - a);
+  return length(b - a);
 }
 
 template <typename T, int32_t len>
 static inline T angle(const vecN<T, len>& a, const vecN<T, len>& b)
 {
-	return arccos(dot(a, b));
+  return arccos(dot(a, b));
 }
 
 template <typename T, int32_t len>
-static inline vecN<T, len> abs(const vecN<T, len> &a)
+static inline vecN<T, len> abs(const vecN<T, len>& a)
 {
-	vecN<T, len> result;
-	for(int32_t i = 0; i < len; i++){
-		result[i] = fabs(a[i]);
-	}
-	return result;
+  vecN<T, len> result;
+  for (int32_t i = 0; i < len; i++) {
+    result[i] = fabs(a[i]);
+  }
+  return result;
 }
 
-//Quaternion///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Quaternion///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 template <typename T>
 class Tquat {
@@ -695,16 +680,12 @@ public:
     const T& y2 = q.data_[1];
     const T& z2 = q.data_[2];
 
-    return Tquat(
-      w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
-      w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2, 
-      w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2, 
-      w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2
-      );
+    return Tquat(w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2, w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2, w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+                 w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2);
   }
 
   inline Tvec3<T> operator*(const Tvec3<T>& v) const
-  { 
+  {
     Tvec3<T> uv = cross(v_, v);
     Tvec3<T> uuv = cross(v_, uv);
     uv *= (static_cast<T>(2) * s_);
@@ -763,19 +744,19 @@ typedef Tquat<double> quatd;
 template <typename T>
 static inline Tquat<T> operator*(T a, const Tquat<T>& b)
 {
-	return b * a;
+  return b * a;
 }
 
 template <typename T>
 static inline Tquat<T> operator/(T a, const Tquat<T>& b)
 {
-	return Tquat<T>(a / b[0], a / b[1], a / b[2], a / b[3]);
+  return Tquat<T>(a / b[0], a / b[1], a / b[2], a / b[3]);
 }
 
 template <typename T>
 static inline Tquat<T> normalize(const Tquat<T>& q)
 {
-	return q / length(vecN<T, 4>(q));
+  return q / length(vecN<T, 4>(q));
 }
 
 template <typename T, const int32_t n, const int32_t m>
@@ -784,9 +765,7 @@ public:
   typedef class matNM<T, n, m> this_type;
   typedef class vecN<T, n> vector_type;
 
-  inline matNM()
-  {
-  }
+  inline matNM() {}
 
   // Copy constructor
   inline matNM(const matNM& that) { assign(that); }
@@ -873,7 +852,7 @@ public:
     return *this;
   }
 
-  template<int32_t u>
+  template <int32_t u>
   inline matNM<T, n, u> operator*(const matNM<T, m, u>& that) const
   {
     matNM<T, n, u> result(0);
@@ -920,11 +899,11 @@ public:
   static inline int32_t width(void) { return m; }
   static inline int32_t height(void) { return n; }
 
-  template<typename U>
+  template <typename U>
   inline void assign(const U* ele)
   {
     std::size_t off = 0;
-    for(int32_t i =0; i < m; i++) {
+    for (int32_t i = 0; i < m; i++) {
       data_[i].assign(ele + off);
       off += sizeof(U) * n;
     }
@@ -1008,9 +987,11 @@ public:
   }
 
   template <typename U>
-  Tmat2(const matNM<U, 2, 2>& that) : base(that) {}
+  Tmat2(const matNM<U, 2, 2>& that) : base(that)
+  {
+  }
 
-  template<typename U>
+  template <typename U>
   this_type& operator=(const matNM<U, 2, 2>& that)
   {
     base::operator=(that);
@@ -1065,9 +1046,11 @@ public:
   }
 
   template <typename U>
-  Tmat3(const matNM<U, 3, 3>& that) : base(that) {}
+  Tmat3(const matNM<U, 3, 3>& that) : base(that)
+  {
+  }
 
-  template<typename U>
+  template <typename U>
   this_type& operator=(const matNM<U, 3, 3>& that)
   {
     base::operator=(that);
@@ -1109,7 +1092,8 @@ public:
   }
 
   template <typename U>
-  Tmat4(const matNM<U, 4, 4>& that) : base(that) {}
+  Tmat4(const matNM<U, 4, 4>& that) : base(that)
+  {}
 
   template <typename U>
   this_type& operator=(const matNM<U, 4, 4>& that)
@@ -1125,7 +1109,7 @@ typedef Tmat4<uint32_t> mat4u;
 typedef Tmat4<double> mat4d;
 
 template <typename T, const int32_t w, const int32_t h>
-Tquat<T> matquat(const matNM<T, w, h> &m)
+Tquat<T> matquat(const matNM<T, w, h>& m)
 {
   Tquat<T> q;
   T tq[4];

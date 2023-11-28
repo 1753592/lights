@@ -5,61 +5,60 @@
 #include <algorithm>
 #include <optional>
 
-namespace tg
-{
+namespace tg {
 
-template <typename T>
-struct random{
-	operator T()
-	{
-		static unsigned int seed = 0x13371337;
-		unsigned int res;
-		unsigned int tmp;
+template<typename T>
+struct random {
+  operator T()
+  {
+    static unsigned int seed = 0x13371337;
+    unsigned int res;
+    unsigned int tmp;
 
-		seed *= 16807;
+    seed *= 16807;
 
-		tmp = seed ^ (seed >> 4) ^ (seed << 15);
+    tmp = seed ^ (seed >> 4) ^ (seed << 15);
 
-		res = (tmp >> 9) | 0x3F800000;
+    res = (tmp >> 9) | 0x3F800000;
 
-		return static_cast<T>(res);
-	}
+    return static_cast<T>(res);
+  }
 };
 
-template<>
-struct random<float>{
-	operator float()
-	{
-		static unsigned int seed = 0x13371337;
-		float res;
-		unsigned int tmp;
+template <>
+struct random<float> {
+  operator float()
+  {
+    static unsigned int seed = 0x13371337;
+    float res;
+    unsigned int tmp;
 
-		seed *= 16807;
+    seed *= 16807;
 
-		tmp = seed ^ (seed >> 4) ^ (seed << 15);
+    tmp = seed ^ (seed >> 4) ^ (seed << 15);
 
-		*((unsigned int *)&res) = (tmp >> 9) | 0x3F800000;
+    *((unsigned int*)&res) = (tmp >> 9) | 0x3F800000;
 
-		return (res - 1.0f);
-	}
+    return (res - 1.0f);
+  }
 };
 
-template<>
-struct random<unsigned int>{
-	operator unsigned int()
-	{
-		static unsigned int seed = 0x13371337;
-		unsigned int res;
-		unsigned int tmp;
+template <>
+struct random<unsigned int> {
+  operator unsigned int()
+  {
+    static unsigned int seed = 0x13371337;
+    unsigned int res;
+    unsigned int tmp;
 
-		seed *= 16807;
+    seed *= 16807;
 
-		tmp = seed ^ (seed >> 4) ^ (seed << 15);
+    tmp = seed ^ (seed >> 4) ^ (seed << 15);
 
-		res = (tmp >> 9) | 0x3F800000;
+    res = (tmp >> 9) | 0x3F800000;
 
-		return res;
-	}
+    return res;
+  }
 };
 
 inline mat4 frustum(float left, float right, float bottom, float top, float n, float f)
@@ -83,7 +82,7 @@ inline mat4 frustum(float left, float right, float bottom, float top, float n, f
   return result;
 }
 
-//aspect = width/height
+// aspect = width/height
 template<typename T>
 inline Tmat4<T> perspective(T fovy, T aspect, T n, T f)
 {
@@ -92,7 +91,7 @@ inline Tmat4<T> perspective(T fovy, T aspect, T n, T f)
 #ifdef DEPTH_REVERSE
   T B = n / (f - n);
   T C = n * f / (f - n);
-#elif defined DEPTH_NEAR_ZERO 
+#elif defined DEPTH_NEAR_ZERO
   T B = f / (n - f);
   T C = n * f / (n - f);
 #else
@@ -112,37 +111,33 @@ inline Tmat4<T> perspective(T fovy, T aspect, T n, T f)
 
 inline mat4 ortho(float left, float right, float bottom, float top, float n, float f)
 {
-  return mat4(vec4(2.0f / (right - left), 0.0f, 0.0f, 0.0f), 
-							vec4(0.0f, 2.0f / (top - bottom), 0.0f, 0.0f),
+  return mat4(vec4(2.0f / (right - left), 0.0f, 0.0f, 0.0f), vec4(0.0f, 2.0f / (top - bottom), 0.0f, 0.0f),
 #ifdef DEPTH_REVERSE
-              vec4(0.0f, 0.0f, 1.0f / (f - n), 0.0f), 
-							vec4((left + right) / (left - right), (bottom + top) / (bottom - top), f / (f - n), 1.0f)
-#elif defined DEPTH_NEAR_ZERO 
-              vec4(0.0f, 0.0f, 1.0f / (n - f), 0.0f), 
-							vec4((left + right) / (left - right), (bottom + top) / (bottom - top), n / (n - f), 1.0f)
+              vec4(0.0f, 0.0f, 1.0f / (f - n), 0.0f), vec4((left + right) / (left - right), (bottom + top) / (bottom - top), f / (f - n), 1.0f)
+#elif defined DEPTH_NEAR_ZERO
+              vec4(0.0f, 0.0f, 1.0f / (n - f), 0.0f), vec4((left + right) / (left - right), (bottom + top) / (bottom - top), n / (n - f), 1.0f)
 #else
-              vec4(0.0f, 0.0f, 2.0f / (n - f), 0.0f), 
-							vec4((left + right) / (left - right), (bottom + top) / (bottom - top), (n + f) / (n - f), 1.0f)
+              vec4(0.0f, 0.0f, 2.0f / (n - f), 0.0f), vec4((left + right) / (left - right), (bottom + top) / (bottom - top), (n + f) / (n - f), 1.0f)
 #endif
   );
 }
 
-//reverse///////////////////////////////////////////////////////////////////////
+// reverse///////////////////////////////////////////////////////////////////////
 inline void view_planes(const mat4& transmat, vec4& l, vec4& r, vec4& b, vec4& t, vec4& n, vec4& f)
 {
-	//mi represent ith row of transmat;
-	// left = m4 + m1
-	l = vec4(transmat[0][0] + transmat[0][3], transmat[1][0] + transmat[1][3], transmat[2][0] + transmat[2][3], transmat[3][0] + transmat[3][3]);
-	// right = m4 - m1
-	r = vec4(transmat[0][3] - transmat[0][0], transmat[1][3] - transmat[1][0], transmat[2][3] - transmat[2][0], transmat[3][3] - transmat[3][0]);
-	// bottom = m2 + m4
-	b = vec4(transmat[0][1] + transmat[0][3], transmat[1][1] + transmat[1][3], transmat[2][1] + transmat[2][3], transmat[3][1] + transmat[3][3]);
-	// top = m4 - m2
-	t = vec4(transmat[0][3] - transmat[0][1], transmat[1][3] - transmat[1][1], transmat[2][3] - transmat[2][1], transmat[3][3] - transmat[3][1]);
-	// near = m3 + m4
-	n = vec4(transmat[0][2] + transmat[0][3], transmat[1][2] + transmat[1][3], transmat[2][2] + transmat[2][3], transmat[3][2] + transmat[3][3]);
-	// far = m4 - m3
-	f = vec4(transmat[0][3] - transmat[0][2], transmat[1][3] - transmat[1][2], transmat[2][3] - transmat[2][2], transmat[3][3] - transmat[3][2]);
+  // mi represent ith row of transmat;
+  //  left = m4 + m1
+  l = vec4(transmat[0][0] + transmat[0][3], transmat[1][0] + transmat[1][3], transmat[2][0] + transmat[2][3], transmat[3][0] + transmat[3][3]);
+  // right = m4 - m1
+  r = vec4(transmat[0][3] - transmat[0][0], transmat[1][3] - transmat[1][0], transmat[2][3] - transmat[2][0], transmat[3][3] - transmat[3][0]);
+  // bottom = m2 + m4
+  b = vec4(transmat[0][1] + transmat[0][3], transmat[1][1] + transmat[1][3], transmat[2][1] + transmat[2][3], transmat[3][1] + transmat[3][3]);
+  // top = m4 - m2
+  t = vec4(transmat[0][3] - transmat[0][1], transmat[1][3] - transmat[1][1], transmat[2][3] - transmat[2][1], transmat[3][3] - transmat[3][1]);
+  // near = m3 + m4
+  n = vec4(transmat[0][2] + transmat[0][3], transmat[1][2] + transmat[1][3], transmat[2][2] + transmat[2][3], transmat[3][2] + transmat[3][3]);
+  // far = m4 - m3
+  f = vec4(transmat[0][3] - transmat[0][2], transmat[1][3] - transmat[1][2], transmat[2][3] - transmat[2][2], transmat[3][3] - transmat[3][2]);
 }
 
 inline float sgn(float x)
@@ -154,94 +149,100 @@ inline float sgn(float x)
   return 0.f;
 }
 
-//frustum space clip
+// frustum space clip
 inline void near_clip(mat4& prjmat, const vec4& clip_plane)
 {
-	vec4 q;
-	q[0] = (sgn(clip_plane[0]) + prjmat[2][0]) / prjmat[0][0];
-	q[1] = (sgn(clip_plane[1]) + prjmat[2][1]) / prjmat[1][1];
-	q[2] = -1;
-	q[3] = (1 + prjmat[2][2]) / prjmat[3][2];
+  vec4 q;
+  q[0] = (sgn(clip_plane[0]) + prjmat[2][0]) / prjmat[0][0];
+  q[1] = (sgn(clip_plane[1]) + prjmat[2][1]) / prjmat[1][1];
+  q[2] = -1;
+  q[3] = (1 + prjmat[2][2]) / prjmat[3][2];
 
-	q = clip_plane * (2.f / dot<float>(clip_plane, q));
+  q = clip_plane * (2.f / dot<float>(clip_plane, q));
 
-	prjmat[0][2] = q[0];
-	prjmat[1][2] = q[1];
-	prjmat[2][2] = q[2] + 1;
-	prjmat[3][2] = q[3];
-}
-
-template <typename T>
-inline Tmat3<T> translate(T x, T y)
-{
-	return Tmat3<T>(Tvec3(1.f, 0.f, 0.f), Tvec3(0.f, 1.f, 0.f), Tvec3(x, y, 1.f));
+  prjmat[0][2] = q[0];
+  prjmat[1][2] = q[1];
+  prjmat[2][2] = q[2] + 1;
+  prjmat[3][2] = q[3];
 }
 
 template<typename T>
-inline Tmat3<T> translate(const Tvec2<T> &v)
+inline Tmat3<T> translate(T x, T y)
 {
-	return translate(v[0], v[1]);
+  return Tmat3<T>(Tvec3(1.f, 0.f, 0.f), Tvec3(0.f, 1.f, 0.f), Tvec3(x, y, 1.f));
 }
 
-template <typename T>
+template<typename T>
+inline Tmat3<T> translate(const Tvec2<T>& v)
+{
+  return translate(v[0], v[1]);
+}
+
+template<typename T>
 inline Tmat4<T> translate(T x, T y, T z)
 {
-	return Tmat4<T>(Tvec4<T>(1.0f, 0.0f, 0.0f, 0.0f),
-					Tvec4<T>(0.0f, 1.0f, 0.0f, 0.0f),
-					Tvec4<T>(0.0f, 0.0f, 1.0f, 0.0f),
-					Tvec4<T>(x, y, z, 1.0f));
+  return Tmat4<T>(Tvec4<T>(1.0f, 0.0f, 0.0f, 0.0f), Tvec4<T>(0.0f, 1.0f, 0.0f, 0.0f), Tvec4<T>(0.0f, 0.0f, 1.0f, 0.0f), Tvec4<T>(x, y, z, 1.0f));
 }
 
-template <typename T>
+template<typename T>
 inline Tmat4<T> translate(const Tvec3<T>& v)
 {
-	return translate(v[0], v[1], v[2]);
+  return translate(v[0], v[1], v[2]);
 }
 
-template <typename T>
-inline Tmat4<T> lookat(const Tvec3<T>& eye, const Tvec3<T>& center = Tvec3<T>(), const Tvec3<T>& up = Tvec3<T>(0, 0, 1))
+template<typename T>
+inline Tmat4<T> lookat(const Tvec3<T>& eye, const Tvec3<T>& center = Tvec3<T>(0), const Tvec3<T>& up = Tvec3<T>(0, 0, 1))
 {
   const Tvec3<T> f = normalize(center - eye);
   const Tvec3<T> s = normalize(cross(f, up));
   const Tvec3<T> u = normalize(cross(s, f));
-  const Tmat4<T> M = Tmat4<T>(
-		Tvec4<T>(s[0], u[0], -f[0], T(0)), 
-		Tvec4<T>(s[1], u[1], -f[1], T(0)), 
-		Tvec4<T>(s[2], u[2], -f[2], T(0)), 
-		Tvec4<T>(T(0), T(0), T(0), T(1)));
+  const Tmat4<T> M =
+      Tmat4<T>(
+        Tvec4<T>(s[0], u[0], -f[0], T(0)), 
+        Tvec4<T>(s[1], u[1], -f[1], T(0)), 
+        Tvec4<T>(s[2], u[2], -f[2], T(0)), 
+        Tvec4<T>(T(0), T(0), T(0), T(1))
+      );
 
   return M * translate<T>(-eye);
 }
 
-template <typename T>
-inline Tmat4<T> scale(T x, T y, T z)
+template<typename T>
+inline Tmat4<T> lookat_lh(const Tvec3<T>& eye, const Tvec3<T>& center = Tvec3<T>(0), const Tvec3<T>& up = Tvec3<T>(0, 0, 1))
 {
-  return Tmat4<T>(
-		Tvec4<T>(x, 0.0f, 0.0f, 0.0f), 
-		Tvec4<T>(0.0f, y, 0.0f, 0.0f), 
-		Tvec4<T>(0.0f, 0.0f, z, 0.0f), 
-		Tvec4<T>(0.0f, 0.0f, 0.0f, 1.0f)
-	);
+  const Tvec3<T> f = normalize(center - eye);
+  const Tvec3<T> s = normalize(cross(f, up));
+  const Tvec3<T> u = normalize(cross(s, f));
+  const Tmat4<T> M =
+      Tmat4<T>(
+        Tvec4<T>(s[0], -u[0], -f[0], T(0)), 
+        Tvec4<T>(s[1], -u[1], -f[1], T(0)), 
+        Tvec4<T>(s[2], -u[2], -f[2], T(0)), 
+        Tvec4<T>(T(0), T(0), T(0), T(1))
+      );
+
+  return M * translate<T>(-eye);
 }
 
-template <typename T>
+template<typename T>
+inline Tmat4<T> scale(T x, T y, T z)
+{
+  return Tmat4<T>(Tvec4<T>(x, 0.0f, 0.0f, 0.0f), Tvec4<T>(0.0f, y, 0.0f, 0.0f), Tvec4<T>(0.0f, 0.0f, z, 0.0f), Tvec4<T>(0.0f, 0.0f, 0.0f, 1.0f));
+}
+
+template<typename T>
 inline Tmat4<T> scale(const Tvec3<T>& v)
 {
   return scale(v[0], v[1], v[2]);
 }
 
-template <typename T>
+template<typename T>
 inline Tmat4<T> scale(T x)
 {
-  return Tmat4<T>(
-    Tvec4<T>(x, 0.0f, 0.0f, 0.0f), 
-    Tvec4<T>(0.0f, x, 0.0f, 0.0f), 
-    Tvec4<T>(0.0f, 0.0f, x, 0.0f), 
-    Tvec4<T>(0.0f, 0.0f, 0.0f, 1.0f)
-  );
+  return Tmat4<T>(Tvec4<T>(x, 0.0f, 0.0f, 0.0f), Tvec4<T>(0.0f, x, 0.0f, 0.0f), Tvec4<T>(0.0f, 0.0f, x, 0.0f), Tvec4<T>(0.0f, 0.0f, 0.0f, 1.0f));
 }
 
-template <typename T>
+template<typename T>
 inline Tmat4<T> rotate(T rads, T x, T y, T z)
 {
   Tmat4<T> result;
@@ -261,13 +262,13 @@ inline Tmat4<T> rotate(T rads, T x, T y, T z)
   return result;
 }
 
-template <typename T>
+template<typename T>
 inline Tmat4<T> rotate(T angle, const vecN<T, 3>& v)
 {
   return rotate<T>(angle, v[0], v[1], v[2]);
 }
 
-template <typename T>
+template<typename T>
 inline Tmat4<T> rotate(T angle_x, T angle_y, T angle_z)
 {
   return rotate(angle_z, 0.0f, 0.0f, 1.0f) * rotate(angle_y, 0.0f, 1.0f, 0.0f) * rotate(angle_x, 1.0f, 0.0f, 0.0f);
@@ -283,7 +284,7 @@ inline vecN<T, n> min(const vecN<T, n>& x, const vecN<T, n>& y)
   return t;
 }
 
-template <typename T>
+template<typename T>
 inline T clamp(T t, T min = 0, T max = 1)
 {
   return t > max ? max : t < min ? min : t;
@@ -357,25 +358,25 @@ inline matNM<T, w, h> operator^(const matNM<T, w, h>& x, const matNM<T, w, h>& y
   return result;
 }
 
-template <typename T, const int w, const int h>
-inline vecN<T, h> operator*(const matNM<T, w, h>& mat, const vecN<T, w>& vec)
+template <typename T, typename U, const int w, const int h>
+inline vecN<T, h> operator*(const matNM<T, w, h>& mat, const vecN<U, w>& vec)
 {
   vecN<T, h> result(T(0));
   for (int i = 0; i < h; i++) {
     T sum = 0;
     for (int j = 0; j < w; j++) {
-      sum += vec[j] * mat[i][j];
+      sum += vec[j] * mat[j][i];
     }
     result[i] = sum;
   }
   return result;
 }
 
-template <typename T>
-inline Tvec3<T> operator*(const matNM<T, 4, 4>& mat, const Tvec3<T>& vec)
+template <typename T, typename U>
+inline Tvec3<T> operator*(const matNM<T, 4, 4>& mat, const Tvec3<U>& vec)
 {
-  Tvec4<T> tmp(vec, 1);
-  vecN<T, 4> ret = operator*<T, 4, 4>(mat, tmp);
+  Tvec4<T> tmp(vec, T(1));
+  vecN<T, 4> ret = operator*<T, U, 4, 4>(mat, tmp);
   return Tvec3<T>(ret[0] / ret[3], ret[1] / ret[3], ret[2] / ret[3]);
 }
 
@@ -391,13 +392,13 @@ inline vecN<T, n> operator/(const T s, const vecN<T, n>& v)
   return result;
 }
 
-template <typename T>
+template<typename T>
 inline T mix(const T& a, const T& b, typename T::ele_type c)
 {
   return b + c * (b - a);
 }
 
-template <typename T>
+template<typename T>
 inline T mix(const T& a, const T& b, const T& t)
 {
   return b + t * (b - a);
@@ -459,7 +460,7 @@ std::optional<matNM<T, n, n>> inverse(const matNM<T, n, n>& ori)
 }
 
 // translate, rotate, scale, scaleo
-template <typename T>
+template<typename T>
 std::tuple<vec3d, Tquat<T>, vec3d, Tquat<T>> decompose(const Tmat4<T>& m)
 {
   vec3d trans, scale;
@@ -481,12 +482,18 @@ public:
   template <typename U>
   inline void expand(const Tvec3<U>& v)
   {
-    if (v.x() < _min.x()) _min.x() = v.x();
-    if (v.x() > _max.x()) _max.x() = v.x();
-    if (v.y() < _min.y()) _min.y() = v.y();
-    if (v.y() > _max.y()) _max.y() = v.y();
-    if (v.z() < _min.z()) _min.z() = v.z();
-    if (v.z() > _max.z()) _max.z() = v.z();
+    if (v.x() < _min.x())
+      _min.x() = v.x();
+    if (v.x() > _max.x())
+      _max.x() = v.x();
+    if (v.y() < _min.y())
+      _min.y() = v.y();
+    if (v.y() > _max.y())
+      _max.y() = v.y();
+    if (v.z() < _min.z())
+      _min.z() = v.z();
+    if (v.z() > _max.z())
+      _max.z() = v.z();
   }
 
   inline const Tvec3<T> corner(uint32_t pos) const
@@ -502,8 +509,8 @@ private:
   Tvec3<T> _min, _max;
 };
 
-using boundingbox = Tboundingbox<float>; 
+using boundingbox = Tboundingbox<float>;
 
-};
+};  // namespace tg
 
 #endif /* __TMATH_H__ */

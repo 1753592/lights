@@ -284,25 +284,23 @@ void ShadowView::update_ubo()
   _depth_matrix.pers = mat;
 
   auto vp = tg::vec3(0, 0, 20);
-  //{
-  //  auto neye = mat * vp;
-  //  auto npos = mat *tg::vec3(0, 0, 0);
-  //  auto nup = mat * tg::vec3(vp + tg::vec3(0, 1, 0));
-  //  nup = nup - neye;
-  //  _depth_matrix.view = tg::lookat(neye, npos, nup);
-  //}
+  {
+    auto neye = mat * vp;
+    auto npos = mat * tg::vec3(0, 0, 0);
+    auto nup = mat * tg::vec3(vp + tg::vec3(0, 1, 0));
+    nup = nup - neye;
+    _depth_matrix.view = tg::lookat_lh(neye, npos, nup);
 
-  //{
-  //  tg::boundingbox box, perbox;
-  //  box.expand(tg::vec3(-20, -20, 0));
-  //  box.expand(tg::vec3(20, 20, 2));
-  //  for (int i = 0; i < 8; i++)
-  //  {
-  //    auto v = mat * box.corner(i);
-  //    perbox.expand(_depth_matrix.view * v);
-  //  }
-  //  _depth_matrix.prj = tg::ortho(perbox.min().x(), perbox.max().x(), perbox.min().y(), perbox.max().y(), 0.001, 2);
-  //}
+    tg::boundingbox box, perbox;
+    box.expand(tg::vec3(-20, -20, 0));
+    box.expand(tg::vec3(20, 20, 2));
+    for (int i = 0; i < 8; i++)
+    {
+      auto v = mat * box.corner(i);
+      perbox.expand(_depth_matrix.view * v);
+    }
+    _depth_matrix.prj = tg::ortho(perbox.min().x(), perbox.max().x(), perbox.min().y(), perbox.max().y(), 0.001, 2);
+  }
 
   VK_CHECK_RESULT(vkMapMemory(*device(), _depth_matrix_buf->memory(), 0, sizeof(PERSMVP), 0, (void **)&data));
   memcpy(data, &_depth_matrix, sizeof(PERSMVP));
