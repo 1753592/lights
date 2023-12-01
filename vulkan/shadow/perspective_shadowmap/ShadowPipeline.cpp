@@ -18,8 +18,16 @@ ShadowPipeline::ShadowPipeline(const std::shared_ptr<VulkanDevice> &dev) : Textu
 
 ShadowPipeline::~ShadowPipeline()
 {
-  if (_shadow_layout)
-    vkDestroyDescriptorSetLayout(*_device, _shadow_layout, 0);
+  if (_shadow_matrix_layout)
+  {
+    vkDestroyDescriptorSetLayout(*_device, _shadow_matrix_layout, 0);
+    _shadow_matrix_layout = VK_NULL_HANDLE;
+  }
+  if (_shadow_texture_layout)
+  {
+    vkDestroyDescriptorSetLayout(*_device, _shadow_texture_layout, 0);
+    _shadow_texture_layout = VK_NULL_HANDLE;
+  }
 }
 
 void ShadowPipeline::realize(VulkanPass *render_pass, int subpass)
@@ -150,7 +158,7 @@ void ShadowPipeline::realize(VulkanPass *render_pass, int subpass)
 VkPipelineLayout ShadowPipeline::pipe_layout()
 {
   if (!_pipe_layout) {
-    VkDescriptorSetLayout layouts[5] = {matrix_layout(), light_layout(), pbr_layout(), texture_layout(), shadow_layout()};
+    VkDescriptorSetLayout layouts[] = {matrix_layout(), light_layout(), pbr_layout(), texture_layout(), shadow_matrix_layout(), shadow_texture_layout()};
 
     VkPushConstantRange transformConstants;
     transformConstants.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
@@ -160,7 +168,7 @@ VkPipelineLayout ShadowPipeline::pipe_layout()
     VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = {};
     pPipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pPipelineLayoutCreateInfo.pNext = nullptr;
-    pPipelineLayoutCreateInfo.setLayoutCount = 5;
+    pPipelineLayoutCreateInfo.setLayoutCount = 6;
     pPipelineLayoutCreateInfo.pSetLayouts = layouts;
     pPipelineLayoutCreateInfo.pushConstantRangeCount = 1;
     pPipelineLayoutCreateInfo.pPushConstantRanges = &transformConstants;
@@ -173,31 +181,63 @@ VkPipelineLayout ShadowPipeline::pipe_layout()
   return _pipe_layout;
 }
 
-VkDescriptorSetLayout ShadowPipeline::shadow_layout()
+VkDescriptorSetLayout ShadowPipeline::shadow_matrix_layout()
 {
-  if (!_shadow_layout) {
-    VkDescriptorSetLayoutBinding layoutBinding[2] = {};
-    layoutBinding[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutBinding[0].descriptorCount = 1;
-    layoutBinding[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT;
-    layoutBinding[0].pImmutableSamplers = nullptr;
-    layoutBinding[0].binding = 0;
-
-    layoutBinding[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutBinding[1].descriptorCount = 1;
-    layoutBinding[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutBinding[1].pImmutableSamplers = nullptr;
-    layoutBinding[1].binding = 1;
+  if (!_shadow_matrix_layout) {
+    VkDescriptorSetLayoutBinding layoutBinding = {};
+    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    layoutBinding.descriptorCount = 1;
+    layoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT;
+    layoutBinding.pImmutableSamplers = nullptr;
+    layoutBinding.binding = 0;
 
     VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
     descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     descriptorLayout.pNext = nullptr;
-    descriptorLayout.bindingCount = 2;
-    descriptorLayout.pBindings = layoutBinding;
+    descriptorLayout.bindingCount = 1;
+    descriptorLayout.pBindings = &layoutBinding;
 
     VkDescriptorSetLayout deslay = VK_NULL_HANDLE;
     VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*_device, &descriptorLayout, nullptr, &deslay));
-    _shadow_layout = deslay;
+    _shadow_matrix_layout = deslay;
   }
-  return _shadow_layout;
+  return _shadow_matrix_layout;
 }
+
+VkDescriptorSetLayout ShadowPipeline::shadow_texture_layout()
+{
+  if (!_shadow_texture_layout) {
+    VkDescriptorSetLayoutBinding layoutBinding = {};
+
+    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    layoutBinding.descriptorCount = 1;
+    layoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutBinding.pImmutableSamplers = nullptr;
+    layoutBinding.binding = 0;
+
+    VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
+    descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    descriptorLayout.pNext = nullptr;
+    descriptorLayout.bindingCount = 1;
+    descriptorLayout.pBindings = &layoutBinding;
+
+    VkDescriptorSetLayout deslay = VK_NULL_HANDLE;
+    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*_device, &descriptorLayout, nullptr, &deslay));
+    _shadow_texture_layout = deslay;
+  }
+  return _shadow_texture_layout;
+
+}
+
+//PerpShadowPipeline::PerpShadowPipeline(const std::shared_ptr<VulkanDevice> &dev) : ShadowPipeline(dev)
+//{
+//}
+//
+//PerpShadowPipeline::~PerpShadowPipeline()
+//{
+//}
+//
+//VkPipelineLayout PerpShadowPipeline::pipe_layout()
+//{
+//  return VkPipelineLayout();
+//}

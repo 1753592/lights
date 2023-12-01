@@ -7,6 +7,7 @@
 #include "VulkanTexture.h"
 #include "VulkanInitializers.hpp"
 #include "TexturePipeline.h"
+#include "DepthPersPipeline.h"
 
 #include "tvec.h"
 #include "config.h"
@@ -161,6 +162,39 @@ void MeshInstance::build_command_buffer(VkCommandBuffer cmd_buf, const std::shar
     auto descriptor = pri->material().albedo_tex->descriptor();
     texture_set.pImageInfo = &descriptor;
     vkCmdPushDescriptorSetKHR(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipe_layout(), 3, 1, &texture_set);
+
+    std::vector<VkBuffer> bufs(3);
+    bufs[0] = *pri->_vertex_buf;
+    bufs[1] = *pri->_normal_buf;
+    bufs[2] = *pri->_uv_buf;
+    std::vector<VkDeviceSize> offset(bufs.size(), 0);
+    vkCmdBindVertexBuffers(cmd_buf, 0, bufs.size(), bufs.data(), offset.data());
+    vkCmdBindIndexBuffer(cmd_buf, *pri->_index_buf, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdDrawIndexed(cmd_buf, pri->index_count(), 1, 0, 0, 0);
+  }
+}
+
+void MeshInstance::build_command_buffer(VkCommandBuffer cmd_buf, const std::shared_ptr<DepthPersPipeline> &pipeline)
+{
+  if (!pipeline || !pipeline->valid())
+    return;
+
+  vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, *pipeline);
+
+  for (int i = 0; i < _pris.size(); i++) {
+    auto &pri = _pris[i];
+    auto m = _transform * pri->transform();
+    vkCmdPushConstants(cmd_buf, pipeline->pipe_layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(m), &m);
+
+    VkWriteDescriptorSet texture_set = {};
+    texture_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    texture_set.dstSet = 0;
+    texture_set.dstBinding = 0;
+    texture_set.descriptorCount = 1;
+    texture_set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    auto descriptor = pri->material().albedo_tex->descriptor();
+    texture_set.pImageInfo = &descriptor;
+    vkCmdPushDescriptorSetKHR(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipe_layout(), 1, 1, &texture_set);
 
     std::vector<VkBuffer> bufs(3);
     bufs[0] = *pri->_vertex_buf;

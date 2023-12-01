@@ -140,6 +140,8 @@ void VulkanTexture::realize(const std::shared_ptr<VulkanImage> &img)
 
   auto samplerinfo = vks::initializers::samplerCreateInfo();
   samplerinfo.maxLod = 1;
+  //samplerinfo.magFilter = VK_FILTER_NEAREST;
+  //samplerinfo.minFilter = VK_FILTER_NEAREST;
   VkSampler sampler;
   VK_CHECK_RESULT(vkCreateSampler(*_device, &samplerinfo, nullptr, &sampler));
   _sampler = sampler;

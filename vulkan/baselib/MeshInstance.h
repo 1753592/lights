@@ -12,6 +12,7 @@ class MeshPrimitive;
 class VulkanBuffer;
 class VulkanPipeline;
 class TexturePipeline;
+class DepthPersPipeline;
 
 class MeshInstance{
 public:
@@ -29,6 +30,8 @@ public:
   void build_command_buffer(VkCommandBuffer cmd_buf, const std::shared_ptr<VulkanPipeline> &pipeline);
 
   void build_command_buffer(VkCommandBuffer cmd_buf, const std::shared_ptr<TexturePipeline> &pipeline);
+
+  void build_command_buffer(VkCommandBuffer cmd_buf, const std::shared_ptr<DepthPersPipeline> &pipeline);
 
 private:
 

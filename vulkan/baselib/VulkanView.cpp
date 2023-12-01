@@ -93,13 +93,19 @@ void VulkanView::frame(bool continus)
             render();
           break;
         case SDL_MOUSEBUTTONDOWN:
-          if (_imgui && _imgui->mouse_down(event.button))
-            // mouse_down(event.button);
-            update_frame();
+          if (_imgui && _imgui->mouse_down(event.button)) {
+          } else {
+            if (event.button.button == 1)
+              left_dn(event.button.x, event.button.y);
+          }
+          update_frame();
           break;
         case SDL_MOUSEBUTTONUP:
-          if (_imgui && _imgui->mouse_up(event.button)) {}
-          // mouse_up(event.button);
+          if (_imgui && _imgui->mouse_up(event.button)) {
+          } else {
+            if (event.button.button == 1)
+              left_up(event.button.x, event.button.y);
+          }
           update_frame();
           break;
         case SDL_MOUSEMOTION:

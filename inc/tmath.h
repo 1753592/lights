@@ -3,7 +3,11 @@
 
 #include "tvec.h"
 #include <algorithm>
+#if __cplusplus >= 201703L 
+#define CXX_17_SUPPORT
 #include <optional>
+#endif
+
 
 namespace tg {
 
@@ -208,23 +212,6 @@ inline Tmat4<T> lookat(const Tvec3<T>& eye, const Tvec3<T>& center = Tvec3<T>(0)
 }
 
 template<typename T>
-inline Tmat4<T> lookat_lh(const Tvec3<T>& eye, const Tvec3<T>& center = Tvec3<T>(0), const Tvec3<T>& up = Tvec3<T>(0, 0, 1))
-{
-  const Tvec3<T> f = normalize(center - eye);
-  const Tvec3<T> s = normalize(cross(f, up));
-  const Tvec3<T> u = normalize(cross(s, f));
-  const Tmat4<T> M =
-      Tmat4<T>(
-        Tvec4<T>(s[0], -u[0], -f[0], T(0)), 
-        Tvec4<T>(s[1], -u[1], -f[1], T(0)), 
-        Tvec4<T>(s[2], -u[2], -f[2], T(0)), 
-        Tvec4<T>(T(0), T(0), T(0), T(1))
-      );
-
-  return M * translate<T>(-eye);
-}
-
-template<typename T>
 inline Tmat4<T> scale(T x, T y, T z)
 {
   return Tmat4<T>(Tvec4<T>(x, 0.0f, 0.0f, 0.0f), Tvec4<T>(0.0f, y, 0.0f, 0.0f), Tvec4<T>(0.0f, 0.0f, z, 0.0f), Tvec4<T>(0.0f, 0.0f, 0.0f, 1.0f));
@@ -404,6 +391,8 @@ inline T mix(const T& a, const T& b, const T& t)
   return b + t * (b - a);
 }
 
+#ifdef CXX_17_SUPPORT 
+
 template <typename T, int n>
 std::optional<matNM<T, n, n>> inverse(const matNM<T, n, n>& ori)
 {
@@ -468,16 +457,22 @@ std::tuple<vec3d, Tquat<T>, vec3d, Tquat<T>> decompose(const Tmat4<T>& m)
   return std::make_tuple(trans, rotate, scale, scale_o);
 }
 
+#endif
+
 template<typename T>
 class Tboundingbox {
 public:
   Tboundingbox() : _min(std::numeric_limits<T>::max()), _max(-_min) {}
+
+  Tboundingbox(const Tvec3<T>& min, const Tvec3<T>& max) : _min(min), _max(max) {}
 
   Tvec3<T>& min() { return _min; }
   const Tvec3<T>& min() const { return _min; }
 
   Tvec3<T>& max() { return _max; }
   const Tvec3<T>& max() const { return _max; }
+
+  Tvec3<T> center() const { return _min / 2.0 + _max / 2.0; }
 
   template <typename U>
   inline void expand(const Tvec3<U>& v)

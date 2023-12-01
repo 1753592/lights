@@ -42,10 +42,10 @@ ShadowView::ShadowView(const std::shared_ptr<VulkanDevice> &dev) : VulkanView(de
 
   GLTFLoader loader;
   _tree = loader.load_file(ROOT_DIR "/data/oaktree.gltf");
-  _tree->set_transform(tg::translate(tg::vec3(0, 0, 1)) * tg::scale(4));
+  _tree->set_transform(tg::translate(tg::vec3(0, 0, 1)) * tg::scale(4.0f));
 
   _deer = loader.load_file(ROOT_DIR "/data/deer.gltf");
-  _deer->set_transform(tg::translate(tg::vec3(3, 3, 1)) * tg::rotate(tg::radians(30.f), tg::vec3(0, 0, 1)) * tg::scale(1));
+  _deer->set_transform(tg::translate(tg::vec3(3, 3, 1)) * tg::rotate(tg::radians(30.f), tg::vec3(0, 0, 1)) * tg::scale(1.0f));
 
   _shadow_pipeline = std::make_shared<ShadowPipeline>(dev);
   _depth_pipeline = std::make_shared<DepthPipeline>(dev, 2048, 2048);

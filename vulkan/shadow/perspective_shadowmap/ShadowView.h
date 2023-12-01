@@ -19,10 +19,12 @@ public:
 
   void set_uniforms();
   void update_ubo();
+  void update_light();
 
   void resize(int w, int h);
   void update_scene();
 
+  void left_dn(int x, int y) { update_ubo(); }
   void wheel(int delta) { update_ubo(); }
   void left_drag(int x, int y, int, int) { update_ubo(); }
   void right_drag(int x, int y, int, int) { update_ubo(); }
@@ -58,18 +60,15 @@ private:
   VkDescriptorSet _pbr_set = VK_NULL_HANDLE;
   VkDescriptorSet _basic_tex_set = VK_NULL_HANDLE;
 
-  VkDescriptorSet _depth_matrix_set = VK_NULL_HANDLE;
-  std::shared_ptr<VulkanBuffer> _depth_matrix_buf;
-
   ShadowMatrix _shadow_matrix;
-  VkDescriptorSet _shadow_set = VK_NULL_HANDLE;
+  VkDescriptorSet _shadow_matrix_set = VK_NULL_HANDLE;
+  VkDescriptorSet _shadow_texture_set = VK_NULL_HANDLE;
   std::shared_ptr<VulkanBuffer> _shadow_buf;
   std::shared_ptr<VulkanTexture> _shadow_texture;
 
   std::shared_ptr<VulkanBuffer> _ubo_buf, _light, _material;
 
   MVP _matrix;
-  PERSMVP _depth_matrix;
 
   uint32_t _vert_count = 0;
   uint32_t _index_count = 0;
@@ -82,4 +81,6 @@ private:
   std::shared_ptr<HUDPass> _hud_pass;
   std::shared_ptr<HUDPipeline> _hud_pipeline;
   std::shared_ptr<HUDRect> _hud_rect;
+
+  tg::vec2 _light_dir = tg::vec2(90, 45);
 };

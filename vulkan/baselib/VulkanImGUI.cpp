@@ -264,6 +264,8 @@ bool VulkanImGUI::update_frame()
   if (vertex_buf_size == 0 || index_buf_size == 0) {
     return false;
   }
+  vertex_buf_size = (vertex_buf_size / 0x40 + 1) * 0x40;
+  index_buf_size = (index_buf_size / 0x40 + 1) * 0x40;
 
   auto device = _view->device();
 
@@ -348,7 +350,7 @@ bool VulkanImGUI::mouse_down(SDL_MouseButtonEvent& ev)
   auto& io = ImGui::GetIO();
   io.AddMousePosEvent(ev.x, ev.y);
   io.AddMouseButtonEvent(button_map[ev.button - 1], true);
-  return false;
+  return io.WantCaptureMouse;
 }
 
 bool VulkanImGUI::mouse_up(SDL_MouseButtonEvent& ev)
@@ -356,7 +358,7 @@ bool VulkanImGUI::mouse_up(SDL_MouseButtonEvent& ev)
   auto& io = ImGui::GetIO();
   io.AddMousePosEvent(ev.x, ev.y);
   io.AddMouseButtonEvent(button_map[ev.button - 1], false);
-  return false;
+  return io.WantCaptureMouse;
 }
 
 bool VulkanImGUI::mouse_move(SDL_MouseMotionEvent& ev)
@@ -367,7 +369,7 @@ bool VulkanImGUI::mouse_move(SDL_MouseMotionEvent& ev)
   if (ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow))
     dirty();
 
-  return false;
+  return io.WantCaptureMouse;
 }
 
 void VulkanImGUI::dirty()

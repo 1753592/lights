@@ -34,10 +34,12 @@ struct {
   tg::vec4 cam;
 } matrix_ubo;
 
+float light_intensity = 300;
+
 struct{
   struct alignas(16) aligned_vec3 : vec3 {};
   aligned_vec3 light_pos[4] = {vec3(10, -10, 10), vec3(-10, -10, 10), vec3(-10, -10, -10), vec3(10, -10, -10)};
-  aligned_vec3 light_color[4] = {vec3(300), vec3(300), vec3(300), vec3(300)};
+  aligned_vec3 light_color[4] = {vec3(light_intensity), vec3(light_intensity), vec3(light_intensity), vec3(1)};
 } lights_ubo;
 
 struct alignas(16){

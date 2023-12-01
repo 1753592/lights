@@ -93,8 +93,9 @@ set(shaders
 	shaders/pbr_clr.frag
 	shaders/pbr_tex.frag
 	shaders/depth.vert
-	shaders/depth_pers.vert
 	shaders/depth.frag
+	shaders/depth_pers.vert
+	shaders/depth_pers.frag
 	shaders/hud.vert
 	shaders/hud.frag
 )

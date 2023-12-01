@@ -50,6 +50,8 @@ public:
   virtual void resize(int w, int h) = 0;
   virtual void build_command_buffer(VkCommandBuffer cmd_buf) = 0;
 
+  virtual void left_dn(int x, int y){};
+  virtual void left_up(int x, int y){};
   virtual void wheel(int delta){};
   virtual void left_drag(int x, int y, int xdel, int ydel){};
   virtual void right_drag(int x, int y, int xdel, int ydel){};

@@ -37,7 +37,56 @@ ParallelLight light;
 
 VulkanInstance &inst = VulkanInstance::instance();
 
-ShadowView::ShadowView(const std::shared_ptr<VulkanDevice> &dev) : VulkanView(dev, false)
+inline tg::mat4 lookat_lh(const tg::vec3& eye, const tg::vec3& center, const tg::vec3& up)
+{
+  vec3 f = -normalize(eye - center);
+  const vec3 s = normalize(cross(up, f));
+  const vec3 u = normalize(cross(f, s));
+  const tg::mat4 M =
+      tg::mat4(
+        tg::vec4(s[0], u[0], -f[0], 0), 
+        tg::vec4(s[1], u[1], -f[1], 0), 
+        tg::vec4(s[2], u[2], -f[2], 0), 
+        tg::vec4(0, 0, 0, 1)
+      );
+
+  return M * tg::translate<float>(-eye);
+}
+
+auto cal_psm_matrix(const tg::vec3 &light_dir, const tg::vec3 &cam_eye, const tg::vec3 &cam_center, float zn, float zf, const tg::boundingbox &psc)
+{
+  struct Ret {
+    tg::mat4 mm;
+    tg::mat4 mp;
+  };
+
+  tg::vec3 lt = tg::normalize(light_dir);
+  auto rt = tg::cross(lt, cam_eye - cam_center);
+  rt = tg::normalize(rt);
+  auto ft = tg::cross(lt, rt);
+
+  tg::boundingbox bd = psc;
+  float n = sqrt(zf * zn) - zn;
+  float dis = 0, f = 0, fov = 0;
+
+  Ret ret;
+  {
+    bd.expand(cam_eye);
+    float rad = bd.radius();
+    tg::vec3 center = bd.center();
+    dis = n + rad;
+    tg::vec3 eye = center - ft * dis;
+    ret.mm = tg::lookat(eye, center, lt);
+    f = n + bd.radius() * 2.0;
+    fov = tg::degrees(asin(sin(bd.radius() / dis)) * 2);
+  }
+
+  ret.mp = tg::perspective<float>(fov, 1.0, n, f);
+
+  return ret;
+}
+
+ShadowView::ShadowView(const std::shared_ptr<VulkanDevice> &dev) : VulkanView(dev, true)
 {
   create_sphere();
 
@@ -46,7 +95,7 @@ ShadowView::ShadowView(const std::shared_ptr<VulkanDevice> &dev) : VulkanView(de
   _tree->set_transform(tg::mat4(tg::translate(tg::vec3(0, 0, 1)) * tg::scale(4.0f)));
 
   _deer = loader.load_file(ROOT_DIR "/data/deer.gltf");
-  _deer->set_transform(tg::mat4(tg::translate(tg::vec3(3, 3, 1)) * tg::rotate(tg::radians(30.f), tg::vec3(0, 0, 1)) * tg::scale(1.f)));
+  _deer->set_transform(tg::mat4(tg::translate(tg::vec3(3, 0, 1)) * tg::rotate(tg::radians(30.f), tg::vec3(0, 0, 1)) * tg::scale(1.f)));
 
   _shadow_pipeline = std::make_shared<ShadowPipeline>(dev);
 
@@ -119,7 +168,7 @@ ShadowView::~ShadowView()
 
 void ShadowView::create_sphere()
 {
-  Box box(vec3(0), vec3(40, 40, 2));
+  Box box(vec3(0), vec3(20, 20, 2));
   box.build();
   auto &verts = box.get_vertex();
   auto &norms = box.get_norms();
@@ -241,25 +290,23 @@ void ShadowView::create_sphere()
 
 void ShadowView::set_uniforms()
 {
-  light.light_dir = tg::normalize(vec3(1, 1, 1));
+  light.light_dir = tg::normalize(vec3(0, 2, 1));
   light.light_color = vec3(10);
-
-  uint8_t *data = 0;
-  VK_CHECK_RESULT(vkMapMemory(*device(), _light->memory(), 0, sizeof(light), 0, (void **)&data));
-  memcpy(data, &light, sizeof(light));
 
   pbr.albedo = vec3(0.8);
   pbr.ao = 1;
   pbr.metallic = 0.2;
   pbr.roughness = 0.7;
+  uint8_t *data = 0;
+
   VK_CHECK_RESULT(vkMapMemory(*device(), _material->memory(), 0, sizeof(pbr), 0, (void **)&data));
   memcpy(data, &pbr, sizeof(pbr));
-
-  _depth_matrix_buf = device()->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
-    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sizeof(PERSMVP));
+  vkUnmapMemory(*device(), _material->memory());
 
   _shadow_buf = device()->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sizeof(ShadowMatrix));
+
+  update_light();
 }
 
 void ShadowView::update_ubo()
@@ -267,56 +314,75 @@ void ShadowView::update_ubo()
   _matrix.eye = manipulator().eye();
   _matrix.view = manipulator().view_matrix();
   _matrix.prj = tg::perspective<float>(fov, float(width()) / height(), 0.1, 1000);
-  //_matrix.prj = tg::ortho(-100, 100, -100, 100, 1, 1000);
-  // tg::near_clip(_matrix.prj, tg::vec4(0, 0, -1, 0.5));
 
-  // auto xx = _matrix.view * tg::vec4(0, 0, 100, 1);
-  // xx = _matrix.prj * xx;
-
-  uint8_t *data = 0;
+  void *data = 0;
   {
     VK_CHECK_RESULT(vkMapMemory(*device(), _ubo_buf->memory(), 0, sizeof(_matrix), 0, (void **)&data));
     memcpy(data, &_matrix, sizeof(_matrix));
     vkUnmapMemory(*device(), _ubo_buf->memory());
   }
 
-  tg::mat4d mat = _matrix.prj * _matrix.view;
-  _depth_matrix.pers = mat;
+  tg::boundingbox psc(tg::vec3(-10, -10, 0), tg::vec3(10, 10, 4));
+  auto vp = manipulator().eye();
+  auto ct = tg::vec3(0, 0, 0);
+  auto [mm, mp] = cal_psm_matrix(light.light_dir, vp, ct, 0.1, 20, psc);
 
-  auto vp = tg::vec3(0, 0, 20);
+  tg::mat4 mat = mp * mm;
+
   {
-    auto neye = mat * vp;
-    auto npos = mat * tg::vec3(0, 0, 0);
-    auto nup = mat * tg::vec3(vp + tg::vec3(0, 1, 0));
-    nup = nup - neye;
-    _depth_matrix.view = tg::lookat_lh(neye, npos, nup);
-
-    tg::boundingbox box, perbox;
-    box.expand(tg::vec3(-20, -20, 0));
-    box.expand(tg::vec3(20, 20, 2));
+    tg::boundingbox perbox, viewbox;
     for (int i = 0; i < 8; i++)
     {
-      auto v = mat * box.corner(i);
-      perbox.expand(_depth_matrix.view * v);
+      auto v = mat * psc.corner(i);
+      perbox.expand(v);
     }
-    _depth_matrix.prj = tg::ortho(perbox.min().x(), perbox.max().x(), perbox.min().y(), perbox.max().y(), 0.001, 2);
+    auto nup = tg::vec3(0, 0, 1);
+    auto neye = perbox.center();
+    auto npos = neye;
+    neye.y() = perbox.max().y() + 0.1;
+
+    auto viewMatrix = lookat_lh(neye, npos, nup);
+    _shadow_matrix.view = viewMatrix;
+
+    for (int i = 0; i < 8; i++)
+    {
+      auto v = viewMatrix * perbox.corner(i);
+      viewbox.expand(v);
+    }
+
+    _shadow_matrix.prj = tg::ortho(viewbox.min().x(), viewbox.max().x(), viewbox.min().y(), viewbox.max().y(), -viewbox.max().z(), - viewbox.min().z());
+    _shadow_matrix.mvp = _shadow_matrix.prj * _shadow_matrix.view;
+
+    auto pp1 = mat * vec3(-10, -10, 0);
+    auto pp2 = _shadow_matrix.view * pp1;
+    auto pp3 = _shadow_matrix.prj * pp2;
+
+    auto pp4 = mat * vec3(10, -10, 0);
+    auto pp5 = _shadow_matrix.mvp * pp4;
+    printf("");
   }
 
-  VK_CHECK_RESULT(vkMapMemory(*device(), _depth_matrix_buf->memory(), 0, sizeof(PERSMVP), 0, (void **)&data));
-  memcpy(data, &_depth_matrix, sizeof(PERSMVP));
-  vkUnmapMemory(*device(), _depth_matrix_buf->memory());
-
-  //_shadow_matrix.prj = tg::ortho(-1, 1, -1, 1, 0.1, 10);
-  ////_shadow_matrix.light = tg::normalize(vp); 
-  //_shadow_matrix.view = mat * _depth_matrix.view;
-  //_shadow_matrix.prj = _depth_matrix.prj;
-  //_shadow_matrix.mvp = _depth_matrix.prj * _depth_matrix.view;
+  _shadow_matrix.pers = mat;
 
   {
     VK_CHECK_RESULT(vkMapMemory(*device(), _shadow_buf->memory(), 0, sizeof(ShadowMatrix), 0, (void **)&data));
     memcpy(data, &_shadow_matrix, sizeof(ShadowMatrix));
     vkUnmapMemory(*device(), _shadow_buf->memory());
   }
+}
+
+void ShadowView::update_light()
+{
+  _shadow_matrix.light = light.light_dir;
+
+  uint8_t *data = 0;
+  {
+    VK_CHECK_RESULT(vkMapMemory(*device(), _light->memory(), 0, sizeof(light), 0, (void **)&data));
+    memcpy(data, &light, sizeof(light));
+  vkUnmapMemory(*device(), _light->memory());
+  }
+
+
 }
 
 void ShadowView::resize(int w, int h)
@@ -326,25 +392,53 @@ void ShadowView::resize(int w, int h)
 
 void ShadowView::update_scene()
 {
+  auto fun = [this]() {
+    tg::vec3 dir;
+    auto x = tg::radians(_light_dir.x());
+    auto y = tg::radians(_light_dir.y());
+    dir.x() = cos(x) * cos(y);
+    dir.y() = sin(x) * cos(y);
+    dir.z() = sin(y);
+
+    tg::normalize(dir);
+    light.light_dir = dir; 
+
+    update_light();
+    update_ubo();
+  };
+
   if (_imgui) {
     ImGui::NewFrame();
     ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiCond_Once);
 
-    bool overlay = ImGui::Begin("test");
-    ImGui::Text("wtf");
+    ImGui::Begin("test");
+
+    if (ImGui::SliderFloat("x", &_light_dir.x(), -180, 180)) {
+      fun();
+    }
+
+    if (ImGui::SliderFloat("y", &_light_dir.y(), 0, 90)) {
+      fun();
+    }
+
     ImGui::End();
     ImGui::EndFrame();
     ImGui::Render();
   }
-
-  // if (overlay)
-  //   update_overlay();
 }
 
 void ShadowView::key_up(int key)
 {
-  if (key == SDL_SCANCODE_SPACE)
-    update_ubo();
+  if (key == SDL_SCANCODE_UP)
+    manipulator().rotate(0, 1);
+  else if (key == SDL_SCANCODE_DOWN)
+    manipulator().rotate(0, -1);
+  else if (key == SDL_SCANCODE_LEFT)
+    manipulator().rotate(-1, 0);
+  else if (key == SDL_SCANCODE_RIGHT)
+    manipulator().rotate(1, 0);
+
+  update_ubo();
 }
 
 void ShadowView::create_command_buffers()
@@ -361,16 +455,33 @@ void ShadowView::build_depth_command_buffer(VkCommandBuffer cmd_buf)
   mt.identity();
   if (_depth_pipeline && _depth_pipeline->valid()) {
     vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, *_depth_pipeline);
-    vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_pipeline->pipe_layout(), 0, 1, &_depth_matrix_set, 0, nullptr);
+    vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_pipeline->pipe_layout(), 0, 1, &_shadow_matrix_set, 0, nullptr);
 
     vkCmdPushConstants(cmd_buf, _depth_pipeline->pipe_layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Transform), &mt);
 
-    VkDeviceSize oft = 0;
-    vkCmdBindVertexBuffers(cmd_buf, 0, 1, &_vert_buf, &oft);
-    vkCmdBindIndexBuffer(cmd_buf, _index_buf, 0, VK_INDEX_TYPE_UINT16);
-    vkCmdDrawIndexed(cmd_buf, _index_count, 1, 0, 0, 0);
+    VkWriteDescriptorSet texture_set = {};
+    texture_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    texture_set.dstSet = 0;
+    texture_set.dstBinding = 0;
+    texture_set.descriptorCount = 1;
+    texture_set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    auto descriptor = _basic_texture->descriptor();
+    texture_set.pImageInfo = &descriptor;
+    _device->vkCmdPushDescriptorSetKHR(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _depth_pipeline->pipe_layout(), 1, 1, &texture_set);
 
-    //_tree->build_command_buffer(cmd_buf, _depth_pipeline);
+    {
+      VkDeviceSize offset[3] = {0, _vert_count * sizeof(vec3), _vert_count * (sizeof(vec3) + sizeof(vec2))};
+      VkBuffer bufs[3] = {};
+      bufs[0] = _vert_buf;
+      bufs[1] = _vert_buf;
+      bufs[2] = _vert_buf;
+
+      vkCmdBindVertexBuffers(cmd_buf, 0, 3, bufs, offset);
+      vkCmdBindIndexBuffer(cmd_buf, _index_buf, 0, VK_INDEX_TYPE_UINT16);
+      vkCmdDrawIndexed(cmd_buf, _index_count, 1, 0, 0, 0);
+    }
+
+    _tree->build_command_buffer(cmd_buf, _depth_pipeline);
 
     _deer->build_command_buffer(cmd_buf, _depth_pipeline);
   }
@@ -513,7 +624,8 @@ void ShadowView::build_command_buffer(VkCommandBuffer cmd_buf)
     texture_set.pImageInfo = &descriptor;
     _device->vkCmdPushDescriptorSetKHR(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _shadow_pipeline->pipe_layout(), 3, 1, &texture_set);
 
-    vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _shadow_pipeline->pipe_layout(), 4, 1, &_shadow_set, 0, 0);
+    vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _shadow_pipeline->pipe_layout(), 4, 1, &_shadow_matrix_set, 0, 0);
+    vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, _shadow_pipeline->pipe_layout(), 5, 1, &_shadow_texture_set, 0, 0);
 
     vkCmdPushConstants(cmd_buf, _shadow_pipeline->pipe_layout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Transform), &mt);
 
@@ -530,7 +642,7 @@ void ShadowView::build_command_buffer(VkCommandBuffer cmd_buf)
     }
   }
 
-  //_tree->build_command_buffer(cmd_buf, std::static_pointer_cast<TexturePipeline>(_shadow_pipeline));
+  _tree->build_command_buffer(cmd_buf, std::static_pointer_cast<TexturePipeline>(_shadow_pipeline));
 
   _deer->build_command_buffer(cmd_buf, std::static_pointer_cast<TexturePipeline>(_shadow_pipeline));
 }
@@ -656,6 +768,9 @@ void ShadowView::create_frame_buffers()
     frameBufferCreateInfo.height = _depth_image->height();
     frameBufferCreateInfo.layers = 1;
 
+    for (int i = 0; i < _depth_frames.size(); i++)
+      vkDestroyFramebuffer(*device(), _depth_frames[i], 0);
+
     _depth_frames.resize(_swapchain->image_count());
     for (int i = 0; i < _depth_frames.size(); i++) {
       VK_CHECK_RESULT(vkCreateFramebuffer(*_device, &frameBufferCreateInfo, nullptr, &_depth_frames[i]));
@@ -685,6 +800,9 @@ void ShadowView::create_frame_buffers()
   set_frame_buffers(frameBuffers);
 
   {
+    for (int i = 0; i < _hud_frames.size(); i++)
+      vkDestroyFramebuffer(*device(), _hud_frames[i], 0);
+
     VkFramebufferCreateInfo frameBufferCreateInfo = {};
     frameBufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     frameBufferCreateInfo.pNext = NULL;
@@ -717,17 +835,17 @@ void ShadowView::create_pipeline()
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts = &des_layout;
 
-    VK_CHECK_RESULT(vkAllocateDescriptorSets(*device(), &allocInfo, &_depth_matrix_set));
+    VK_CHECK_RESULT(vkAllocateDescriptorSets(*device(), &allocInfo, &_shadow_matrix_set));
 
-    int sz = sizeof(_depth_matrix);
+    int sz = sizeof(_shadow_matrix);
     VkDescriptorBufferInfo descriptor = {};
-    descriptor.buffer = *_depth_matrix_buf;
+    descriptor.buffer = *_shadow_buf;
     descriptor.offset = 0;
     descriptor.range = sz;
 
     VkWriteDescriptorSet writeDescriptorSet = {};
     writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writeDescriptorSet.dstSet = _depth_matrix_set;
+    writeDescriptorSet.dstSet = _shadow_matrix_set;
     writeDescriptorSet.descriptorCount = 1;
     writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     writeDescriptorSet.pBufferInfo = &descriptor;
@@ -742,40 +860,27 @@ void ShadowView::create_pipeline()
   _deer->realize(_device, _shadow_pipeline);
 
   {
-    auto slayout = _shadow_pipeline->shadow_layout();
+    auto slayout = _shadow_pipeline->shadow_texture_layout();
     VkDescriptorSetAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = _descript_pool;
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts = &slayout;
 
-    VK_CHECK_RESULT(vkAllocateDescriptorSets(*device(), &allocInfo, &_shadow_set));
-
-    int sz = sizeof(ShadowMatrix);
-    VkDescriptorBufferInfo descriptor = {};
-    descriptor.buffer = *_shadow_buf;
-    descriptor.offset = 0;
-    descriptor.range = sz;
-
-    VkWriteDescriptorSet writeDescriptorSet = {};
-    writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writeDescriptorSet.dstSet = _shadow_set;
-    writeDescriptorSet.descriptorCount = 1;
-    writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    writeDescriptorSet.pBufferInfo = &descriptor;
-    writeDescriptorSet.dstBinding = 0;
-    vkUpdateDescriptorSets(*device(), 1, &writeDescriptorSet, 0, nullptr);
+    VK_CHECK_RESULT(vkAllocateDescriptorSets(*device(), &allocInfo, &_shadow_texture_set));
 
     _shadow_texture = std::make_shared<VulkanTexture>();
     _shadow_texture->realize(_depth_image);
-
     VkDescriptorImageInfo depthDescriptor = _shadow_texture->descriptor();
 
+    VkWriteDescriptorSet writeDescriptorSet = {};
+    writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writeDescriptorSet.dstSet = _shadow_texture_set;
+    writeDescriptorSet.descriptorCount = 1;
     writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    writeDescriptorSet.dstBinding = 1;
     writeDescriptorSet.pBufferInfo = 0;
+    writeDescriptorSet.dstBinding = 0;
     writeDescriptorSet.pImageInfo = &depthDescriptor;
-
     vkUpdateDescriptorSets(*device(), 1, &writeDescriptorSet, 0, nullptr);
   }
 

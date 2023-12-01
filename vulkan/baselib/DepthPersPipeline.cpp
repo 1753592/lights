@@ -7,6 +7,7 @@
 #include "RenderData.h"
 
 using tg::vec3;
+using tg::vec2;
 
 #define SHADER_DIR ROOT_DIR##"/vulkan/baselib/shaders"
 
@@ -17,6 +18,11 @@ DepthPersPipeline::DepthPersPipeline(const std::shared_ptr<VulkanDevice>& dev, i
 
 DepthPersPipeline::~DepthPersPipeline()
 {
+  if (_texture_layout)
+  {
+    vkDestroyDescriptorSetLayout(*_device, _texture_layout, 0);
+    _texture_layout = VK_NULL_HANDLE;
+  }
 }
 
 void DepthPersPipeline::realize(VulkanPass *render_pass, int subpass)
@@ -77,23 +83,30 @@ void DepthPersPipeline::realize(VulkanPass *render_pass, int subpass)
   multisampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
   multisampleState.pSampleMask = nullptr;
 
-  VkVertexInputBindingDescription vertexInputBinding = {};
-  vertexInputBinding.binding = 0;  
-  vertexInputBinding.stride = sizeof(vec3);
-  vertexInputBinding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+  VkVertexInputBindingDescription vertexInputBindings[2] = {};
+  vertexInputBindings[0].binding = 0; 
+  vertexInputBindings[0].stride = sizeof(vec3);
+  vertexInputBindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+  vertexInputBindings[1].binding = 2;
+  vertexInputBindings[1].stride = sizeof(vec2);
+  vertexInputBindings[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-  VkVertexInputAttributeDescription vertexInputAttribut = {};
-  vertexInputAttribut.binding = 0;
-  vertexInputAttribut.location = 0;
-  vertexInputAttribut.format = VK_FORMAT_R32G32B32_SFLOAT;
-  vertexInputAttribut.offset = 0;
+  VkVertexInputAttributeDescription vertexInputAttributs[2] = {};
+  vertexInputAttributs[0].binding = 0;
+  vertexInputAttributs[0].location = 0;
+  vertexInputAttributs[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+  vertexInputAttributs[0].offset = 0;
+  vertexInputAttributs[1].binding = 2;
+  vertexInputAttributs[1].location = 2;
+  vertexInputAttributs[1].format = VK_FORMAT_R32G32_SFLOAT;
+  vertexInputAttributs[1].offset = 0;
 
   VkPipelineVertexInputStateCreateInfo vertexInputState = {};
   vertexInputState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-  vertexInputState.vertexBindingDescriptionCount = 1;
-  vertexInputState.pVertexBindingDescriptions = &vertexInputBinding;
-  vertexInputState.vertexAttributeDescriptionCount = 1;
-  vertexInputState.pVertexAttributeDescriptions = &vertexInputAttribut;
+  vertexInputState.vertexBindingDescriptionCount = 2;
+  vertexInputState.pVertexBindingDescriptions = vertexInputBindings;
+  vertexInputState.vertexAttributeDescriptionCount = 2;
+  vertexInputState.pVertexAttributeDescriptions = vertexInputAttributs;
 
   VkPipelineShaderStageCreateInfo shaderStages[2] = {};
   shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -104,7 +117,7 @@ void DepthPersPipeline::realize(VulkanPass *render_pass, int subpass)
 
   shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-  shaderStages[1].module = _device->create_shader(SHADER_DIR "/depth.frag.spv");
+  shaderStages[1].module = _device->create_shader(SHADER_DIR "/depth_pers.frag.spv");
   shaderStages[1].pName = "main";
   assert(shaderStages[1].module != VK_NULL_HANDLE);
 
@@ -130,31 +143,36 @@ void DepthPersPipeline::realize(VulkanPass *render_pass, int subpass)
 VkPipelineLayout DepthPersPipeline::pipe_layout()
 {
   if (!_pipe_layout) {
-    auto lay = matrix_layout();
-
-    VkPushConstantRange transformConstants;
-    transformConstants.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    transformConstants.offset = 0;
-    transformConstants.size = sizeof(Transform);
-
-    VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = {};
-    pPipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pPipelineLayoutCreateInfo.pNext = nullptr;
-    pPipelineLayoutCreateInfo.setLayoutCount = 1;
-    pPipelineLayoutCreateInfo.pSetLayouts = &lay;
-    pPipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-    pPipelineLayoutCreateInfo.pPushConstantRanges = &transformConstants;
-
-    VkPipelineLayout pipe_layout = VK_NULL_HANDLE;
-    VK_CHECK_RESULT(vkCreatePipelineLayout(*_device, &pPipelineLayoutCreateInfo, nullptr, &pipe_layout));
-    _pipe_layout = pipe_layout;
+    _pipe_layout = create_pipe_layout();
   }
   return _pipe_layout;
 }
 
+VkDescriptorSetLayout DepthPersPipeline::texture_layout()
+{
+  if (!_texture_layout) {
+    VkDescriptorSetLayoutBinding layoutBinding = {};
+    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    layoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutBinding.binding = 0;
+    layoutBinding.descriptorCount = 1;
+
+    VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+    layoutInfo.pBindings = &layoutBinding;
+    layoutInfo.bindingCount = 1;
+
+    VkDescriptorSetLayout tex_layout = VK_NULL_HANDLE;
+    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(*_device, &layoutInfo, nullptr, &tex_layout));
+    _texture_layout = tex_layout;
+  }
+  return _texture_layout;
+}
+
 VkPipelineLayout DepthPersPipeline::create_pipe_layout()
 {
-  VkDescriptorSetLayout layout = matrix_layout();
+  VkDescriptorSetLayout desLayout[] = {matrix_layout(), texture_layout()};
 
   VkPushConstantRange transformConstants;
   transformConstants.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
@@ -164,8 +182,8 @@ VkPipelineLayout DepthPersPipeline::create_pipe_layout()
   VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = {};
   pPipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pPipelineLayoutCreateInfo.pNext = nullptr;
-  pPipelineLayoutCreateInfo.setLayoutCount = 1;
-  pPipelineLayoutCreateInfo.pSetLayouts = &layout;
+  pPipelineLayoutCreateInfo.setLayoutCount = 2;
+  pPipelineLayoutCreateInfo.pSetLayouts = desLayout;
   pPipelineLayoutCreateInfo.pushConstantRangeCount = 1;
   pPipelineLayoutCreateInfo.pPushConstantRanges = &transformConstants;
 

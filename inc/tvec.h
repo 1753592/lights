@@ -327,9 +327,7 @@ public:
   }
 
   template <typename U>
-  inline Tvec3(const vecN<U, 3>& that) : base(that)
-  {
-  }
+  inline Tvec3(const vecN<U, 3>& that) : base(that) {}
 
   template <typename U, int32_t n>
   inline this_type operator=(vecN<U, n> vec)
@@ -1046,9 +1044,10 @@ public:
   }
 
   template <typename U>
-  Tmat3(const matNM<U, 3, 3>& that) : base(that)
-  {
-  }
+  Tmat3(const matNM<U, 3, 3>& that) : base(that) {}
+
+  template<int32_t u, int32_t v>
+  Tmat3(const matNM<T, u, v>& that) : base(that) {}
 
   template <typename U>
   this_type& operator=(const matNM<U, 3, 3>& that)

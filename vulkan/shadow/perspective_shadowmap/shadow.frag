@@ -3,11 +3,10 @@
 layout(location = 0) in vec3 vp_pos;
 layout(location = 1) in vec3 vp_norm;
 layout(location = 2) in vec2 vp_uv;
-layout(location = 3) in vec3 vp_suv; 
 
 layout(location = 0) out vec4 frag_color;
 
-layout(binding = 0) uniform MatrixObject
+layout(set = 0, binding = 0) uniform MatrixObject
 {
   vec4 eye;
   mat4 proj;
@@ -35,9 +34,10 @@ layout(set = 4, binding = 0) uniform ShadowMatrix{
   mat4 proj;
   mat4 view;
   mat4 mvp;
+  mat4 pers;
 } shadow_matrix;
 
-layout(set = 4, binding = 1) uniform sampler2D shadow_tex;
+layout(set = 5, binding = 0) uniform sampler2D shadow_tex;
 
 const float pi = 3.14159265359;
 
@@ -98,7 +98,7 @@ void main(void)
   f0 = mix(f0, mate_albedo, mate_metallic);
   vec3 lo = vec3(0.0);
 
-  vec3 l = light.light_dir.xyz;
+  vec3 l = normalize(light.light_dir.xyz);
   vec3 h = normalize(v + l);
   vec3 radiance = light.light_color.rgb;
 
@@ -124,18 +124,22 @@ void main(void)
   color = color / (color + vec3(1.0));
   //color = pow(color, vec3(1.0 / 2.2));
 
-  //if(vp_suv.x > -1 && vp_suv.x < 1 && vp_suv.y > -1 && vp_suv.y < 1)
-  //{
-  //  vec2 suv = vp_suv.xy;
-  //  suv = (suv + vec2(1)) / 2.0;
-  //  suv.y = 1 - suv.y;
-  //  float dep = texture(shadow_tex, suv).r;
-  //  float depbias = tan(acos(dot(n, shadow_matrix.light.xyz))) * 0.0001;
-  //  if(vp_suv.z > dep + depbias)
-  //  {
-  //    color = color * dep;
-  //  }
-  //}
+  {
+    vec4 vtmp = shadow_matrix.pers * vec4(vp_pos, 1);
+    vtmp.xyz /= vtmp.w; vtmp.w = 1;
+    vtmp = shadow_matrix.mvp * vtmp;
+    vtmp.xyz /= vtmp.w;
+    vtmp.xy = (vtmp.xy + vec2(1.0, 1.0)) / 2.0;
+
+    vec2 suv = vtmp.xy;
+    suv.y = 1 - suv.y;
+    float dep = texture(shadow_tex, suv).r;
+    float depbias = (tan(acos(dot(n, l))) + 1) * 0.0001;
+    if(vtmp.z > dep + depbias)
+    {
+      color = color * dep;
+    }
+  }
 
   frag_color = vec4(color, 1.0);
 }

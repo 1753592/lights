@@ -14,13 +14,13 @@ layout(location = 2) in vec2 attr_uv;
 layout(location = 0) out vec3 vp_pos;
 layout(location = 1) out vec3 vp_norm;
 layout(location = 2) out vec2 vp_uv;
-layout(location = 3) out vec3 vp_suv; 
 
 layout(set = 4, binding = 0) uniform ShadowMatrix{
   vec4 light;
   mat4 proj;
   mat4 view;
   mat4 mvp;
+  mat4 pers;
 } shadow_matrix;
 
 
@@ -34,12 +34,6 @@ void main(void)
 {
   vec4 pos = transform.m * vec4(attr_pos, 1.0);
   gl_Position = mvp.proj * mvp.view * pos;
-
-  {
-    vec4 suv = shadow_matrix.mvp * pos;
-    suv /= suv.w;
-    vp_suv = suv.xyz;
-  }
 
   vp_uv = attr_uv;
   vp_pos = pos.xyz / pos.w;

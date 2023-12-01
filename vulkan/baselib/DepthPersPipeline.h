@@ -12,11 +12,12 @@ public:
 
   VkPipelineLayout pipe_layout();
 
-private:
+  VkDescriptorSetLayout texture_layout();
 
+private:
   VkPipelineLayout  create_pipe_layout();
 
-private:
-
   int _w = 0, _h = 0;
+
+  VkDescriptorSetLayout _texture_layout = VK_NULL_HANDLE;
 }; 
