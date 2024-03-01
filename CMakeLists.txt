@@ -22,6 +22,8 @@ configure_file(config config.h)
 
 include_directories(${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/inc)
 
+set(third_dir "" CACHE PATH "")
+
 if(build_opengl)
   add_subdirectory(osg)
 endif()

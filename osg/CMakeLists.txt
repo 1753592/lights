@@ -10,6 +10,8 @@ INCLUDE_DIRECTORIES(${OSG_GEN_INCLUDE_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
 
 cmake_path(SET osg_build_dir  ${OSG_DIR})
 
+set(runtime_dir "${osg_build_dir}/bin;${third_dir}/bin")
+
 add_subdirectory(basic-lighting)
 add_subdirectory(basic-material)
 add_subdirectory(pbr-lighting)

@@ -3,43 +3,37 @@
 #include <filesystem>
 
 using tg::vec3;
+using tg::vec4;
 using tg::mat4;
 
-auto cal_psm_matrix(const tg::vec3 &light_dir, const tg::vec3 &cam_eye, const tg::vec3 &cam_center, float zn, float zf, const tg::boundingbox &psc)
-{
-  struct Ret {
-    tg::mat4 mm;
-    tg::mat4 mp;
-  };
-
-  tg::vec3 lt = tg::normalize(light_dir);
-  auto rt = tg::cross(cam_center - cam_eye, lt);
-  rt = tg::normalize(rt);
-  auto ft = tg::cross(lt, rt);
-
-  tg::vec3 center;
-  tg::boundingbox bd = psc;
-  float n = sqrt(zf * zn) - zn; 
-  float dis = 0, f = 0;
-  {
-    bd.expand(cam_eye);
-    center = psc.center();
-    f = bd.radius() * 2 + n;
-    dis = n + bd.radius();
-  }
-
-  tg::vec3 eye = center - ft * dis;
-  auto mat = tg::lookat(eye, center, lt);
-  return mat;
-}
 
 int main()
 {
-  tg::vec3 light_dir(1, 0, 1);
-  tg::vec3 cam(0, 0, 10);
-  tg::vec3 center(10, 0, 0);
-  float n = 0.1, f = 10;
-  tg::boundingbox bd(tg::vec3(5, 0, 0), tg::vec3(10, 0, 5));
+  mat4 m1 = tg::lookat(vec3(10, 0, 0));
+  mat4 m2 = tg::perspective(90, 1, 1, 100);
+  auto m = m2 * m1;
 
-  cal_psm_matrix(light_dir, cam, center, n, f, bd);
+  vec3 v1 = m * vec3(1, 1, 1);
+  auto m3 = tg::inverse(m);
+  auto m5 = m * *m3;
+  auto m4 = m3->transpose();
+
+  auto v3 = m4 * vec4(1, 1, 1, 1);
+
+  {
+    auto pt2 = m * vec3(2, 2, -5);
+    vec4 xx(pt2, 1);
+    auto ret = tg::dot(xx, v3);
+    printf("");
+  }
+
+  vec3 v31 = m * vec3(2, 2, -5);
+  vec3 v32 = m * vec3(3, 3, -7);
+
+  vec3 dir = v32 - v31;
+  dir = tg::normalize(dir);
+
+  auto xx = tg::dot(dir, tg::vec3(v3));
+
+  printf("");
 }

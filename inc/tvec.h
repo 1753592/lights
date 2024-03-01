@@ -443,6 +443,9 @@ public:
     base::data_[3] = 0;
   }
 
+  template <typename U>
+  inline Tvec4(const vecN<U, 4>& that) : base(that) {}
+
   template <typename U, int32_t n>
   inline this_type operator=(vecN<U, n> vec)
   {
@@ -874,7 +877,7 @@ public:
   inline operator T*() { return static_cast<T*>(data_); }
   inline operator const T*() const { return static_cast<T*>(data_); }
 
-  inline matNM<T, m, n> transpose(void) const
+  inline matNM<T, m, n> transpose() const
   {
     matNM<T, m, n> result;
     for (int i = 0; i < n; i++) {

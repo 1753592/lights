@@ -126,7 +126,7 @@ void TestNode::traverse(NodeVisitor& nv)
 		} else if (_noiseType == 1) {
 			static osg::Vec3 uvw = {0, 0, 1};
 			ImGui::SliderFloat("u", &uvw[0], -1, 1);
-			ImGui::SliderFloat("v", &uvw[1], 0, 1);
+			ImGui::SliderFloat("vulkan", &uvw[1], 0, 1);
 			ImGui::SliderFloat("w", &uvw[2], 0, 1);
 			ss->getOrCreateUniform("uvw", osg::Uniform::FLOAT_VEC3)->set(uvw);
 

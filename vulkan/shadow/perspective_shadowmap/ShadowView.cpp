@@ -381,8 +381,6 @@ void ShadowView::update_light()
     memcpy(data, &light, sizeof(light));
   vkUnmapMemory(*device(), _light->memory());
   }
-
-
 }
 
 void ShadowView::resize(int w, int h)

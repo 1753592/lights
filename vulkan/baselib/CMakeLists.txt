@@ -109,7 +109,7 @@ target_link_libraries(${target_name} PUBLIC ${Vulkan_LIBRARY})
 #target_link_libraries(${target_name} PUBLIC SDL2::SDL2 SDL2::SDL2main)
 target_link_libraries(${target_name} PUBLIC SDL2 SDL2main)
 
-set_target_properties(${target_name} PROPERTIES FOLDER "v")
+set_target_properties(${target_name} PROPERTIES FOLDER "vulkan")
 
 compile_shader(${target_name} ENV opengl FORMAT bin SOURCES ${shaders})
 

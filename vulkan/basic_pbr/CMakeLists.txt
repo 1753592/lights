@@ -40,7 +40,7 @@ target_link_libraries(${target_name} ${Vulkan_LIBRARY})
 target_link_libraries(${target_name} baselib)
 
 
-set_target_properties(${target_name} PROPERTIES FOLDER "v")
+set_target_properties(${target_name} PROPERTIES FOLDER "vulkan")
 
 compile_shader(${target_name} ENV opengl FORMAT bin SOURCES ${shaders})
 
