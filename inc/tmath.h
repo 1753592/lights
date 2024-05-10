@@ -11,8 +11,7 @@
 
 namespace tg {
 
-template<typename T>
-struct random {
+template <typename T> struct random {
   operator T()
   {
     static unsigned int seed = 0x13371337;
@@ -29,8 +28,7 @@ struct random {
   }
 };
 
-template <>
-struct random<float> {
+template <> struct random<float> {
   operator float()
   {
     static unsigned int seed = 0x13371337;
@@ -41,14 +39,13 @@ struct random<float> {
 
     tmp = seed ^ (seed >> 4) ^ (seed << 15);
 
-    *((unsigned int*)&res) = (tmp >> 9) | 0x3F800000;
+    *((unsigned int *)&res) = (tmp >> 9) | 0x3F800000;
 
     return (res - 1.0f);
   }
 };
 
-template <>
-struct random<unsigned int> {
+template <> struct random<unsigned int> {
   operator unsigned int()
   {
     static unsigned int seed = 0x13371337;
@@ -65,37 +62,40 @@ struct random<unsigned int> {
   }
 };
 
-inline mat4 frustum(float left, float right, float bottom, float top, float n, float f)
+template <typename T> inline Tmat4<T> frustum(T left, T right, T bottom, T top, T n, T f)
 {
-  mat4 result;
-  result.identity();
-  if ((right == left) || (top == bottom) || (n == f) || (n < 0.0) || (f < 0.0))
-    return result;
+  T A = (2.0f * n) / (right - left);
+  T B = (2.0f * n) / (top - bottom);
+  T C = (right + left) / (right - left);
+  T D = (top + bottom) / (top - bottom);
 
-  result[0][0] = (2.0f * n) / (right - left);
-  result[1][1] = (2.0f * n) / (top - bottom);
-
-  result[2][0] = (right + left) / (right - left);
-  result[2][1] = (top + bottom) / (top - bottom);
-  result[2][2] = -(f + n) / (f - n);
-  result[2][3] = -1.0f;
-
-  result[3][2] = -(2.0f * f * n) / (f - n);
-  result[3][3] = 0.0f;
-
+#ifdef DEPTH_REVERSE
+  T E = n / (f - n);
+  T F = (f * n) / (f - n);
+#elif defined DEPTH_ZERO
+  T E = f / (n - f);
+  T F = f * n / (n - f);
+#else
+  T E = -(f + n) / (f - n);
+  T F = -(2.0f * f * n) / (f - n);
+#endif
+  Tmat4<T> result;
+  result[0] = Tvec4<T>(A, 0, 0, 0);
+  result[1] = Tvec4<T>(0, B, 0, 0);
+  result[2] = Tvec4<T>(C, D, E, -1);
+  result[3] = Tvec4<T>(0, 0, F, 0);
   return result;
 }
 
 // aspect = width/height
-template<typename T>
-inline Tmat4<T> perspective(T fovy, T aspect, T n, T f)
+template <typename T> inline Tmat4<T> perspective(T fovy, T aspect, T n, T f)
 {
   T q = 1.0f / tan(radians(0.5f * fovy));
   T A = q / aspect;
 #ifdef DEPTH_REVERSE
   T B = n / (f - n);
   T C = n * f / (f - n);
-#elif defined DEPTH_NEAR_ZERO
+#elif defined DEPTH_ZERO
   T B = f / (n - f);
   T C = n * f / (n - f);
 #else
@@ -104,27 +104,32 @@ inline Tmat4<T> perspective(T fovy, T aspect, T n, T f)
 #endif
 
   Tmat4<T> result;
-
   result[0] = Tvec4<T>(A, 0.0f, 0.0f, 0.0f);
   result[1] = Tvec4<T>(0.0f, q, 0.0f, 0.0f);
   result[2] = Tvec4<T>(0.0f, 0.0f, B, -1.0f);
   result[3] = Tvec4<T>(0.0f, 0.0f, C, 0.0f);
-
   return result;
 }
 
-inline mat4 ortho(float left, float right, float bottom, float top, float n, float f)
+template <typename T> inline Tmat4<T> ortho(T left, T right, T bottom, T top, T n, T f)
 {
-  return mat4(vec4(2.0f / (right - left), 0.0f, 0.0f, 0.0f), vec4(0.0f, 2.0f / (top - bottom), 0.0f, 0.0f),
-#ifdef DEPTH_REVERSE
-              vec4(0.0f, 0.0f, 1.0f / (f - n), 0.0f), vec4((left + right) / (left - right), (bottom + top) / (bottom - top), f / (f - n), 1.0f)
-#elif defined DEPTH_NEAR_ZERO
-              vec4(0.0f, 0.0f, 1.0f / (n - f), 0.0f), vec4((left + right) / (left - right), (bottom + top) / (bottom - top), n / (n - f), 1.0f)
+  Tmat4<T> result;
+
+  result[0] = Tvec4<T>(2.0f / (right - left), 0.0f, 0.0f, 0.0f);
+  result[1] = Tvec4<T>(0.0f, 2.0f / (top - bottom), 0.0f, 0.0f);
+#ifdef DEPTH_ZERO
+  result[2] = Tvec4<T>(0.0f, 0.0f, 1.0f / (n - f), 0.0f);
+  result[3] = Tvec4<T>((left + right) / (left - right), (bottom + top) / (bottom - top), n / (n - f), 1.0f);
 #else
-              vec4(0.0f, 0.0f, 2.0f / (n - f), 0.0f), vec4((left + right) / (left - right), (bottom + top) / (bottom - top), (n + f) / (n - f), 1.0f)
+  result[2] = Tvec4<T>(0.0f, 0.0f, 2.0f / (n - f), 0.0f);
+  result[3] = Tvec4<T>((left + right) / (left - right), (bottom + top) / (bottom - top), (n + f) / (n - f), 1.0f);
 #endif
-  );
+  return result;
 }
+
+Tmat4<int> frustum(int, int, int, int, int, int) = delete;
+Tmat4<int> perspective(int, int, int, int) = delete;
+Tmat4<int> ortho(int, int, int, int, int, int) = delete;
 
 // reverse///////////////////////////////////////////////////////////////////////
 inline void view_planes(const mat4& transmat, vec4& l, vec4& r, vec4& b, vec4& t, vec4& n, vec4& f)
@@ -185,7 +190,11 @@ inline Tmat3<T> translate(const Tvec2<T>& v)
 template<typename T>
 inline Tmat4<T> translate(T x, T y, T z)
 {
-  return Tmat4<T>(Tvec4<T>(1.0f, 0.0f, 0.0f, 0.0f), Tvec4<T>(0.0f, 1.0f, 0.0f, 0.0f), Tvec4<T>(0.0f, 0.0f, 1.0f, 0.0f), Tvec4<T>(x, y, z, 1.0f));
+  return Tmat4<T>(
+    Tvec4<T>(T(1), T(0), T(0), T(0)), 
+    Tvec4<T>(T(0), T(1), T(0), T(0)), 
+    Tvec4<T>(T(0), T(0), T(1), T(0)), 
+    Tvec4<T>(x, y, z, T(1)));
 }
 
 template<typename T>

@@ -241,7 +241,7 @@ void ShadowView::set_uniforms()
   auto vp = tg::vec3(100);
   _depth_matrix_buf = device()->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sizeof(MVP));
   _depth_matrix.view = tg::lookat(vp);
-  _depth_matrix.prj = tg::ortho(-25, 25, -25, 25, 10, 300);
+  _depth_matrix.prj = tg::ortho<float>(-25, 25, -25, 25, 10, 400);
 
   VK_CHECK_RESULT(vkMapMemory(*device(), _depth_matrix_buf->memory(), 0, sizeof(MVP), 0, (void **)&data));
   memcpy(data, &_depth_matrix, sizeof(MVP));

@@ -37,7 +37,8 @@ endforeach()
 set_target_properties(${target_name} PROPERTIES FOLDER "osg/demos")
 
 set(SHADERS
-	../glsl/noise.glsl
+	../glsl/blend.vert
+	../glsl/blend.frag
 )
 
 source_group(shaders FILES ${SHADERS})

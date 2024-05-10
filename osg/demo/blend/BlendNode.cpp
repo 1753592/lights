@@ -3,6 +3,7 @@
 #include <osg/BlendFunc>
 #include <osg/BlendEquation>
 #include <osg/Point>
+#include <osgUtil/CullVisitor>
 
 #include <fstream>
 #include <filesystem>
@@ -56,8 +57,10 @@ osg::Geometry *create_points(const osg::Vec3 &pt, const osg::Vec4 &clr)
 
 BlendNode::BlendNode()
 {
-  addChild(create_points({0, 0.2, 3}, {0, 1, 0, 0.7}));
-  addChild(create_points({0, 0, 0}, {1, 0, 0, 0.7}));
+  addChild(create_points({0, 0.2, 4}, {1, 0, 0, 0.5}));
+  addChild(create_points({0, 0, 0}, {0, 1, 0, 0.5}));
+  addChild(create_points({0, -0.2, -4}, {0, 0, 1, 0.5}));
+  addChild(create_points({0, -0.3, -6}, {0.5, 0.5, 0.5, 0.5}));
 
   auto ss = getOrCreateStateSet();
 
@@ -71,7 +74,7 @@ BlendNode::BlendNode()
   }
   {
     auto e = new osg::BlendEquation;
-    e->setEquation(osg::BlendEquation::Equation(0x9295));
+    e->setEquation(osg::BlendEquation::Equation(0x9294));
     ss->setAttributeAndModes(e);
   }
 
@@ -95,9 +98,22 @@ BlendNode::BlendNode()
   prg->addShader(new osg::Shader(osg::Shader::VERTEX, ReadFile("blend.vert")));
   prg->addShader(new osg::Shader(osg::Shader::FRAGMENT, ReadFile("blend.frag")));
   ss->setAttribute(prg);
-
 }
 
 BlendNode::~BlendNode()
 {
+}
+
+void BlendNode::traverse(osg::NodeVisitor &nv)
+{
+  Base::traverse(nv);
+
+  if (nv.getVisitorType() == osg::NodeVisitor::CULL_VISITOR)
+  {
+    auto cv = static_cast<osgUtil::CullVisitor *>(&nv);
+    auto vp = cv->getViewport();
+
+    auto ss = getOrCreateStateSet();
+    ss->getOrCreateUniform("blend_factor", osg::Uniform::FLOAT_VEC4)->set(osg::Vec4(vp->width(), vp->height(), 0, 0));
+  }
 }

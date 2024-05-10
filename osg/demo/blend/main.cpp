@@ -47,7 +47,7 @@ int main(int argc, char** argv)
     camera->setDrawBuffer(buffer);
     camera->setReadBuffer(buffer);
     viewer.addSlave(camera);
-    viewer.getCamera()->setClearColor({0, 0, 0, 0});
+    camera->setClearColor({0, 0, 0, 0});
     viewer.setCameraManipulator(new osgGA::TrackballManipulator);
     viewer.getCameraManipulator()->setHomePosition({0, -100, 0}, {0, 0, 0}, {0, 0, 1});
   }
